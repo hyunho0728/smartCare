@@ -1,0 +1,93 @@
+# ==========================================
+# Python & Flask
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Flask & Instance Folder
+instance/
+.webassets-cache
+
+# ==========================================
+# 가상환경 (Virtual Environments)
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# 환경 변수 및 보안 (Environment & Secrets)
+# ==========================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+
+# ==========================================
+# 데이터베이스 & 로컬 데이터 (DB & SQLite)
+# ==========================================
+*.sqlite3
+*.db
+*.sql
+*.dump
+/migrations/
+
+# 사용자/어르신 개인정보 및 업로드 파일 보호
+/uploads/
+/static/uploads/
+
+# ==========================================
+# IDE & 에디터 (VS Code, JetBrains, etc.)
+# ==========================================
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.sublime-workspace
+*.sublime-project
+
+# ==========================================
+# 운영체제 임시 파일 (OS Files)
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==========================================
+# 로그 및 테스트 (Logs & Tests)
+# ==========================================
+*.log
+.coverage
+htmlcov/
+.pytest_cache/

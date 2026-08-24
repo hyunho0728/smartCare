@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CareLink Pro - 사회복지사 고급 대시보드</title>
+<style>
+:root{--bg:#eef3f9;--panel:#fff;--ink:#172033;--muted:#6b7688;--line:#dce4ef;--nav:#121d33;--blue:#2563eb;--sky:#0ea5e9;--green:#16a34a;--yellow:#eab308;--orange:#f97316;--red:#ef4444;--shadow:0 18px 50px rgba(25,40,70,.10);--soft:0 8px 24px rgba(25,40,70,.08)}
+*{box-sizing:border-box;margin:0;padding:0}body{min-height:100vh;background:radial-gradient(circle at 10% 0,rgba(37,99,235,.18),transparent 34%),radial-gradient(circle at 95% 12%,rgba(14,165,233,.16),transparent 30%),linear-gradient(135deg,#edf4ff,#f7f9fd 50%,#eef3f9);color:var(--ink);font-family:'Pretendard','Noto Sans KR','Apple SD Gothic Neo',system-ui,sans-serif}.login{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:30px}.login-card{width:430px;background:rgba(255,255,255,.9);border:1px solid rgba(255,255,255,.75);backdrop-filter:blur(16px);border-radius:30px;box-shadow:0 30px 90px rgba(13,28,55,.25);padding:42px}.login-logo{width:76px;height:76px;border-radius:24px;background:linear-gradient(135deg,var(--blue),var(--sky));display:flex;align-items:center;justify-content:center;color:#fff;font-size:38px;margin:0 auto 22px;box-shadow:0 12px 30px rgba(37,99,235,.32)}.login-card h1{text-align:center;font-size:28px;margin-bottom:8px}.login-card p{text-align:center;color:var(--muted);font-size:15px;line-height:1.55;margin-bottom:28px}.label{font-size:13px;font-weight:800;color:#46546a;margin:18px 0 8px;display:block}.input{width:100%;height:52px;border:1.5px solid var(--line);border-radius:15px;padding:0 15px;font-size:15px;outline:none;background:#fff}.input:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(37,99,235,.08)}.btn{border:0;border-radius:14px;height:46px;padding:0 18px;font-weight:900;cursor:pointer;font-family:inherit;font-size:14px;transition:.18s}.btn:hover{transform:translateY(-1px)}.btn.primary{background:linear-gradient(135deg,var(--blue),#1d4ed8);color:white}.btn.soft{background:#eef4ff;color:var(--blue)}.btn.full{width:100%;height:54px;font-size:16px;margin-top:24px}.dashboard{display:none;min-height:100vh}.layout{display:grid;grid-template-columns:280px 1fr;min-height:100vh}.sidebar{background:linear-gradient(180deg,#111d35,#172846 62%,#10182b);color:#fff;padding:26px 20px;position:sticky;top:0;height:100vh}.brand{display:flex;gap:13px;align-items:center;padding:8px 8px 28px;border-bottom:1px solid rgba(255,255,255,.08)}.brand-mark{width:52px;height:52px;border-radius:18px;background:linear-gradient(135deg,#3b82f6,#06b6d4);display:flex;align-items:center;justify-content:center;font-size:27px;box-shadow:0 12px 32px rgba(37,99,235,.25)}.brand h2{font-size:20px;line-height:1.2}.brand span{font-size:12px;color:#aebbd2}.nav{padding:22px 0;display:flex;flex-direction:column;gap:8px}.nav button{height:50px;border:0;background:transparent;color:#b8c4d8;text-align:left;border-radius:16px;padding:0 16px;font-weight:800;font-size:15px;cursor:pointer}.nav button:hover,.nav button.active{background:rgba(255,255,255,.1);color:#fff}.nav button.active{box-shadow:inset 4px 0 0 #38bdf8}.worker{position:absolute;left:20px;right:20px;bottom:22px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:20px;padding:18px}.worker b{display:block;margin-bottom:6px}.worker p{font-size:13px;color:#b8c4d8;line-height:1.55}.main{padding:28px 34px 42px;min-width:0}.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}.title h1{font-size:31px;margin-bottom:8px}.title p{font-size:15px;color:var(--muted)}.tools{display:flex;gap:10px;align-items:center}.search{width:300px;height:46px;border:1px solid var(--line);border-radius:15px;background:#fff;padding:0 15px;font-size:14px;outline:none}.icon-alert{width:46px;height:46px;border:0;border-radius:15px;background:#fff3cd;font-size:20px;cursor:pointer;position:relative}.icon-alert:before{content:'🔔'}.icon-alert:after{content:'';position:absolute;top:9px;right:10px;width:9px;height:9px;background:var(--red);border-radius:50%}.page{display:none}.page.active{display:block}.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:22px}.kpi{background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.85);border-radius:24px;padding:22px;box-shadow:var(--soft);position:relative;overflow:hidden}.kpi:after{content:'';position:absolute;right:-28px;top:-28px;width:90px;height:90px;border-radius:50%;background:rgba(37,99,235,.08)}.kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}.kpi-icon{width:50px;height:50px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:25px}.kpi strong{font-size:32px}.kpi p{color:var(--muted);font-size:13px;margin-top:4px}.badge{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:900}.b-blue{background:#dbeafe;color:#1d4ed8}.b-green{background:#dcfce7;color:#15803d}.b-yellow{background:#fef3c7;color:#92400e}.b-red{background:#fee2e2;color:#b91c1c}.grid{display:grid;grid-template-columns:1.45fr .85fr;gap:20px}.panel{background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.92);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}.panel-head{padding:20px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:15px}.panel-head h3{font-size:18px}.panel-head span{color:var(--muted);font-size:13px}.filters{display:flex;gap:8px;flex-wrap:wrap}.chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:900;cursor:pointer}.chip.active{background:#172033;color:#fff;border-color:#172033}.table{width:100%;border-collapse:collapse}.table th{background:#f8fafc;color:#667085;font-size:12px;text-align:left;padding:13px 18px;border-bottom:1px solid var(--line)}.table td{padding:15px 18px;border-bottom:1px solid #eef2f7;font-size:14px;vertical-align:middle}.main-row{cursor:pointer}.main-row:hover td{background:#f8fbff}.person{display:flex;align-items:center;gap:12px}.avatar{width:43px;height:43px;border-radius:50%;background:linear-gradient(135deg,#dbeafe,#cffafe);display:flex;align-items:center;justify-content:center;font-size:22px}.person b{font-size:15px}.person small{color:var(--muted)}.gauge{display:flex;align-items:center;gap:10px}.circle{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:12px;border:4px solid}.detail-row{display:none;background:#f8fafc}.detail-row.open{display:table-row}.detail-wrap{padding:20px 24px;animation:fade .22s ease}@keyframes fade{from{opacity:0;transform:translateY(-4px)}to{opacity:1;transform:translateY(0)}}.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}.detail-box{background:#fff;border:1px solid var(--line);border-radius:18px;padding:17px}.detail-box h4{font-size:14px;margin-bottom:10px;color:#1e3a5f}.detail-box p{font-size:13px;color:#475569;line-height:1.65}.actions{display:flex;gap:6px;flex-wrap:wrap}.mini-btn{border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px 10px;font-weight:900;font-size:12px;cursor:pointer}.mini-btn:hover{border-color:var(--blue);color:var(--blue);background:#eff6ff}.mini-btn.danger:hover{border-color:var(--red);color:var(--red);background:#fff1f2}.alert-list{padding:16px;display:flex;flex-direction:column;gap:12px}.alert{background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:18px;padding:16px;cursor:pointer}.alert.yellow{border-left-color:var(--yellow)}.alert.blue{border-left-color:var(--blue)}.alert h4{display:flex;justify-content:space-between;font-size:14px;margin-bottom:7px}.alert p{font-size:13px;color:var(--muted);line-height:1.55}.chart{padding:20px 24px}.chart svg{width:100%;height:190px}.analysis{display:grid;grid-template-columns:1fr 1fr;gap:20px}.analysis-box{border-left:5px solid var(--blue);background:#f8fbff;border-radius:0 18px 18px 0;padding:18px;margin-bottom:14px}.analysis-box.danger{border-left-color:var(--red);background:#fff6f6}.analysis-box h4{font-size:15px;margin-bottom:8px}.analysis-box p{font-size:13px;color:#475569;line-height:1.65}.modal-bg{position:fixed;inset:0;background:rgba(8,15,30,.58);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}.modal-bg.show{display:flex}.modal{width:560px;background:#fff;border-radius:26px;box-shadow:0 30px 90px rgba(0,0,0,.28);overflow:hidden}.modal-head{padding:22px 24px;border-bottom:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}.close{border:0;background:#f1f5f9;border-radius:12px;width:40px;height:40px;font-size:22px;cursor:pointer}.modal-body{padding:24px}.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}.textarea{height:92px;padding:12px;resize:none}.emergency .modal{border:4px solid var(--red);text-align:center}.e-icon{font-size:68px;margin:14px 0}.e-title{font-size:25px;font-weight:900;color:var(--red);margin-bottom:8px}@media(max-width:1180px){.layout{grid-template-columns:1fr}.sidebar{display:none}.kpis{grid-template-columns:repeat(2,1fr)}.grid,.analysis{grid-template-columns:1fr}}
+
+.detail-grid.pro{
+  grid-template-columns: 1.05fr 1.2fr;
+  gap:18px;
+}
+.profile-card{
+  background:linear-gradient(180deg,#ffffff,#f8fbff);
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:18px;
+}
+.profile-head{
+  display:flex;
+  align-items:center;
+  gap:14px;
+  margin-bottom:16px;
+}
+.profile-photo{
+  width:64px;height:64px;border-radius:22px;
+  background:linear-gradient(135deg,#dbeafe,#cffafe);
+  display:flex;align-items:center;justify-content:center;
+  font-size:34px;
+}
+.profile-head h3{font-size:20px;margin-bottom:4px}
+.profile-head p{font-size:13px;color:var(--muted)}
+.info-list{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.info-item{
+  background:#f8fafc;
+  border:1px solid #edf2f7;
+  border-radius:14px;
+  padding:12px;
+}
+.info-item span{
+  display:block;
+  font-size:11px;
+  color:var(--muted);
+  font-weight:900;
+  margin-bottom:5px;
+}
+.info-item b{
+  font-size:13px;
+  color:#1f2937;
+}
+.risk-chart-box{
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:20px;
+  padding:18px;
+}
+.risk-chart-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:12px;
+}
+.risk-chart-head h4{font-size:15px;margin-bottom:5px}
+.risk-chart-head p{font-size:12px;color:var(--muted)}
+.risk-score-big{
+  text-align:right;
+  font-weight:900;
+  color:var(--red);
+  font-size:24px;
+}
+.risk-chart{
+  width:100%;
+  height:160px;
+}
+.timeline{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:10px;
+  margin-top:12px;
+}
+.timeline-card{
+  background:#f8fafc;
+  border:1px solid #edf2f7;
+  border-radius:14px;
+  padding:11px;
+}
+.timeline-card span{
+  display:block;
+  color:var(--muted);
+  font-size:11px;
+  font-weight:900;
+  margin-bottom:5px;
+}
+.timeline-card b{
+  font-size:13px;
+}
+.ai-note{
+  margin-top:12px;
+  border-left:4px solid var(--red);
+  background:#fff7f7;
+  border-radius:0 14px 14px 0;
+  padding:13px;
+  color:#475569;
+  font-size:13px;
+  line-height:1.55;
+}
+
+
+/* ===== 확실히 바뀐 상세 패널 v2 ===== */
+.detail-row.open td{
+  background:#edf4ff !important;
+  padding:0 !important;
+}
+.detail-wrap.v2{
+  padding:26px;
+  background:
+    radial-gradient(circle at 5% 0%, rgba(37,99,235,.10), transparent 32%),
+    linear-gradient(180deg,#f8fbff,#eef4ff);
+  border-top:2px solid #bfdbfe;
+  border-bottom:2px solid #bfdbfe;
+}
+.detail-title-v2{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  margin-bottom:20px;
+}
+.detail-title-v2 h3{
+  font-size:24px;
+  margin-bottom:5px;
+}
+.detail-title-v2 p{
+  font-size:14px;
+  color:var(--muted);
+}
+.detail-status-v2{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+.detail-dashboard-v2{
+  display:grid;
+  grid-template-columns: 360px 1fr;
+  gap:20px;
+}
+.elder-profile-v2{
+  background:#fff;
+  border:1px solid #dbe7f6;
+  border-radius:26px;
+  padding:22px;
+  box-shadow:0 14px 34px rgba(37,99,235,.10);
+}
+.elder-profile-top-v2{
+  display:flex;
+  gap:16px;
+  align-items:center;
+  margin-bottom:18px;
+}
+.elder-photo-v2{
+  width:76px;
+  height:76px;
+  border-radius:26px;
+  background:linear-gradient(135deg,#dbeafe,#cffafe);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:42px;
+}
+.elder-profile-top-v2 h4{
+  font-size:22px;
+  margin-bottom:5px;
+}
+.elder-profile-top-v2 p{
+  color:var(--muted);
+  font-size:13px;
+}
+.info-grid-v2{
+  display:grid;
+  grid-template-columns:1fr;
+  gap:10px;
+}
+.info-card-v2{
+  background:#f8fafc;
+  border:1px solid #e6edf7;
+  border-radius:16px;
+  padding:13px 14px;
+}
+.info-card-v2 span{
+  display:block;
+  font-size:11px;
+  font-weight:900;
+  color:#64748b;
+  margin-bottom:5px;
+}
+.info-card-v2 b{
+  font-size:14px;
+  color:#111827;
+}
+.detail-right-v2{
+  display:grid;
+  grid-template-rows:auto auto;
+  gap:16px;
+}
+.risk-panel-v2{
+  background:#fff;
+  border:1px solid #dbe7f6;
+  border-radius:26px;
+  padding:22px;
+  box-shadow:0 14px 34px rgba(37,99,235,.10);
+}
+.risk-head-v2{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  margin-bottom:12px;
+}
+.risk-head-v2 h4{
+  font-size:20px;
+  margin-bottom:5px;
+}
+.risk-head-v2 p{
+  font-size:13px;
+  color:var(--muted);
+}
+.score-big-v2{
+  font-size:42px;
+  font-weight:1000;
+  line-height:1;
+}
+.score-big-v2 small{
+  font-size:15px;
+  color:var(--muted);
+}
+.risk-svg-v2{
+  width:100%;
+  height:210px;
+  background:linear-gradient(180deg,#fbfdff,#f8fbff);
+  border:1px solid #edf2f7;
+  border-radius:18px;
+  padding:8px;
+}
+.quick-grid-v2{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:12px;
+  margin-top:14px;
+}
+.quick-card-v2{
+  background:#f8fafc;
+  border:1px solid #e6edf7;
+  border-radius:16px;
+  padding:14px;
+}
+.quick-card-v2 span{
+  display:block;
+  font-size:11px;
+  color:#64748b;
+  font-weight:900;
+  margin-bottom:5px;
+}
+.quick-card-v2 b{
+  font-size:16px;
+}
+.ai-panel-v2{
+  background:#fff;
+  border:1px solid #dbe7f6;
+  border-radius:26px;
+  padding:20px 22px;
+  box-shadow:0 14px 34px rgba(37,99,235,.10);
+  border-left:8px solid var(--red);
+}
+.ai-panel-v2 h4{
+  font-size:18px;
+  margin-bottom:8px;
+}
+.ai-panel-v2 p{
+  color:#475569;
+  line-height:1.65;
+  font-size:14px;
+}
+.ai-actions-v2{
+  display:flex;
+  gap:8px;
+  margin-top:14px;
+}
+@media(max-width:1180px){
+  .detail-dashboard-v2{grid-template-columns:1fr}
+  .quick-grid-v2{grid-template-columns:1fr}
+}
+
+
+.signup-link{
+  text-align:center;
+  margin-top:18px;
+  color:var(--muted);
+  font-size:14px;
+}
+.signup-link button{
+  border:0;
+  background:none;
+  color:var(--blue);
+  font-weight:900;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:14px;
+}
+.signup-card{
+  width:520px;
+}
+.form-grid.signup{
+  grid-template-columns:1fr 1fr;
+  gap:14px;
+}
+.back-login{
+  margin-top:16px;
+  text-align:center;
+}
+.back-login button{
+  border:0;
+  background:none;
+  color:var(--blue);
+  font-weight:900;
+  cursor:pointer;
+  font-family:inherit;
+}
+
+
+.chart-title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  width:100%;
+}
+.chart-person-select{
+  height:36px;
+  border:1px solid var(--line);
+  border-radius:10px;
+  background:#fff;
+  padding:0 12px;
+  font-weight:800;
+  color:#111827;
+  outline:none;
+}
+.chart-person-info{
+  padding:0 24px 10px;
+  color:var(--muted);
+  font-size:13px;
+}
+
+
+/* 상단 공통 어르신 등록 버튼 제거 후 정렬 보정 */
+.tools{
+  justify-content:flex-end;
+}
+
+
+/* 기저질환 선택 영역 */
+.disease-options{
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:10px;
+  margin-top:8px;
+}
+.disease-option{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:42px;
+  padding:10px 12px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  background:#f8fafc;
+  font-size:13px;
+  font-weight:800;
+  color:#334155;
+}
+.disease-option input{
+  width:16px;
+  height:16px;
+  accent-color:var(--blue);
+}
+.disease-other{
+  margin-top:10px;
+}
+
+
+/* 기저질환 드롭다운 방식으로 변경 */
+.disease-options,
+.disease-option,
+.disease-other{
+  display:none !important;
+}
+
+</style>
+</head>
+<body>
+<section class="login" id="login">
+  <div class="login-card">
+    <div class="login-logo">👩‍💼</div>
+    <h1>CareLink Pro</h1>
+    <p>사회복지사 전용 독거노인 건강 모니터링 시스템</p>
+
+    <label class="label">아이디</label>
+    <input class="input" value="복지사_01">
+
+    <label class="label">비밀번호</label>
+    <input class="input" type="password" value="12341234">
+
+    <button class="btn primary full" onclick="login()">로그인</button>
+
+    <div class="signup-link">
+      아직 계정이 없나요?
+      <button onclick="showSignup()">회원가입</button>
+    </div>
+  </div>
+</section>
+
+<section class="login" id="signup" style="display:none;">
+  <div class="login-card signup-card">
+    <div class="login-logo">📝</div>
+    <h1>사회복지사 회원가입</h1>
+    <p>담당자 정보를 입력하면 관리자 계정을 생성할 수 있습니다.</p>
+
+    <div class="form-grid signup">
+      <div>
+        <label class="label">이름</label>
+        <input class="input" id="signupName" placeholder="예: 김복지">
+      </div>
+      <div>
+        <label class="label">소속 기관</label>
+        <input class="input" placeholder="예: 강남구 복지센터">
+      </div>
+    </div>
+
+    <div class="form-grid signup">
+      <div>
+        <label class="label">아이디</label>
+        <input class="input" placeholder="아이디 입력">
+      </div>
+      <div>
+        <label class="label">연락처</label>
+        <input class="input" placeholder="010-0000-0000">
+      </div>
+    </div>
+
+    <label class="label">이메일</label>
+    <input class="input" placeholder="example@email.com">
+
+    <div class="form-grid signup">
+      <div>
+        <label class="label">비밀번호</label>
+        <input class="input" type="password" placeholder="비밀번호 입력">
+      </div>
+      <div>
+        <label class="label">비밀번호 확인</label>
+        <input class="input" type="password" placeholder="비밀번호 재입력">
+      </div>
+    </div>
+
+    <label class="label">담당 지역</label>
+    <input class="input" placeholder="예: 서울시 강남구 역삼동">
+
+    <button class="btn primary full" onclick="signupDone()">가입 완료</button>
+
+    <div class="back-login">
+      <button onclick="showLogin()">← 로그인 화면으로 돌아가기</button>
+    </div>
+  </div>
+</section>
+
+<section class="dashboard" id="dashboard"><div class="layout"><aside class="sidebar"><div class="brand"><div class="brand-mark">❤</div><div><h2>CareLink<br>Pro</h2><span>사회복지사 관제센터</span></div></div><nav class="nav"><button class="active" onclick="nav('live',this)">📊 실시간 현황판</button><button onclick="nav('elder',this)">👵 담당 어르신 계정</button><button onclick="nav('analysis',this)">📈 건강 분석 리포트</button><button onclick="nav('alerts',this)">🔔 알림 및 기록 관리</button><button onclick="nav('match',this)">🔗 담당자 배정</button></nav><div class="worker"><b>김복지 복지사</b><p>서울시 강남구 담당<br>오늘 확인 필요 3건</p><button class="btn soft" style="width:100%;margin-top:12px" onclick="logout()">로그아웃</button></div></aside>
+<main class="main"><div class="topbar"><div class="title"><h1 id="pageTitle">실시간 모니터링 현황판</h1><p id="pageDesc">담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.</p></div><div class="tools"><input class="search" id="search" placeholder="이름 검색..." oninput="renderTable()"><button class="icon-alert" onclick="openEmergency()"></button></div></div>
+<section class="page active" id="live"><div class="kpis"><div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#dbeafe">👵</div><span class="badge b-blue">전체</span></div><strong>8</strong><p>전체 담당 어르신</p></div><div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#dcfce7">✅</div><span class="badge b-green">완료</span></div><strong>5</strong><p>오늘 체크 완료</p></div><div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#fef3c7">⚠️</div><span class="badge b-yellow">주의</span></div><strong>2</strong><p>주의 / 경고 단계</p></div><div class="kpi"><div class="kpi-top"><div class="kpi-icon" style="background:#fee2e2">🚨</div><span class="badge b-red">위험</span></div><strong>1</strong><p>즉시 확인 필요</p></div></div>
+<div class="grid"><div><div class="panel"><div class="panel-head"><div><h3>담당 어르신 실시간 목록</h3><span>행을 클릭하면 AI 진단 상세 정보가 펼쳐집니다.</span></div><div class="filters"><button class="chip active" onclick="setFilter('all',this)">전체</button><button class="chip" onclick="setFilter('safe',this)">안전</button><button class="chip" onclick="setFilter('watch',this)">주의</button><button class="chip" onclick="setFilter('warn',this)">경고</button><button class="chip" onclick="setFilter('danger',this)">위험</button></div></div><table class="table"><thead><tr><th>이름</th><th>나이</th><th>건강 위험도</th><th>오늘 상태</th><th>마지막 접속</th><th>관리</th></tr></thead><tbody id="tbody"></tbody></table></div>
+<div class="panel">
+  <div class="panel-head">
+    <div class="chart-title-row">
+      <div>
+        <h3>📈 건강 점수 변화 추이</h3>
+        <span id="chartSubText">김영수 어르신의 최근 7일 건강 위험 점수 변화입니다.</span>
+      </div>
+      <select class="chart-person-select" id="chartUserSelect" onchange="updateMainChart(this.value)">
+        <option value="0">김영수 (82세)</option>
+        <option value="1">이정호 (79세)</option>
+        <option value="2">최수자 (71세)</option>
+        <option value="3">박순례 (75세)</option>
+        <option value="5">강말순 (88세)</option>
+      </select>
+    </div>
+  </div>
+  <div class="chart-person-info" id="chartPersonInfo">
+    선택 대상자: 김영수 어르신 · 현재 위험도: 위험 · 현재 점수: 38점
+  </div>
+  <div class="chart">
+    <svg viewBox="0 0 700 210" preserveAspectRatio="none">
+      <defs>
+        <linearGradient id="mainChartGrad" x1="0" y1="0" x2="0" y2="1">
+          <stop id="mainChartStop1" offset="0%" stop-color="#ef4444" stop-opacity=".22"/>
+          <stop id="mainChartStop2" offset="100%" stop-color="#ef4444" stop-opacity="0"/>
+        </linearGradient>
+      </defs>
+      <line x1="0" y1="45" x2="700" y2="45" stroke="#e5edf6"/>
+      <line x1="0" y1="95" x2="700" y2="95" stroke="#e5edf6"/>
+      <line x1="0" y1="145" x2="700" y2="145" stroke="#e5edf6"/>
+      <polyline id="mainChartLine" points="0,55 110,72 220,66 330,104 440,118 550,144 700,164" fill="none" stroke="#ef4444" stroke-width="4" stroke-linejoin="round"/>
+      <polyline id="mainChartFill" points="0,55 110,72 220,66 330,104 440,118 550,144 700,164 700,210 0,210" fill="url(#mainChartGrad)"/>
+      <line id="mainChartTrend" x1="0" y1="58" x2="700" y2="170" stroke="#ef4444" stroke-width="2" stroke-dasharray="7 6"/>
+      <text x="0" y="202" font-size="12" fill="#8a95a6">5/26</text>
+      <text x="112" y="202" font-size="12" fill="#8a95a6">5/27</text>
+      <text x="224" y="202" font-size="12" fill="#8a95a6">5/28</text>
+      <text x="336" y="202" font-size="12" fill="#8a95a6">5/29</text>
+      <text x="448" y="202" font-size="12" fill="#8a95a6">5/30</text>
+      <text x="560" y="202" font-size="12" fill="#8a95a6">5/31</text>
+      <text x="650" y="202" font-size="12" fill="#8a95a6">오늘</text>
+    </svg>
+  </div>
+</div></div>
+<aside><div class="panel"><div class="panel-head"><h3>최근 징후 알림</h3></div><div class="alert-list"><div class="alert" onclick="openEmergency()"><h4>김영수 어르신 <span>긴급</span></h4><p>긴급 전화 버튼을 누르셨습니다. 즉시 통화 확인이 필요합니다.</p></div><div class="alert yellow"><h4>이정호 어르신 <span>위험</span></h4><p>평소 대비 첫 접속 시간이 2시간 이상 지연되었습니다.</p></div><div class="alert blue"><h4>박순례 어르신 <span>주의</span></h4><p>오늘 식사 체크가 아직 완료되지 않았습니다.</p></div></div></div><div class="panel"><div class="panel-head"><h3>미배정 어르신</h3></div><div class="alert-list"><div class="alert blue"><h4>홍말순 어르신 <span>0.8km</span></h4><p>주소지와 담당 구역이 가까워 1순위 배정 권장입니다.</p><button class="mini-btn" onclick="toast('홍말순 어르신이 김복지 사회복지사에게 배정되었습니다.')">담당 복지사 배정</button></div></div></div></aside></div></section>
+<section class="page" id="elder"><div class="panel"><div class="panel-head"><h3>담당 어르신 계정 관리</h3><button class="btn primary" onclick="openAdd()">신규 등록</button></div><table class="table"><thead><tr><th>관리 번호</th><th>이름</th><th>나이/성별</th><th>휴대폰 번호</th><th>비상 연락처</th><th>기저질환</th><th>관리 등급</th><th>작업</th></tr></thead><tbody><tr><td>USR-108</td><td>김영수</td><td>82세 / 남</td><td>010-1111-2222</td><td>010-9999-8888</td><td><span class="badge b-red">고혈압, 당뇨</span></td><td>4단계</td><td><button class="mini-btn">수정</button></td></tr><tr><td>USR-112</td><td>박순례</td><td>75세 / 여</td><td>010-2222-3333</td><td>010-7777-6666</td><td><span class="badge b-green">없음</span></td><td>1단계</td><td><button class="mini-btn">수정</button></td></tr><tr><td>USR-119</td><td>이정호</td><td>79세 / 남</td><td>010-3333-4444</td><td>010-7777-5555</td><td><span class="badge b-yellow">관절염</span></td><td>3단계</td><td><button class="mini-btn">수정</button></td></tr></tbody></table></div></section>
+<section class="page" id="analysis"><div class="analysis"><div class="panel" style="padding:24px"><div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>AI 생활 패턴 분석</h3></div><div class="analysis-box danger"><h4>복합 악화 흐름 감지 - 김영수 어르신</h4><p>건강 만족도 점수가 일주일 동안 5단계에서 2단계로 하락했고, 식사 결식 빈도가 동시에 증가했습니다. 전화 확인 또는 방문 확인이 필요합니다.</p></div><div class="analysis-box danger"><h4>생활 패턴 지연 - 이정호 어르신</h4><p>평소 앱 접속 시간보다 2시간 20분 이상 지연되었습니다. 최근 3일간 같은 현상이 반복되어 위험도가 상승했습니다.</p></div><div class="analysis-box"><h4>정상 패턴 - 강말순 어르신</h4><p>건강 상태와 식사 여부 입력 시간이 규칙적이며, 최근 위험 알림이 발생하지 않았습니다.</p></div></div><div class="panel"><div class="panel-head"><h3>AI 예측 위험도</h3></div><table class="table"><thead><tr><th>어르신</th><th>시간 오차</th><th>활동 감소율</th><th>예측 위험도</th></tr></thead><tbody><tr><td><b>이정호</b></td><td>+2시간 20분</td><td style="color:var(--red);font-weight:900">-45.2%</td><td><span class="badge b-red">91.4%</span></td></tr><tr><td><b>김영수</b></td><td>+1시간 10분</td><td style="color:var(--red);font-weight:900">-38.6%</td><td><span class="badge b-red">88.1%</span></td></tr><tr><td><b>박순례</b></td><td>+5분</td><td>-1.2%</td><td><span class="badge b-green">4.5%</span></td></tr></tbody></table></div></div></section>
+<section class="page" id="alerts"><div class="panel"><div class="panel-head"><h3>위험 알림 및 조치 기록</h3></div><table class="table"><thead><tr><th>알림 번호</th><th>대상자</th><th>위험 사유</th><th>권장 조치</th><th>조치 기록</th><th>상태</th></tr></thead><tbody><tr><td>ALM-802</td><td><b>김영수</b></td><td>연속 결식 및 위험 점수 하락</td><td><span class="badge b-red">방문 확인</span></td><td><button class="mini-btn danger" onclick="openFeedback('김영수')">결과 작성</button></td><td>대기</td></tr><tr><td>ALM-794</td><td><b>이정호</b></td><td>접속 시간 지연</td><td><span class="badge b-yellow">안부 전화</span></td><td>전화 통화 완료</td><td>완료</td></tr></tbody></table></div></section>
+<section class="page" id="match"><div class="panel"><div class="panel-head"><h3>주소지 거리 기반 담당자 자동 배정</h3></div><table class="table"><thead><tr><th>어르신</th><th>거주 위치</th><th>거리</th><th>질환 중증도</th><th>추천 점수</th><th>배정</th></tr></thead><tbody><tr><td><b>홍말순</b> 85세</td><td>서울시 강남구 역삼동</td><td><b>0.8km</b></td><td>3단계</td><td><span class="badge b-green">94.5점</span></td><td><button class="mini-btn" onclick="toast('홍말순 어르신이 김복지 사회복지사에게 배정되었습니다.')">담당 복지사 지정</button></td></tr><tr><td><b>장기철</b> 77세</td><td>서울시 강남구 논현동</td><td><b>1.4km</b></td><td>5단계</td><td><span class="badge b-yellow">88.1점</span></td><td><button class="mini-btn">배정 요청</button></td></tr></tbody></table></div></section>
+</main></div></section>
+<div class="modal-bg emergency" id="emergency"><div class="modal"><div class="modal-body"><div class="e-icon">🚨</div><div class="e-title">긴급 연락 수신</div><p style="line-height:1.7;color:var(--muted);margin-bottom:22px"><b>김영수 어르신</b>이 긴급 전화 버튼을 누르셨습니다.<br>즉시 전화 확인 또는 방문 확인이 필요합니다.</p><button class="btn primary" onclick="toast('전화 연결 화면입니다.');closeModal('emergency')">📞 즉시 전화</button> <button class="btn soft" onclick="closeModal('emergency')">확인 완료</button></div></div></div>
+<div class="modal-bg" id="add">
+  <div class="modal wide">
+    <div class="modal-head">
+      <h3>새 어르신 등록</h3>
+      <button class="close" onclick="closeModal('add')">×</button>
+    </div>
+
+    <div class="modal-body">
+      <div class="form-grid">
+        <div>
+          <label class="label">이름</label>
+          <input class="input" id="newElderName" placeholder="이름">
+        </div>
+        <div>
+          <label class="label">나이</label>
+          <input class="input" id="newElderAge" type="number" placeholder="나이">
+        </div>
+      </div>
+
+      <label class="label">휴대폰 번호 <span style="color:var(--muted);font-weight:700;">(로그인 계정)</span></label>
+      <input class="input" id="newElderPhone" placeholder="010-0000-0000">
+
+      <label class="label">주소</label>
+      <input class="input" id="newElderAddress" placeholder="서울시 강남구...">
+
+      <div class="form-grid">
+        <div>
+          <label class="label">성별</label>
+          <select class="input" id="newElderGender">
+            <option value="남">남</option>
+            <option value="여">여</option>
+          </select>
+        </div>
+        <div>
+          <label class="label">기저질환</label>
+          <select class="input" id="newElderDisease" onchange="handleDiseaseSelect()">
+            <option value="없음">없음</option>
+            <option value="고혈압">고혈압</option>
+            <option value="당뇨병">당뇨병</option>
+            <option value="관절염">관절염</option>
+            <option value="심혈관질환">심혈관질환</option>
+            <option value="치매 / 인지장애">치매 / 인지장애</option>
+            <option value="기타">기타</option>
+          </select>
+        </div>
+      </div>
+      <input class="input form-gap" id="newDiseaseOther" placeholder="기타 질환명을 입력해주세요" style="display:none;">
+
+      <div class="modal-actions">
+        <button class="btn cancel" onclick="closeModal('add')">취소</button>
+        <button class="btn primary" onclick="addElder()">등록하기</button>
+      </div>
+    </div>
+  </div>
+</div>
+<div class="modal-bg" id="feedback"><div class="modal"><div class="modal-head"><h3>조치 결과 작성</h3><button class="close" onclick="closeModal('feedback')">×</button></div><div class="modal-body"><label class="label">대상 어르신</label><input class="input" id="fbName" readonly><label class="label">조치 유형</label><select class="input"><option>전화 확인</option><option>방문 확인</option><option>119/보호자 연계</option></select><label class="label">확인 내용</label><textarea class="input textarea" placeholder="통화 또는 방문 확인 내용을 입력하세요."></textarea><button class="btn primary full" onclick="toast('조치 기록이 저장되었습니다.');closeModal('feedback')">저장</button></div></div></div>
+<script>
+const users=[
+{name:'김영수',age:82,gender:'남',risk:'danger',score:38,health:2,last:'3일 전',late:true,phone:'010-1111-2222',address:'서울시 강남구 역삼동 123-4',guardian:'010-9999-8888 (자녀)',disease:'고혈압, 당뇨',meal:'식사 결식',lastInput:'2026-06-01 09:10',careLevel:'4단계 / 집중관리',chart:'0,55 110,72 220,66 330,104 440,118 550,144 700,164',desc:'건강 만족도 점수가 지속 하락하고 결식 빈도가 증가했습니다. 최근 7일 위험점수 상승 추세가 뚜렷해 방문 확인을 권장합니다.'},
+{name:'이정호',age:79,gender:'남',risk:'danger',score:42,health:1,last:'2일 전',late:true,phone:'010-3333-4444',address:'서울시 강남구 논현동 45-8',guardian:'010-7777-5555 (배우자)',disease:'관절염, 천식',meal:'미입력',lastInput:'2026-06-01 08:43',careLevel:'4단계 / 집중관리',chart:'0,40 110,58 220,76 330,96 440,118 550,138 700,156',desc:'평소 접속 시간 대비 2시간 이상 지연되어 생활 패턴 이상이 감지되었습니다. 활동 감소율이 높아 안부 전화가 필요합니다.'},
+{name:'최수자',age:71,gender:'여',risk:'warn',score:55,health:3,last:'5시간 전',phone:'010-4444-5555',address:'서울시 강남구 삼성동 77-2',guardian:'010-2222-1111 (자녀)',disease:'초기 치매',meal:'식사 예정',lastInput:'2026-06-01 10:22',careLevel:'3단계 / 주의관리',chart:'0,95 110,88 220,92 330,105 440,98 550,114 700,121',desc:'최근 반응 주기가 불규칙합니다. 위험 단계는 아니지만 일정 기간 관찰과 안부 확인을 권장합니다.'},
+{name:'박순례',age:75,gender:'여',risk:'watch',score:67,health:4,last:'2시간 전',phone:'010-2222-3333',address:'서울시 강남구 대치동 12-9',guardian:'010-6666-7777 (이웃)',disease:'없음',meal:'식사 예정',lastInput:'2026-06-01 11:05',careLevel:'2단계 / 관찰관리',chart:'0,120 110,116 220,126 330,118 440,122 550,116 700,110',desc:'오늘 식사 체크가 지연되어 관찰 단계입니다. 전반적인 위험점수는 안정권입니다.'},
+{name:'윤순희',age:83,gender:'여',risk:'watch',score:72,health:3,last:'4시간 전',phone:'010-7777-8888',address:'서울시 강남구 개포동 88-1',guardian:'010-5555-4444 (조카)',disease:'골다공증',meal:'식사 완료',lastInput:'2026-06-01 09:58',careLevel:'2단계 / 관찰관리',chart:'0,130 110,122 220,118 330,124 440,116 550,120 700,112',desc:'식사와 건강 상태 입력은 정상 범위이나 최근 입력 시간이 다소 지연되었습니다.'},
+{name:'강말순',age:88,gender:'여',risk:'safe',score:91,health:5,last:'30분 전',recent:true,phone:'010-5555-6666',address:'서울시 강남구 세곡동 31-7',guardian:'010-8888-1111 (지인)',disease:'경증 고혈압',meal:'식사 완료',lastInput:'2026-06-01 12:10',careLevel:'1단계 / 일반관리',chart:'0,150 110,145 220,148 330,142 440,146 550,141 700,138',desc:'최근 입력 패턴이 안정적이며 건강 상태도 양호합니다. 정기 모니터링만 유지하면 됩니다.'},
+{name:'정봉식',age:77,gender:'남',risk:'safe',score:84,health:4,last:'1시간 전',recent:true,phone:'010-6666-7777',address:'서울시 강남구 청담동 16-5',guardian:'010-3333-2222 (형제)',disease:'없음',meal:'식사 완료',lastInput:'2026-06-01 11:40',careLevel:'1단계 / 일반관리',chart:'0,138 110,132 220,136 330,130 440,134 550,128 700,124',desc:'아침, 점심 입력이 규칙적으로 유지되고 있습니다. 이상 징후가 없습니다.'},
+{name:'조기동',age:69,gender:'남',risk:'safe',score:88,health:5,last:'45분 전',recent:true,phone:'010-8888-9999',address:'서울시 강남구 도곡동 90-3',guardian:'010-1212-3434 (자녀)',disease:'없음',meal:'식사 완료',lastInput:'2026-06-01 11:55',careLevel:'1단계 / 일반관리',chart:'0,142 110,140 220,136 330,132 440,134 550,130 700,126',desc:'자가 입력이 원활하고 이상 징후가 없습니다.'}
+];
+const risk={safe:['안전','b-green','#16a34a'],watch:['주의','b-yellow','#f97316'],warn:['경고','b-yellow','#eab308'],danger:['위험','b-red','#ef4444']};const emoji=['','😫','😟','😐','😊','😄'];let filter='all';
+
+function showSignup(){
+  document.getElementById('login').style.display='none';
+  document.getElementById('signup').style.display='flex';
+}
+function showLogin(){
+  document.getElementById('signup').style.display='none';
+  document.getElementById('login').style.display='flex';
+}
+function signupDone(){
+  const name=document.getElementById('signupName')?.value || '신규 복지사';
+  toast(name + '님 회원가입이 완료되었습니다. 로그인 화면으로 이동합니다.');
+  showLogin();
+}
+
+function login(){document.getElementById('login').style.display='none';document.getElementById('dashboard').style.display='block';renderTable();updateMainChart(0);setTimeout(openEmergency,900)}function logout(){document.getElementById('dashboard').style.display='none';document.getElementById('login').style.display='flex'}
+function nav(id,btn){
+  const descriptions = {
+    live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
+    elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
+    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 AI 분석 결과와 예측 위험도를 확인합니다.',
+    alerts: '이상 징후 알림 발생 내역과 사회복지사의 조치 결과를 기록하고 관리합니다.',
+    match: '주소지 거리와 위험도 정보를 바탕으로 담당 복지사 배정을 지원합니다.'
+  };
+
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.getElementById(id).classList.add('active');
+  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+
+  document.getElementById('pageTitle').innerText = btn.innerText.replace(/[^가-힣\s]/g,'').trim();
+
+  const desc = document.getElementById('pageDesc');
+  if(desc) desc.innerText = descriptions[id] || '';
+}
+function setFilter(f,btn){filter=f;document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));btn.classList.add('active');renderTable()}function renderTable(){
+  const q=document.getElementById('search')?.value||'';
+  const body=document.getElementById('tbody');
+  if(!body)return;
+
+  const data=users.filter(u=>(filter==='all'||u.risk===filter)&&u.name.includes(q));
+  const order={danger:0,warn:1,watch:2,safe:3};
+  data.sort((a,b)=>order[a.risk]-order[b.risk]);
+
+  body.innerHTML=data.map((u,i)=>{
+    const r=risk[u.risk];
+    const healthText=['','매우 나쁨','나쁨','보통','좋음','매우 좋음'][u.health];
+    const actionText = u.risk==='danger' ? '즉시 전화 / 방문 확인' : u.risk==='warn' ? '안부 전화 권장' : u.risk==='watch' ? '오늘 중 재확인' : '정기 관찰';
+    const chartFillId = 'riskFillV2' + i;
+
+    return `
+    <tr class="main-row" onclick="toggle(${i})">
+      <td>
+        <div class="person">
+          <div class="avatar">👵</div>
+          <div><b>${u.name}</b><br><small>${u.phone}</small></div>
+        </div>
+      </td>
+      <td>${u.age}세</td>
+      <td>
+        <div class="gauge">
+          <div class="circle" style="border-color:${r[2]};color:${r[2]}">${u.score}</div>
+          <span class="badge ${r[1]}">● ${r[0]}</span>
+        </div>
+      </td>
+      <td style="font-size:22px">${emoji[u.health]} <small style="font-size:13px;color:#6b7688">${healthText}</small></td>
+      <td><span style="color:${u.late?'#ef4444':u.recent?'#16a34a':'#6b7688'};font-weight:${u.late?'900':'700'}">${u.last}</span></td>
+      <td>
+        <div class="actions">
+          <button class="mini-btn" onclick="event.stopPropagation();toggle(${i})">상세</button>
+          <button class="mini-btn" onclick="event.stopPropagation();toast('${u.name} 어르신 전화 연결 화면입니다.')">전화</button>
+          <button class="mini-btn danger" onclick="event.stopPropagation();toast('${u.name} 어르신 삭제 확인 화면입니다.')">삭제</button>
+        </div>
+      </td>
+    </tr>
+
+    <tr class="detail-row" id="detail-${i}">
+      <td colspan="6">
+        <div class="detail-wrap v2">
+          <div class="detail-title-v2">
+            <div>
+              <h3>${u.name} 어르신 상세 대시보드</h3>
+              <p>기본 인적사항, 연락처, 건강 상태, 위험점수 변화를 한 번에 확인합니다.</p>
+            </div>
+            <div class="detail-status-v2">
+              <span class="badge ${r[1]}">현재 위험도 ${r[0]}</span>
+              <span class="badge b-blue">${u.careLevel || '관리 등급 미지정'}</span>
+            </div>
+          </div>
+
+          <div class="detail-dashboard-v2">
+            <div class="elder-profile-v2">
+              <div class="elder-profile-top-v2">
+                <div class="elder-photo-v2">👵</div>
+                <div>
+                  <h4>${u.name} 어르신</h4>
+                  <p>${u.age}세 / ${u.gender || '성별 미입력'} · 담당 복지사 김복지</p>
+                </div>
+              </div>
+
+              <div class="info-grid-v2">
+                <div class="info-card-v2"><span>주소</span><b>${u.address || '주소 미입력'}</b></div>
+                <div class="info-card-v2"><span>전화번호</span><b>${u.phone}</b></div>
+                <div class="info-card-v2"><span>보호자 연락처</span><b>${u.guardian || u.guard || '보호자 미등록'}</b></div>
+                <div class="info-card-v2"><span>기저질환</span><b>${u.disease}</b></div>
+                <div class="info-card-v2"><span>오늘 식사 여부</span><b>${u.meal || '미입력'}</b></div>
+                <div class="info-card-v2"><span>마지막 입력 시간</span><b>${u.lastInput || u.last}</b></div>
+              </div>
+            </div>
+
+            <div class="detail-right-v2">
+              <div class="risk-panel-v2">
+                <div class="risk-head-v2">
+                  <div>
+                    <h4>최근 7일 위험점수 그래프</h4>
+                    <p>낮은 점수일수록 위험합니다. 날짜별 변화 흐름을 시각화했습니다.</p>
+                  </div>
+                  <div class="score-big-v2" style="color:${r[2]}">${u.score}<small>점</small></div>
+                </div>
+
+                <svg class="risk-svg-v2" viewBox="0 0 700 220" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="${chartFillId}" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stop-color="${r[2]}" stop-opacity=".24"/>
+                      <stop offset="100%" stop-color="${r[2]}" stop-opacity="0"/>
+                    </linearGradient>
+                  </defs>
+                  <line x1="0" y1="45" x2="700" y2="45" stroke="#dbe7f6"/>
+                  <line x1="0" y1="95" x2="700" y2="95" stroke="#dbe7f6"/>
+                  <line x1="0" y1="145" x2="700" y2="145" stroke="#dbe7f6"/>
+                  <polyline points="${u.chart || '0,120 110,115 220,118 330,110 440,116 550,112 700,108'}" fill="none" stroke="${r[2]}" stroke-width="5" stroke-linejoin="round"/>
+                  <polyline points="${u.chart || '0,120 110,115 220,118 330,110 440,116 550,112 700,108'} 700,220 0,220" fill="url(#${chartFillId})"/>
+                  <text x="0" y="210" font-size="12" fill="#64748b">5/26</text>
+                  <text x="112" y="210" font-size="12" fill="#64748b">5/27</text>
+                  <text x="224" y="210" font-size="12" fill="#64748b">5/28</text>
+                  <text x="336" y="210" font-size="12" fill="#64748b">5/29</text>
+                  <text x="448" y="210" font-size="12" fill="#64748b">5/30</text>
+                  <text x="560" y="210" font-size="12" fill="#64748b">5/31</text>
+                  <text x="650" y="210" font-size="12" fill="#64748b">오늘</text>
+                </svg>
+
+                <div class="quick-grid-v2">
+                  <div class="quick-card-v2"><span>건강 상태</span><b>${emoji[u.health]} ${healthText}</b></div>
+                  <div class="quick-card-v2"><span>식사 상태</span><b>${u.meal || '미입력'}</b></div>
+                  <div class="quick-card-v2"><span>권장 조치</span><b>${actionText}</b></div>
+                </div>
+              </div>
+
+              <div class="ai-panel-v2" style="border-left-color:${r[2]}">
+                <h4>🤖 AI 생활 패턴 진단</h4>
+                <p>${u.desc}</p>
+                <div class="ai-actions-v2">
+                  <button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 결과 작성</button>
+                  <button class="mini-btn" onclick="toast('${u.name} 어르신 상세 기록 화면입니다.')">전체 기록 보기</button>
+                  <button class="mini-btn" onclick="toast('${u.name} 어르신에게 전화 연결합니다.')">전화 연결</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+function updateMainChart(index){
+  const u = users[Number(index)];
+  if(!u) return;
+
+  const r = risk[u.risk];
+  const points = u.chart || '0,120 110,115 220,118 330,110 440,116 550,112 700,108';
+  const healthText = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health];
+
+  const line = document.getElementById('mainChartLine');
+  const fill = document.getElementById('mainChartFill');
+  const trend = document.getElementById('mainChartTrend');
+  const stop1 = document.getElementById('mainChartStop1');
+  const stop2 = document.getElementById('mainChartStop2');
+
+  if(line) {
+    line.setAttribute('points', points);
+    line.setAttribute('stroke', r[2]);
+  }
+  if(fill) {
+    fill.setAttribute('points', points + ' 700,210 0,210');
+  }
+  if(trend) {
+    const pointArr = points.split(' ');
+    const first = pointArr[0].split(',');
+    const last = pointArr[pointArr.length - 1].split(',');
+    trend.setAttribute('x1', first[0]);
+    trend.setAttribute('y1', first[1]);
+    trend.setAttribute('x2', last[0]);
+    trend.setAttribute('y2', last[1]);
+    trend.setAttribute('stroke', r[2]);
+  }
+  if(stop1) stop1.setAttribute('stop-color', r[2]);
+  if(stop2) stop2.setAttribute('stop-color', r[2]);
+
+  const sub = document.getElementById('chartSubText');
+  const info = document.getElementById('chartPersonInfo');
+  if(sub) sub.innerText = `${u.name} 어르신의 최근 7일 건강 위험 점수 변화입니다.`;
+  if(info) info.innerText = `선택 대상자: ${u.name} 어르신 · 현재 위험도: ${r[0]} · 현재 점수: ${u.score}점 · 건강 상태: ${healthText}`;
+}
+
+
+
+function handleDiseaseSelect(){
+  const disease = document.getElementById('newElderDisease')?.value;
+  const otherInput = document.getElementById('newDiseaseOther');
+  if(!otherInput) return;
+
+  if(disease === '기타'){
+    otherInput.style.display = 'block';
+    otherInput.focus();
+  }else{
+    otherInput.style.display = 'none';
+    otherInput.value = '';
+  }
+}
+
+function getSelectedDisease(){
+  const disease = document.getElementById('newElderDisease')?.value || '없음';
+  const other = document.getElementById('newDiseaseOther')?.value.trim();
+  return disease === '기타' ? other : disease;
+}
+
+function addElder(){
+  const name = document.getElementById('newElderName')?.value.trim() || '신규 어르신';
+  const disease = document.getElementById('newElderDisease')?.value || '없음';
+  const otherValue = document.getElementById('newDiseaseOther')?.value.trim();
+
+  if(disease === '기타' && !otherValue){
+    toast('기타 질환명을 입력해주세요.');
+    return;
+  }
+
+  toast(name + ' 어르신이 등록되었습니다. 기저질환: ' + getSelectedDisease());
+  closeModal('add');
+}
+
+function toggle(i){document.getElementById('detail-'+i)?.classList.toggle('open')}function openEmergency(){document.getElementById('emergency').classList.add('show')}function openAdd(){document.getElementById('add').classList.add('show')}function openFeedback(name){document.getElementById('fbName').value=name;document.getElementById('feedback').classList.add('show')}function closeModal(id){document.getElementById(id).classList.remove('show')}function toast(msg){alert(msg)}
+</script>
+</body>
+</html>

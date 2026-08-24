@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>건강 돌봄 사용자 웹</title>
+<style>
+  :root {
+    --bg: #F5F0E8;
+    --primary: #2563A8;
+    --primary-dark: #1A4A80;
+    --green: #22863A;
+    --red: #D32F2F;
+    --orange: #E85D2F;
+    --text: #1A1A2E;
+    --sub: #555577;
+    --border: #D8D0C0;
+    --card: #FFFFFF;
+    --shadow: 0 4px 18px rgba(0,0,0,0.12);
+    --radius: 22px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html {
+    width: 100%;
+    height: 100%;
+    background: #333;
+  }
+
+  body {
+    width: 100%;
+    max-width: 480px;
+    height: 100dvh;
+    margin: 0 auto;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Noto Sans KR', 'Apple SD Gothic Neo', sans-serif;
+    box-shadow: 0 0 30px rgba(0,0,0,0.45);
+    position: relative;
+  }
+
+  button, input, select { font-family: inherit; }
+
+  .screen {
+    display: none;
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+  }
+
+  .screen.active {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .center-screen {
+    justify-content: center;
+    align-items: center;
+    padding: 3vh 5vw;
+  }
+
+  .auth-screen {
+    background: linear-gradient(160deg, #1A4A80 0%, #2563A8 58%, #3A7BD5 100%);
+  }
+
+  .logo {
+    width: 10vh;
+    height: 10vh;
+    border-radius: 50%;
+    border: 0.45vh solid rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.14);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 5vh;
+    margin-bottom: 2vh;
+  }
+
+  .auth-title {
+    color: white;
+    font-size: clamp(30px, 4.2vh, 42px);
+    font-weight: 900;
+    text-align: center;
+  }
+
+  .auth-sub {
+    color: rgba(255,255,255,0.78);
+    font-size: clamp(16px, 2.2vh, 22px);
+    margin: 0.8vh 0 3vh;
+    text-align: center;
+  }
+
+  .auth-card {
+    width: 100%;
+    background: white;
+    border-radius: var(--radius);
+    padding: 3vh 5vw;
+    box-shadow: var(--shadow);
+  }
+
+  .label {
+    display: block;
+    font-size: clamp(17px, 2.2vh, 24px);
+    font-weight: 800;
+    color: var(--sub);
+    margin-bottom: 1vh;
+  }
+
+  .input, .select {
+    width: 100%;
+    height: 7vh;
+    border: 0.3vh solid var(--border);
+    border-radius: 1.5vh;
+    font-size: clamp(22px, 2.8vh, 30px);
+    padding: 0 4vw;
+    background: #F9F7F4;
+    color: var(--text);
+    outline: none;
+  }
+
+  .form-gap { margin-top: 1.6vh; }
+
+  .btn-row {
+    display: flex;
+    gap: 2vw;
+    margin-top: 2vh;
+  }
+
+  .main-btn {
+    width: 100%;
+    min-height: 7.4vh;
+    border: none;
+    border-radius: 1.8vh;
+    background: var(--primary);
+    color: white;
+    font-size: clamp(22px, 2.9vh, 31px);
+    font-weight: 900;
+    box-shadow: 0 6px 20px rgba(37,99,168,0.28);
+    cursor: pointer;
+  }
+
+  .main-btn:active { transform: scale(0.98); background: var(--primary-dark); }
+  .gray-btn { background: #7A8B9E; box-shadow: none; }
+  .green-btn { background: var(--green); box-shadow: 0 6px 20px rgba(34,134,58,0.28); }
+  .red-btn { background: var(--red); box-shadow: 0 6px 20px rgba(211,47,47,0.28); }
+
+  .top {
+    background: var(--primary);
+    color: white;
+    padding: 2.6vh 5vw 2vh;
+    flex-shrink: 0;
+    position: relative;
+  }
+
+  .hello {
+    font-size: clamp(24px, 3.2vh, 34px);
+    font-weight: 800;
+    line-height: 1.25;
+    padding-right: 10vh;
+  }
+
+  .date {
+    margin-top: 0.6vh;
+    font-size: clamp(15px, 2vh, 21px);
+    opacity: 0.85;
+  }
+
+  .top-emergency {
+    position: absolute;
+    right: 4vw;
+    top: 2.2vh;
+    width: 7.2vh;
+    height: 7.2vh;
+    border: none;
+    border-radius: 50%;
+    background: var(--red);
+    color: white;
+    box-shadow: 0 6px 22px rgba(211,47,47,0.38);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    z-index: 20;
+  }
+
+  .top-emergency .phone { font-size: 3.1vh; line-height: 1; }
+  .top-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
+
+  .auth-emergency {
+    position: absolute;
+    right: 4vw;
+    top: 2.2vh;
+    width: 7.2vh;
+    height: 7.2vh;
+    border: none;
+    border-radius: 50%;
+    background: var(--red);
+    color: white;
+    box-shadow: 0 6px 22px rgba(211,47,47,0.38);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    z-index: 20;
+  }
+
+  .auth-emergency .phone { font-size: 3.1vh; line-height: 1; }
+  .auth-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
+
+
+  .page {
+    flex: 1;
+    min-height: 0;
+    padding: 2.2vh 5vw 2.4vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 1.7vh;
+  }
+
+  .status-button {
+    width: 100%;
+    min-height: 23vh;
+    border: none;
+    border-radius: var(--radius);
+    background: white;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    padding: 2.4vh 4vw;
+    text-align: center;
+    border: 0.35vh solid transparent;
+  }
+
+  .status-button:active { transform: scale(0.985); }
+
+  .status-button.done {
+    background: #F4FFF7;
+    border-color: rgba(34,134,58,0.25);
+  }
+
+  .status-icon {
+    font-size: clamp(50px, 7vh, 74px);
+    line-height: 1;
+    margin-bottom: 1.2vh;
+  }
+
+  .status-title {
+    font-size: clamp(28px, 3.8vh, 40px);
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  .status-desc {
+    margin-top: 1vh;
+    font-size: clamp(18px, 2.4vh, 26px);
+    color: var(--sub);
+    font-weight: 800;
+    line-height: 1.45;
+    white-space: pre-line;
+  }
+
+  .modify-button {
+    width: 100%;
+    min-height: 10vh;
+    border: 0.35vh solid rgba(37,99,168,0.28);
+    border-radius: var(--radius);
+    background: #EEF4FF;
+    color: var(--primary-dark);
+    box-shadow: var(--shadow);
+    font-size: clamp(24px, 3.1vh, 34px);
+    font-weight: 900;
+    cursor: pointer;
+  }
+
+  .modify-button:active { transform: scale(0.985); }
+
+  .step-title {
+    text-align: center;
+    font-size: clamp(29px, 3.8vh, 40px);
+    font-weight: 900;
+    line-height: 1.25;
+  }
+
+  .step-sub {
+    text-align: center;
+    font-size: clamp(17px, 2.2vh, 24px);
+    color: var(--sub);
+    font-weight: 700;
+  }
+
+  .health-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.5vh 3vw;
+    width: 100%;
+  }
+
+  .health-btn {
+    height: 16vh;
+    border: 0.35vh solid var(--border);
+    border-radius: var(--radius);
+    background: white;
+    box-shadow: var(--shadow);
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.8vh;
+  }
+
+  .health-btn:last-child {
+    grid-column: 1 / -1;
+    width: 58%;
+    justify-self: center;
+  }
+
+  .health-btn.selected {
+    border-color: var(--primary);
+    background: #EEF4FF;
+    transform: scale(1.03);
+  }
+
+  .h-emoji { font-size: clamp(40px, 5.5vh, 58px); line-height: 1; }
+  .h-text { font-size: clamp(20px, 2.65vh, 29px); font-weight: 900; }
+
+  .meal-card {
+    width: 100%;
+    background: white;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    padding: 1.4vh 4vw;
+  }
+
+  .meal-title {
+    font-size: clamp(22px, 2.8vh, 32px);
+    font-weight: 900;
+    text-align: center;
+    margin-bottom: 1vh;
+  }
+
+  .meal-options {
+    display: flex;
+    flex-direction: column;
+    gap: 1vh;
+  }
+
+  .meal-btn {
+    height: 6.3vh;
+    border: 0.3vh solid var(--border);
+    border-radius: 1.6vh;
+    background: #F9F7F4;
+    color: var(--text);
+    font-size: clamp(18px, 2.25vh, 25px);
+    font-weight: 900;
+    cursor: pointer;
+    line-height: 1.15;
+    white-space: nowrap;
+  }
+
+  .meal-btn.selected.yes {
+    border-color: var(--green);
+    background: #E6F4EA;
+    color: var(--green);
+  }
+
+  .meal-btn.selected.plan {
+    border-color: var(--primary);
+    background: #EEF4FF;
+    color: var(--primary);
+  }
+
+  .meal-btn.selected.no {
+    border-color: var(--orange);
+    background: #FEF0EC;
+    color: var(--orange);
+  }
+
+  .bottom-row {
+    display: flex;
+    gap: 2vw;
+    width: 100%;
+    margin-top: auto;
+  }
+
+  .next-btn.disabled, .save-btn.disabled {
+    opacity: 0.45;
+    pointer-events: none;
+  }
+
+  .done-screen {
+    justify-content: center;
+    padding: 4vh 6vw;
+    background: linear-gradient(160deg, #1B5E35 0%, #22863A 60%, #43A862 100%);
+    color: white;
+    text-align: center;
+  }
+
+  .done-icon { font-size: clamp(70px, 10vh, 100px); margin-bottom: 2vh; }
+  .done-title {
+    font-size: clamp(32px, 4.3vh, 44px);
+    font-weight: 900;
+    line-height: 1.25;
+  }
+  .done-sub {
+    margin-top: 1.2vh;
+    font-size: clamp(18px, 2.4vh, 26px);
+    line-height: 1.45;
+    opacity: 0.9;
+    font-weight: 700;
+  }
+
+  .summary {
+    width: 100%;
+    margin: 3vh 0 2vh;
+    padding: 2vh 4vw;
+    border-radius: var(--radius);
+    background: rgba(255,255,255,0.18);
+    border: 0.25vh solid rgba(255,255,255,0.25);
+  }
+
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    gap: 2vw;
+    padding: 0.9vh 0;
+    font-size: clamp(16px, 2.15vh, 24px);
+    border-bottom: 0.15vh solid rgba(255,255,255,0.16);
+  }
+
+  .summary-row:last-child { border-bottom: none; }
+  .summary-row span:last-child { font-weight: 900; }
+
+  .modal {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(0,0,0,0.55);
+    align-items: center;
+    justify-content: center;
+    padding: 5vw;
+  }
+
+  .modal.show { display: flex; }
+
+  .modal-box {
+    width: 100%;
+    background: white;
+    border-radius: var(--radius);
+    padding: 3.5vh 5vw;
+    text-align: center;
+    box-shadow: 0 12px 45px rgba(0,0,0,0.3);
+  }
+
+  .modal-icon {
+    font-size: clamp(48px, 7vh, 72px);
+    margin-bottom: 1.5vh;
+  }
+
+  .modal-text {
+    font-size: clamp(23px, 3.1vh, 34px);
+    font-weight: 900;
+    line-height: 1.35;
+    white-space: pre-line;
+  }
+
+  .modal-row {
+    display: flex;
+    gap: 2vw;
+    margin-top: 3vh;
+  }
+
+  @media (max-height: 700px) {
+    .top { padding-top: 2vh; padding-bottom: 1.5vh; }
+    .page { gap: 1.1vh; padding-top: 1.3vh; padding-bottom: 1.3vh; }
+    .status-button { min-height: 20vh; }
+    .health-btn { height: 13vh; }
+    .meal-card { padding-top: 1.4vh; padding-bottom: 1.4vh; }
+    .meal-btn { height: 6.8vh; }
+    .top-emergency { width: 6.6vh; height: 6.6vh; top: 1.7vh; }
+  }
+</style>
+</head>
+<body>
+
+<!-- 로그인 -->
+<section class="screen center-screen auth-screen active" id="screen-login">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">👴</div>
+  <div class="auth-title">건강 돌봄</div>
+  <div class="auth-sub">독거노인 건강 관리 서비스</div>
+
+  <div class="auth-card">
+    <label class="label" for="login-phone">휴대폰 번호</label>
+    <input class="input" id="login-phone" type="tel" inputmode="numeric" placeholder="010-0000-0000" maxlength="13">
+    <button class="main-btn form-gap" onclick="login()">로그인하기</button>
+    <button class="main-btn gray-btn form-gap" onclick="startRegister()">처음이신가요? 회원가입</button>
+  </div>
+</section>
+
+<!-- 회원가입 1 -->
+<section class="screen center-screen auth-screen" id="screen-reg-privacy">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">🔒</div>
+  <div class="auth-title">회원가입 (1/6)</div>
+  <div class="auth-sub">개인정보 수집 동의</div>
+
+  <div class="auth-card">
+    <p style="font-size:clamp(22px,3.2vh,34px);font-weight:900;line-height:1.35;text-align:center;word-break:keep-all;">
+      건강 관리를 위해 이름, 전화번호, 주소, 건강 정보를 수집합니다.
+    </p>
+    <label style="display:flex;align-items:center;justify-content:center;gap:3vw;margin-top:3vh;font-size:clamp(22px,3vh,32px);font-weight:900;">
+      <input type="checkbox" id="privacy-agree" style="width:4vh;height:4vh;"> 동의합니다
+    </label>
+    <div class="btn-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-login')">취소</button>
+      <button class="main-btn" onclick="nextRegister('screen-reg-name','privacy')">다음</button>
+    </div>
+  </div>
+</section>
+
+<!-- 회원가입 2 -->
+<section class="screen center-screen auth-screen" id="screen-reg-name">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">📝</div>
+  <div class="auth-title">회원가입 (2/6)</div>
+  <div class="auth-sub">성함을 알려주세요</div>
+
+  <div class="auth-card">
+    <label class="label">이름</label>
+    <input class="input" id="reg-name" type="text" placeholder="홍길동">
+    <div class="btn-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-reg-privacy')">이전</button>
+      <button class="main-btn" onclick="nextRegister('screen-reg-phone','name')">다음</button>
+    </div>
+  </div>
+</section>
+
+<!-- 회원가입 3 -->
+<section class="screen center-screen auth-screen" id="screen-reg-phone">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">📱</div>
+  <div class="auth-title">회원가입 (3/6)</div>
+  <div class="auth-sub">휴대폰 번호를 알려주세요</div>
+
+  <div class="auth-card">
+    <label class="label">휴대폰 번호</label>
+    <input class="input" id="reg-phone" type="tel" inputmode="numeric" placeholder="010-0000-0000" maxlength="13">
+    <div class="btn-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-reg-name')">이전</button>
+      <button class="main-btn" onclick="nextRegister('screen-reg-address','phone')">다음</button>
+    </div>
+  </div>
+</section>
+
+<!-- 회원가입 4 -->
+<section class="screen center-screen auth-screen" id="screen-reg-address">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">🏠</div>
+  <div class="auth-title">회원가입 (4/6)</div>
+  <div class="auth-sub">주소를 알려주세요</div>
+
+  <div class="auth-card">
+    <label class="label">주소</label>
+    <input class="input" id="reg-address" type="text" placeholder="대구광역시 ...">
+    <div class="btn-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-reg-phone')">이전</button>
+      <button class="main-btn" onclick="nextRegister('screen-reg-age','address')">다음</button>
+    </div>
+  </div>
+</section>
+
+<!-- 회원가입 5 -->
+<section class="screen center-screen auth-screen" id="screen-reg-age">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">🎂</div>
+  <div class="auth-title">회원가입 (5/6)</div>
+  <div class="auth-sub">연세를 알려주세요</div>
+
+  <div class="auth-card">
+    <label class="label">나이</label>
+    <input class="input" id="reg-age" type="number" inputmode="numeric" placeholder="75">
+    <div class="btn-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-reg-address')">이전</button>
+      <button class="main-btn" onclick="nextRegister('screen-reg-disease','age')">다음</button>
+    </div>
+  </div>
+</section>
+
+<!-- 회원가입 6 -->
+<section class="screen center-screen auth-screen" id="screen-reg-disease">
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <div class="logo">💊</div>
+  <div class="auth-title">회원가입 (6/6)</div>
+  <div class="auth-sub">기저질환을 선택해주세요</div>
+
+  <div class="auth-card">
+    <label class="label">기저질환</label>
+    <select class="select" id="reg-disease" onchange="checkDiseaseOther()">
+      <option value="없음">없음</option>
+      <option value="고혈압">고혈압</option>
+      <option value="당뇨병">당뇨병</option>
+      <option value="관절염">관절염</option>
+      <option value="심혈관질환">심혈관질환</option>
+      <option value="치매">치매 / 인지장애</option>
+      <option value="기타">기타</option>
+    </select>
+    <input class="input form-gap" id="reg-disease-other" type="text" placeholder="질환명을 입력해주세요" style="display:none;">
+    <div class="btn-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-reg-age')">이전</button>
+      <button class="main-btn green-btn" onclick="finishRegister()">가입완료</button>
+    </div>
+  </div>
+</section>
+
+<!-- 메인 -->
+<section class="screen" id="screen-main">
+  <div class="top">
+    <div class="hello">김OO 어르신,<br>안녕하세요 👋</div>
+    <div class="date" id="main-date"></div>
+    <button class="top-emergency" onclick="confirmEmergency()">
+      <span class="phone">📞</span>
+      <span class="txt">긴급</span>
+    </button>
+  </div>
+
+  <main class="page">
+    <button class="status-button" id="status-button" onclick="handleStatusButton()">
+      <div class="status-icon" id="status-icon">💚</div>
+      <div class="status-title" id="status-title">오늘 상태 입력하기</div>
+      <div class="status-desc" id="status-desc">오늘 아직 입력하지 않았습니다.</div>
+    </button>
+
+    <button class="modify-button" id="modify-button" onclick="startHealth(true)" style="display:none;">
+      ✏️ 오늘 상태 수정하기
+    </button>
+  </main>
+</section>
+
+<!-- 건강 상태 입력 -->
+<section class="screen" id="screen-health">
+  <div class="top">
+    <div class="hello" id="health-top-title">오늘 건강 상태</div>
+    <div class="date" id="health-date"></div>
+    <button class="top-emergency" onclick="confirmEmergency()">
+      <span class="phone">📞</span>
+      <span class="txt">긴급</span>
+    </button>
+  </div>
+
+  <main class="page">
+    <div>
+      <div class="step-title">오늘 건강 상태는<br>어떠세요?</div>
+      <div class="step-sub">하나를 선택한 뒤 다음을 눌러주세요</div>
+    </div>
+
+    <div class="health-grid">
+      <button class="health-btn" data-score="5" onclick="selectHealth(5,this)">
+        <span class="h-emoji">😄</span><span class="h-text">매우 좋음</span>
+      </button>
+      <button class="health-btn" data-score="4" onclick="selectHealth(4,this)">
+        <span class="h-emoji">😊</span><span class="h-text">좋음</span>
+      </button>
+      <button class="health-btn" data-score="3" onclick="selectHealth(3,this)">
+        <span class="h-emoji">😐</span><span class="h-text">보통</span>
+      </button>
+      <button class="health-btn" data-score="2" onclick="selectHealth(2,this)">
+        <span class="h-emoji">😟</span><span class="h-text">나쁨</span>
+      </button>
+      <button class="health-btn" data-score="1" onclick="selectHealth(1,this)">
+        <span class="h-emoji">😫</span><span class="h-text">매우 나쁨</span>
+      </button>
+    </div>
+
+    <div class="bottom-row">
+      <button class="main-btn gray-btn" onclick="goMain()">취소</button>
+      <button class="main-btn next-btn disabled" id="health-next" onclick="goMeal()">다음</button>
+    </div>
+  </main>
+</section>
+
+<!-- 식사 여부 입력 -->
+<section class="screen" id="screen-meal">
+  <div class="top">
+    <div class="hello" id="meal-top-title">오늘 식사 여부</div>
+    <div class="date" id="meal-date"></div>
+    <button class="top-emergency" onclick="confirmEmergency()">
+      <span class="phone">📞</span>
+      <span class="txt">긴급</span>
+    </button>
+  </div>
+
+  <main class="page">
+    <div>
+      <div class="step-title">오늘 식사는<br>하셨나요?</div>
+      <div class="step-sub">아침과 점심을 선택해주세요</div>
+    </div>
+
+    <div class="meal-card">
+      <div class="meal-title">🌅 아침 식사</div>
+      <div class="meal-options">
+        <button class="meal-btn" data-slot="breakfast" data-choice="yes" onclick="selectMeal('breakfast','yes',this)">먹었어요</button>
+        <button class="meal-btn" data-slot="breakfast" data-choice="plan" onclick="selectMeal('breakfast','plan',this)">먹을 거예요</button>
+        <button class="meal-btn" data-slot="breakfast" data-choice="no" onclick="selectMeal('breakfast','no',this)">안 먹었어요</button>
+      </div>
+    </div>
+
+    <div class="meal-card">
+      <div class="meal-title">🌞 점심 식사</div>
+      <div class="meal-options">
+        <button class="meal-btn" data-slot="lunch" data-choice="yes" onclick="selectMeal('lunch','yes',this)">먹었어요</button>
+        <button class="meal-btn" data-slot="lunch" data-choice="plan" onclick="selectMeal('lunch','plan',this)">먹을 거예요</button>
+        <button class="meal-btn" data-slot="lunch" data-choice="no" onclick="selectMeal('lunch','no',this)">안 먹었어요</button>
+      </div>
+    </div>
+
+    <div class="bottom-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-health')">이전</button>
+      <button class="main-btn green-btn save-btn disabled" id="save-btn" onclick="saveStatus()">저장하기</button>
+    </div>
+  </main>
+</section>
+
+<!-- 완료 -->
+<section class="screen done-screen" id="screen-done">
+  <div class="done-icon">✅</div>
+  <div class="done-title" id="done-title">오늘 입력 완료</div>
+  <div class="done-sub">담당 사회복지사에게<br>전달되었습니다.</div>
+  <div class="summary" id="summary"></div>
+  <button class="main-btn" style="background:white;color:var(--green);" onclick="goMain()">메인으로 돌아가기</button>
+</section>
+
+<!-- 모달 -->
+<div class="modal" id="modal">
+  <div class="modal-box">
+    <div class="modal-icon" id="modal-icon">⚠️</div>
+    <div class="modal-text" id="modal-text"></div>
+    <div class="modal-row" id="modal-row"></div>
+  </div>
+</div>
+
+<script>
+  let todaySaved = false;
+  let savedTime = '';
+  let isModifyMode = false;
+
+  let formData = { health: null, breakfast: null, lunch: null };
+  let savedData = null;
+
+  const healthText = {
+    5: '매우 좋음 😄',
+    4: '좋음 😊',
+    3: '보통 😐',
+    2: '나쁨 😟',
+    1: '매우 나쁨 😫'
+  };
+
+  const mealText = {
+    yes: '먹었어요',
+    plan: '먹을 거예요',
+    no: '안 먹었어요'
+  };
+
+  function goTo(id) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+
+  function getDateText() {
+    const d = new Date();
+    const days = ['일','월','화','수','목','금','토'];
+    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+  }
+
+  function getTimeText() {
+    const d = new Date();
+    const h = d.getHours();
+    const m = String(d.getMinutes()).padStart(2, '0');
+    return `${h < 12 ? '오전' : '오후'} ${h % 12 || 12}:${m}`;
+  }
+
+  function setDates() {
+    const date = getDateText();
+    document.getElementById('main-date').textContent = date;
+    document.getElementById('health-date').textContent = date;
+    document.getElementById('meal-date').textContent = date;
+  }
+
+  function login() {
+    const phone = document.getElementById('login-phone').value.replace(/\D/g, '');
+    if (phone.length < 9) {
+      showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
+      return;
+    }
+    setDates();
+    updateMainStatus();
+    goTo('screen-main');
+  }
+
+  function startRegister() {
+    document.getElementById('privacy-agree').checked = false;
+    document.getElementById('reg-name').value = '';
+    document.getElementById('reg-phone').value = '';
+    document.getElementById('reg-address').value = '';
+    document.getElementById('reg-age').value = '';
+    document.getElementById('reg-disease').value = '없음';
+    document.getElementById('reg-disease-other').value = '';
+    checkDiseaseOther();
+    goTo('screen-reg-privacy');
+  }
+
+  function nextRegister(nextId, type) {
+    if (type === 'privacy' && !document.getElementById('privacy-agree').checked) {
+      showAlert('⚠️', '개인정보 수집에\n동의해 주세요.');
+      return;
+    }
+    if (type === 'name' && !document.getElementById('reg-name').value.trim()) {
+      showAlert('⚠️', '이름을 입력해 주세요.');
+      return;
+    }
+    if (type === 'phone' && document.getElementById('reg-phone').value.replace(/\D/g,'').length < 9) {
+      showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
+      return;
+    }
+    if (type === 'address' && !document.getElementById('reg-address').value.trim()) {
+      showAlert('⚠️', '주소를 입력해 주세요.');
+      return;
+    }
+    if (type === 'age' && !document.getElementById('reg-age').value.trim()) {
+      showAlert('⚠️', '나이를 입력해 주세요.');
+      return;
+    }
+    goTo(nextId);
+  }
+
+  function checkDiseaseOther() {
+    const select = document.getElementById('reg-disease');
+    const other = document.getElementById('reg-disease-other');
+    if (!select || !other) return;
+    if (select.value === '기타') {
+      other.style.display = 'block';
+      other.focus();
+    } else {
+      other.style.display = 'none';
+      other.value = '';
+    }
+  }
+
+  function finishRegister() {
+    if (document.getElementById('reg-disease').value === '기타' && !document.getElementById('reg-disease-other').value.trim()) {
+      showAlert('⚠️', '기타 질환명을\n입력해 주세요.');
+      return;
+    }
+
+    document.getElementById('login-phone').value = document.getElementById('reg-phone').value;
+    showAlert('✅', '회원가입이\n완료되었습니다.');
+    setTimeout(() => {
+      closeModal();
+      goTo('screen-login');
+    }, 900);
+  }
+
+  function goMain() {
+    updateMainStatus();
+    goTo('screen-main');
+  }
+
+  function updateMainStatus() {
+    const btn = document.getElementById('status-button');
+    const icon = document.getElementById('status-icon');
+    const title = document.getElementById('status-title');
+    const desc = document.getElementById('status-desc');
+    const modifyBtn = document.getElementById('modify-button');
+
+    if (todaySaved) {
+      btn.classList.add('done');
+      icon.textContent = '✅';
+      title.textContent = '오늘 입력 완료';
+      const healthSummary = savedData && savedData.health ? `건강 상태 : ${healthText[savedData.health]}\n` : '';
+      desc.textContent = `${healthSummary}${savedTime} 저장됨`;
+      modifyBtn.style.display = 'block';
+    } else {
+      btn.classList.remove('done');
+      icon.textContent = '💚';
+      title.textContent = '오늘 상태 입력하기';
+      desc.textContent = '오늘 아직 입력하지 않았습니다.';
+      modifyBtn.style.display = 'none';
+    }
+  }
+
+  function handleStatusButton() {
+    if (!todaySaved) {
+      startHealth(false);
+    }
+  }
+
+  function startHealth(modify) {
+    isModifyMode = modify;
+
+    document.getElementById('health-top-title').textContent = modify ? '오늘 상태 수정' : '오늘 상태 입력';
+    document.getElementById('meal-top-title').textContent = modify ? '오늘 식사 수정' : '오늘 식사 입력';
+
+    if (modify && savedData) {
+      formData = { ...savedData };
+    } else {
+      formData = { health: null, breakfast: null, lunch: null };
+    }
+
+    refreshHealth();
+    refreshMeal();
+    checkHealthNext();
+    checkSaveReady();
+    goTo('screen-health');
+  }
+
+  function selectHealth(score, btn) {
+    formData.health = score;
+    document.querySelectorAll('.health-btn').forEach(el => el.classList.remove('selected'));
+    btn.classList.add('selected');
+    checkHealthNext();
+  }
+
+  function refreshHealth() {
+    document.querySelectorAll('.health-btn').forEach(btn => {
+      btn.classList.toggle('selected', Number(btn.dataset.score) === formData.health);
+    });
+  }
+
+  function checkHealthNext() {
+    document.getElementById('health-next').classList.toggle('disabled', !formData.health);
+  }
+
+  function goMeal() {
+    if (!formData.health) return;
+    refreshMeal();
+    checkSaveReady();
+    goTo('screen-meal');
+  }
+
+  function selectMeal(slot, choice, btn) {
+    formData[slot] = choice;
+    document.querySelectorAll(`.meal-btn[data-slot="${slot}"]`).forEach(el => {
+      el.className = 'meal-btn';
+    });
+    btn.classList.add('selected', choice);
+    checkSaveReady();
+  }
+
+  function refreshMeal() {
+    document.querySelectorAll('.meal-btn').forEach(btn => {
+      btn.className = 'meal-btn';
+      const slot = btn.dataset.slot;
+      const choice = btn.dataset.choice;
+      if (formData[slot] === choice) {
+        btn.classList.add('selected', choice);
+      }
+    });
+  }
+
+  function checkSaveReady() {
+    const ready = formData.health && formData.breakfast && formData.lunch;
+    document.getElementById('save-btn').classList.toggle('disabled', !ready);
+  }
+
+  function saveStatus() {
+    if (!(formData.health && formData.breakfast && formData.lunch)) return;
+
+    savedData = { ...formData };
+    todaySaved = true;
+    savedTime = getTimeText();
+
+    buildSummary();
+    document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
+    goTo('screen-done');
+  }
+
+  function buildSummary() {
+    document.getElementById('summary').innerHTML = `
+      <div class="summary-row"><span>건강 상태</span><span>${healthText[savedData.health]}</span></div>
+      <div class="summary-row"><span>아침 식사</span><span>${mealText[savedData.breakfast]}</span></div>
+      <div class="summary-row"><span>점심 식사</span><span>${mealText[savedData.lunch]}</span></div>
+      <div class="summary-row"><span>저장 시간</span><span>${savedTime}</span></div>
+    `;
+  }
+
+  function confirmEmergency() {
+    showConfirm(
+      '📞',
+      '긴급 연락을\n연결할까요?',
+      '취소',
+      '연결',
+      closeModal,
+      () => {
+        closeModal();
+        window.location.href = 'tel:129';
+      }
+    );
+  }
+
+  function showAlert(icon, text) {
+    const row = document.getElementById('modal-row');
+    document.getElementById('modal-icon').textContent = icon;
+    document.getElementById('modal-text').textContent = text;
+    row.innerHTML = `<button class="main-btn" onclick="closeModal()">확인</button>`;
+    document.getElementById('modal').classList.add('show');
+  }
+
+  function showConfirm(icon, text, leftText, rightText, leftFn, rightFn) {
+    const row = document.getElementById('modal-row');
+    document.getElementById('modal-icon').textContent = icon;
+    document.getElementById('modal-text').textContent = text;
+    row.innerHTML = `
+      <button class="main-btn gray-btn" id="modal-left">${leftText}</button>
+      <button class="main-btn red-btn" id="modal-right">${rightText}</button>
+    `;
+    document.getElementById('modal-left').onclick = leftFn;
+    document.getElementById('modal-right').onclick = rightFn;
+    document.getElementById('modal').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modal').classList.remove('show');
+  }
+
+  function formatPhone(e) {
+    let v = e.target.value.replace(/\D/g, '').slice(0, 11);
+    if (v.length > 7) v = v.slice(0,3) + '-' + v.slice(3,7) + '-' + v.slice(7);
+    else if (v.length > 3) v = v.slice(0,3) + '-' + v.slice(3);
+    e.target.value = v;
+  }
+
+  document.getElementById('login-phone').addEventListener('input', formatPhone);
+  document.getElementById('reg-phone').addEventListener('input', formatPhone);
+</script>
+</body>
+</html>
