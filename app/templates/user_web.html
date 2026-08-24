@@ -214,7 +214,6 @@
   .auth-emergency .phone { font-size: 3.1vh; line-height: 1; }
   .auth-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
 
-
   .page {
     flex: 1;
     min-height: 0;
@@ -537,7 +536,7 @@
 
   <div class="auth-card">
     <label class="label">이름</label>
-    <input class="input" id="reg-name" type="text" placeholder="홍길동">
+    <input class="input" id="reg-name" type="text" placeholder="성함을 입력하세요">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-privacy')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-phone','name')">다음</button>
@@ -571,7 +570,7 @@
 
   <div class="auth-card">
     <label class="label">주소</label>
-    <input class="input" id="reg-address" type="text" placeholder="대구광역시 ...">
+    <input class="input" id="reg-address" type="text" placeholder="거주하시는 주소를 입력하세요">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-phone')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-age','address')">다음</button>
@@ -588,7 +587,7 @@
 
   <div class="auth-card">
     <label class="label">나이</label>
-    <input class="input" id="reg-age" type="number" inputmode="numeric" placeholder="75">
+    <input class="input" id="reg-age" type="number" inputmode="numeric" placeholder="나이를 입력하세요">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-address')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-disease','age')">다음</button>
@@ -614,7 +613,7 @@
       <option value="치매">치매 / 인지장애</option>
       <option value="기타">기타</option>
     </select>
-    <input class="input form-gap" id="reg-disease-other" type="text" placeholder="질환명을 입력해주세요" style="display:none;">
+    <input class="input form-gap" id="reg-disease-other" type="text" placeholder="질환명을 직접 입력해주세요" style="display:none;">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-age')">이전</button>
       <button class="main-btn green-btn" onclick="finishRegister()">가입완료</button>
@@ -625,7 +624,7 @@
 <!-- 메인 -->
 <section class="screen" id="screen-main">
   <div class="top">
-    <div class="hello">김OO 어르신,<br>안녕하세요 👋</div>
+    <div class="hello" id="user-greeting">어르신,<br>안녕하세요 👋</div>
     <div class="date" id="main-date"></div>
     <button class="top-emergency" onclick="confirmEmergency()">
       <span class="phone">📞</span>
@@ -749,6 +748,7 @@
 </div>
 
 <script>
+  let currentUserName = '어르신';
   let todaySaved = false;
   let savedTime = '';
   let isModifyMode = false;
@@ -823,9 +823,14 @@
       showAlert('⚠️', '개인정보 수집에\n동의해 주세요.');
       return;
     }
-    if (type === 'name' && !document.getElementById('reg-name').value.trim()) {
-      showAlert('⚠️', '이름을 입력해 주세요.');
-      return;
+    if (type === 'name') {
+      const nameVal = document.getElementById('reg-name').value.trim();
+      if (!nameVal) {
+        showAlert('⚠️', '이름을 입력해 주세요.');
+        return;
+      }
+      currentUserName = nameVal;
+      document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
     }
     if (type === 'phone' && document.getElementById('reg-phone').value.replace(/\D/g,'').length < 9) {
       showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
