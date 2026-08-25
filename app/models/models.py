@@ -52,7 +52,35 @@ class HealthStatus(db.Model):
     note = db.Column(db.Text)
 
 
-# 4. 접속 이력 모델
+# 4. 고독사 위험 및 AI 분석 리포트 모델 (신규)
+class RiskAnalysis(db.Model):
+    __tablename__ = 'RISK_ANALYSIS'
+    analysis_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False)
+    risk_score = db.Column(db.Numeric(5, 2), nullable=False)
+    risk_level = db.Column(db.Enum('SAFE', 'WATCH', 'WARN', 'DANGER'), default='SAFE', nullable=False)
+    is_anomaly = db.Column(db.Boolean, default=False, nullable=False)
+    anomaly_type = db.Column(db.String(100))
+    time_deviation = db.Column(db.Integer)
+    predicted_risk_prob = db.Column(db.Numeric(5, 2))
+    ai_summary = db.Column(db.Text)
+    analyzed_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+
+# 5. 사후 조치 및 피드백 모델 (신규)
+class PostManagement(db.Model):
+    __tablename__ = 'POST_MANAGEMENT'
+    management_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False)
+    worker_id = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id', ondelete='CASCADE'), nullable=False)
+    analysis_id = db.Column(db.BigInteger, db.ForeignKey('RISK_ANALYSIS.analysis_id', ondelete='SET NULL'))
+    alert_time = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    action_type = db.Column(db.Enum('전화확인', '방문확인', '응급출동'), nullable=False)
+    action_feedback = db.Column(db.Text, nullable=False)
+    action_time = db.Column(db.DateTime, default=datetime.now, nullable=False)
+
+
+# 6. 접속 이력 모델
 class LoginHistory(db.Model):
     __tablename__ = 'LOGIN_HISTORY'
     history_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)

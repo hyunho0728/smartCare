@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify, session, redirect
-from models.models import db, Worker, User, HealthStatus, LoginHistory
+from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement
+from services.ai_service import evaluate_and_record_risk
 import os
 import urllib.parse
 import datetime
@@ -33,13 +34,11 @@ def is_mobile_request():
     return any(keyword in user_agent for keyword in mobile_keywords)
 
 def extract_numbers(text):
-    """전화번호에서 숫자만 추출 (01012345678)"""
     if not text:
         return ""
     return re.sub(r'\D', '', str(text))
 
 def format_phone_display(phone_str):
-    """01012345678 -> 010-1234-5678 변환"""
     if not phone_str:
         return "-"
     p = str(phone_str)
@@ -48,6 +47,20 @@ def format_phone_display(phone_str):
     elif len(p) == 10:
         return f"{p[:3]}-{p[3:6]}-{p[6:]}"
     return p
+
+def generate_svg_chart_points(scores_7days):
+    """최근 7일 점수 리스트를 SVG Polyline 좌표 문자열로 변환 (0~100점 -> Y:170~30)"""
+    x_coords = [0, 112, 224, 336, 448, 560, 650]
+    # 7일 미만일 경우 앞부분을 첫 점수로 채움
+    while len(scores_7days) < 7:
+        scores_7days.insert(0, scores_7days[0] if scores_7days else 100)
+    scores_7days = scores_7days[-7:]
+    
+    points = []
+    for x, s in zip(x_coords, scores_7days):
+        y = int(170 - (float(s) / 100.0) * 140)
+        points.append(f"{x},{y}")
+    return " ".join(points)
 
 
 # ==========================================
@@ -163,7 +176,7 @@ def api_admin_check_session():
 
 @app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
-    """로그인한 사회복지사의 배정 어르신과 미배정 어르신을 분리하여 반환"""
+    """로그인한 사회복지사의 배정/미배정 어르신을 분리하고 RISK_ANALYSIS 및 AI 감점 태그를 완벽히 연동하여 반환"""
     current_worker_id = session.get('admin_worker_id')
     if not current_worker_id:
         admin_login_id = session.get('admin_id')
@@ -172,18 +185,18 @@ def api_get_elders():
             if worker:
                 current_worker_id = worker.worker_id
 
-    # 1. 본인에게 배정된 어르신 조회
     assigned_users = User.query.filter_by(worker_id=current_worker_id, is_active=True).all() if current_worker_id else []
-    
-    # 2. 담당자가 없는 미배정 어르신 조회
     unassigned_users = User.query.filter(User.worker_id.is_(None), User.is_active.is_(True)).all()
 
     def process_elder_data(u):
-        latest_health = HealthStatus.query.filter_by(user_id=u.user_id)\
-            .order_by(HealthStatus.recorded_at.desc()).first()
+        health_history = HealthStatus.query.filter_by(user_id=u.user_id)\
+            .order_by(HealthStatus.recorded_at.desc()).all()
+            
+        login_history = LoginHistory.query.filter_by(user_id=u.user_id)\
+            .order_by(LoginHistory.auth_time.desc()).all()
 
-        latest_login = LoginHistory.query.filter_by(user_id=u.user_id)\
-            .order_by(LoginHistory.auth_time.desc()).first()
+        latest_health = health_history[0] if health_history else None
+        latest_login = login_history[0] if login_history else None
 
         condition = latest_health.condition_level if latest_health else 3
         
@@ -198,35 +211,17 @@ def api_get_elders():
 
         display_last_time = last_input_str if latest_health else (latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음")
 
-        # 시간 비례 선형 감점 모델 점수 산출
-        risk_score = 100
-        score_breakdown = [{"item": "기본 만점", "score": "100점", "type": "base"}]
+        # 💡 AI 및 규칙 점수/감점 사유를 일원화하여 실시간 도출
+        eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
+        risk_score = eval_res["score"]
+        risk_level = eval_res["risk_level"]
+        score_breakdown = eval_res["score_breakdown"]  # AI 감점 태그 포함 전체 사유
+        ai_desc = eval_res["ai_summary"]
 
-        if u.age >= 80:
-            risk_score -= 10
-            score_breakdown.append({"item": f"고령 페널티 ({u.age}세)", "score": "-10점", "type": "minus"})
-
-        if u.has_underlying_disease:
-            risk_score -= 10
-            disease_name = u.note if u.note else "기저질환"
-            score_breakdown.append({"item": f"기저질환 ({disease_name})", "score": "-10점", "type": "minus"})
-
-        if latest_health:
-            if '결식' in [latest_health.breakfast_status, latest_health.lunch_status, latest_health.dinner_status]:
-                risk_score -= 20
-                score_breakdown.append({"item": "식사 결식 페널티", "score": "-20점", "type": "minus"})
-
-            elapsed_hours = int((datetime.datetime.now() - latest_health.recorded_at).total_seconds() // 3600)
-            if elapsed_hours > 0:
-                time_penalty = elapsed_hours * 2
-                risk_score -= time_penalty
-                score_breakdown.append({"item": f"미입력 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
-        else:
-            risk_score -= 40
-            score_breakdown.append({"item": "건강 상태 미등록", "score": "-40점", "type": "minus"})
-
-        risk_score = max(0, min(100, risk_score))
-        risk_level = "danger" if risk_score < 50 else "warn" if risk_score < 70 else "safe"
+        # 최근 7일 그래프 좌표 생성
+        recent_risks = RiskAnalysis.query.filter_by(user_id=u.user_id)\
+            .order_by(RiskAnalysis.analyzed_at.asc()).all()
+        chart_points = generate_svg_chart_points([float(r.risk_score) for r in recent_risks])
 
         return {
             "id": u.user_id,
@@ -240,13 +235,13 @@ def api_get_elders():
             "meal": meal,
             "meal_short": meal_short,
             "score": risk_score,
-            "score_breakdown": score_breakdown,
+            "score_breakdown": score_breakdown, # 일치된 산출 사유 태그 전달
             "risk": risk_level,
             "last": display_last_time,
             "lastInput": last_input_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
-            "chart": "0,120 110,115 220,118 330,110 440,116 550,112 700,108",
-            "desc": f"최근 건강 상태는 {condition}단계이며 오늘 식사는 ({meal}) 상태입니다."
+            "chart": chart_points,
+            "desc": ai_desc
         }
 
     assigned_list = [process_elder_data(u) for u in assigned_users]
@@ -261,7 +256,6 @@ def api_get_elders():
 
 @app.route('/api/admin/elders/assign', methods=['POST'])
 def api_assign_elder():
-    """미배정 어르신을 현재 사회복지사에게 배정"""
     data = request.get_json() or {}
     user_id = data.get('user_id')
     current_worker_id = session.get('admin_worker_id')
@@ -287,6 +281,56 @@ def api_assign_elder():
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"배정 실패: {str(e)}"}), 500
+
+
+# 💡 시점 ③: 사후 조치 작성 결과 POST_MANAGEMENT 테이블 저장 API
+@app.route('/api/admin/actions/save', methods=['POST'])
+def api_save_post_management():
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    name = data.get('name')
+    action_type = data.get('action_type', '전화확인')
+    feedback = data.get('feedback', '').strip()
+
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "복지사 로그인이 필요합니다."}), 401
+
+    if not user_id and name:
+        user = User.query.filter_by(name=name).first()
+        if user:
+            user_id = user.user_id
+
+    if not user_id or not feedback:
+        return jsonify({"success": False, "message": "대상자 정보 및 확인 내용을 입력해주세요."}), 400
+
+    # 가장 최근의 위험 분석 레코드 조회 연동
+    latest_risk = RiskAnalysis.query.filter_by(user_id=user_id)\
+        .order_by(RiskAnalysis.analyzed_at.desc()).first()
+
+    try:
+        new_action = PostManagement(
+            user_id=user_id,
+            worker_id=current_worker_id,
+            analysis_id=latest_risk.analysis_id if latest_risk else None,
+            alert_time=latest_risk.analyzed_at if latest_risk else datetime.datetime.now(),
+            action_type=action_type,
+            action_feedback=feedback,
+            action_time=datetime.datetime.now()
+        )
+        db.session.add(new_action)
+        db.session.commit()
+        return jsonify({"success": True, "message": "조치 결과가 정상적으로 기록되었습니다."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"저장 실패: {str(e)}"}), 500
 
 
 @app.route('/api/admin/elders/register', methods=['POST'])
@@ -400,6 +444,7 @@ def api_user_register():
         return jsonify({"success": False, "message": f"가입 실패: {str(e)}"}), 500
 
 
+# 💡 시점 ①: 상태 저장 시 AI 분석 실행 후 RISK_ANALYSIS 테이블에 자동 적재
 @app.route('/api/user/health', methods=['POST'])
 def api_record_health():
     data = request.get_json() or {}
@@ -421,21 +466,34 @@ def api_record_health():
         return jsonify({"success": False, "message": "사용자 정보 또는 건강 상태가 누락되었습니다."}), 400
 
     try:
+        now_dt = datetime.datetime.now()
         health_record = HealthStatus(
             user_id=user_id,
             condition_level=int(condition_level),
             breakfast_status=breakfast,
             lunch_status=lunch,
             dinner_status=dinner,
-            target_date=datetime.date.today(),
-            recorded_at=datetime.datetime.now()
+            target_date=now_dt.date(),
+            recorded_at=now_dt
         )
         db.session.add(health_record)
         db.session.commit()
+
+        # 💡 시계열 이상 탐지 AI 실행 및 RISK_ANALYSIS 테이블에 INSERT
+        user = User.query.get(user_id)
+        health_history = HealthStatus.query.filter_by(user_id=user_id)\
+            .order_by(HealthStatus.recorded_at.desc()).all()
+        login_history = LoginHistory.query.filter_by(user_id=user_id)\
+            .order_by(LoginHistory.auth_time.desc()).all()
+
+        eval_res = evaluate_and_record_risk(user, health_history, login_history, db.session, RiskAnalysis)
+
         return jsonify({
             "success": True,
-            "message": "건강 상태가 정상적으로 저장되었습니다.",
-            "saved_at": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            "message": "건강 상태가 정상적으로 저장되고 AI 위험 분석이 완료되었습니다.",
+            "saved_at": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
+            "risk_score": eval_res["score"],
+            "risk_level": eval_res["risk_level"]
         })
     except Exception as e:
         db.session.rollback()

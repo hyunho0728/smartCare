@@ -270,7 +270,31 @@
     </div>
   </div>
 </div>
-<div class="modal-bg" id="feedback"><div class="modal"><div class="modal-head"><h3>조치 결과 작성</h3><button class="close" onclick="closeModal('feedback')">×</button></div><div class="modal-body"><label class="label">대상 어르신</label><input class="input" id="fbName" readonly><label class="label">조치 유형</label><select class="input"><option>전화 확인</option><option>방문 확인</option><option>119/보호자 연계</option></select><label class="label">확인 내용</label><textarea class="input textarea" placeholder="통화 또는 방문 확인 내용을 입력하세요."></textarea><button class="btn primary full" onclick="toast('조치 기록이 저장되었습니다.');closeModal('feedback')">저장</button></div></div></div>
+<!-- 조치 결과 작성 모달 -->
+<div class="modal-bg" id="feedback">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>조치 결과 작성</h3>
+      <button class="close" onclick="closeModal('feedback')">×</button>
+    </div>
+    <div class="modal-body">
+      <label class="label">대상 어르신</label>
+      <input class="input" id="fbName" readonly>
+      
+      <label class="label">조치 유형</label>
+      <select class="input" id="fbActionType">
+        <option value="전화확인">전화확인</option>
+        <option value="방문확인">방문확인</option>
+        <option value="응급출동">응급출동</option>
+      </select>
+      
+      <label class="label">확인 내용</label>
+      <textarea class="input textarea" id="fbContent" placeholder="통화 또는 방문 확인 내용을 상세히 입력하세요."></textarea>
+      
+      <button class="btn primary full" onclick="submitFeedback()">저장 완료</button>
+    </div>
+  </div>
+</div>
 
 <script>
 let users = [];
@@ -918,6 +942,41 @@ function openAdd(){document.getElementById('add').classList.add('show')}
 function openFeedback(name){document.getElementById('fbName').value=name;document.getElementById('feedback').classList.add('show')}
 function closeModal(id){document.getElementById(id).classList.remove('show')}
 function toast(msg){alert(msg)}
+
+// 조치 결과 저장 API 연동 함수
+async function submitFeedback() {
+  const name = document.getElementById('fbName')?.value.trim();
+  const actionType = document.getElementById('fbActionType')?.value;
+  const content = document.getElementById('fbContent')?.value.trim();
+
+  if (!content) {
+    toast('확인 내용을 입력해주세요.');
+    return;
+  }
+
+  try {
+    const res = await fetch('/api/admin/actions/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: name,
+        action_type: actionType,
+        feedback: content
+      })
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      toast(result.message);
+      document.getElementById('fbContent').value = '';
+      closeModal('feedback');
+    } else {
+      toast(result.message || '저장에 실패했습니다.');
+    }
+  } catch (err) {
+    toast('서버와의 통신에 실패했습니다.');
+  }
+}
 </script>
 </body>
 </html>
