@@ -402,6 +402,7 @@ def api_admin_delete_elder(user_id):
 # ==========================================
 
 @app.route('/api/user/login', methods=['POST'])
+@app.route('/api/user/login', methods=['POST'])
 def api_user_login():
     data = request.get_json() or {}
     phone_clean = extract_numbers(data.get('phone_number', ''))
@@ -428,12 +429,33 @@ def api_user_login():
     session['user_id'] = user.user_id
     session['user_phone'] = phone_clean
 
+    # 💡 오늘 건강 상태 입력 여부 및 최근 데이터 조회
+    today_date = datetime.datetime.now().date()
+    today_health = HealthStatus.query.filter_by(user_id=user.user_id, target_date=today_date)\
+        .order_by(HealthStatus.recorded_at.desc()).first()
+
+    today_status_data = None
+    if today_health:
+        map_reverse_action = {'완료': 'yes', '예정': 'plan', '결식': 'no'}
+        h_time = today_health.recorded_at
+        time_str = f"{'오전' if h_time.hour < 12 else '오후'} {h_time.hour % 12 or 12}:{h_time.minute:02d}"
+        
+        today_status_data = {
+            "health": today_health.condition_level,
+            "breakfast": map_reverse_action.get(today_health.breakfast_status, 'yes'),
+            "lunch": map_reverse_action.get(today_health.lunch_status, 'yes'),
+            "dinner": map_reverse_action.get(today_health.dinner_status, 'yes'),
+            "saved_time": time_str
+        }
+
     return jsonify({
         "success": True,
         "message": f"{user.name} 어르신, 로그인되었습니다.",
         "user_id": user.user_id,
         "user_name": user.name,
-        "phone_number": format_phone_display(phone_clean)
+        "phone_number": format_phone_display(phone_clean),
+        "today_saved": bool(today_health is not None),
+        "today_data": today_status_data
     })
 
 

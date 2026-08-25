@@ -825,6 +825,7 @@
   }
 
   // 어르신 로그인 (서버 API 연동)
+  // 어르신 로그인 (오늘 입력 여부 동기화)
   async function login() {
     const phone = document.getElementById('login-phone').value.trim();
     if (phone.replace(/\D/g, '').length < 9) {
@@ -845,6 +846,22 @@
         currentUserPhone = result.phone_number;
         currentUserName = result.user_name || '어르신';
         document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
+
+        // 💡 오늘 입력 이력 복원
+        if (result.today_saved && result.today_data) {
+          todaySaved = true;
+          savedData = {
+            health: result.today_data.health,
+            breakfast: result.today_data.breakfast,
+            lunch: result.today_data.lunch,
+            dinner: result.today_data.dinner
+          };
+          savedTime = result.today_data.saved_time || '';
+        } else {
+          todaySaved = false;
+          savedData = null;
+          savedTime = '';
+        }
 
         setDates();
         updateMainStatus();
