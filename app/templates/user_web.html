@@ -763,6 +763,40 @@
     no: '안 먹었어요'
   };
 
+  // ==========================================
+  // 💡 req_01_02_02: Web Speech API 기반 음성 안내 (콜백 지원)
+  // ==========================================
+  function speak(text, onEndCallback = null) {
+    if (!('speechSynthesis' in window)) {
+      if (onEndCallback) onEndCallback();
+      return;
+    }
+    window.speechSynthesis.cancel();
+
+    const cleanText = text.replace(/[\n\r]+/g, ' ').replace(/[^\w\s가-힣0-9.,?!]/g, '').trim();
+    if (!cleanText) {
+      if (onEndCallback) onEndCallback();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.lang = 'ko-KR';
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    if (onEndCallback) {
+      utterance.onend = () => {
+        onEndCallback();
+      };
+      // 음성 재생 실패 시 타임아웃 처리
+      utterance.onerror = () => {
+        onEndCallback();
+      };
+    }
+
+    window.speechSynthesis.speak(utterance);
+  }
+
   function goTo(id) {
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById(id).classList.add('active');
@@ -795,6 +829,7 @@
     const phone = document.getElementById('login-phone').value.trim();
     if (phone.replace(/\D/g, '').length < 9) {
       showAlert('⚠️', '휴대폰 번호를\n정확히 입력해 주세요.');
+      speak('휴대폰 번호를 정확히 입력해 주세요.');
       return;
     }
 
@@ -814,11 +849,14 @@
         setDates();
         updateMainStatus();
         goTo('screen-main');
+        speak(`${currentUserName} 어르신, 안녕하세요.`);
       } else {
         showAlert('⚠️', result.message || '로그인에 실패했습니다.');
+        speak(result.message || '로그인에 실패했습니다.');
       }
     } catch (err) {
       showAlert('⚠️', '서버와의 통신에\n실패했습니다.');
+      speak('서버와의 통신에 실패했습니다.');
     }
   }
 
@@ -832,33 +870,45 @@
     document.getElementById('reg-disease-other').value = '';
     checkDiseaseOther();
     goTo('screen-reg-privacy');
+    speak('개인정보 수집 동의 화면입니다.');
   }
 
   function nextRegister(nextId, type) {
     if (type === 'privacy' && !document.getElementById('privacy-agree').checked) {
       showAlert('⚠️', '개인정보 수집에\n동의해 주세요.');
+      speak('개인정보 수집에 동의해 주세요.');
       return;
     }
     if (type === 'name') {
       const nameVal = document.getElementById('reg-name').value.trim();
       if (!nameVal) {
         showAlert('⚠️', '이름을 입력해 주세요.');
+        speak('이름을 입력해 주세요.');
         return;
       }
     }
     if (type === 'phone' && document.getElementById('reg-phone').value.replace(/\D/g,'').length < 9) {
       showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
+      speak('휴대폰 번호를 입력해 주세요.');
       return;
     }
     if (type === 'address' && !document.getElementById('reg-address').value.trim()) {
       showAlert('⚠️', '주소를 입력해 주세요.');
+      speak('주소를 입력해 주세요.');
       return;
     }
     if (type === 'age' && !document.getElementById('reg-age').value.trim()) {
       showAlert('⚠️', '나이를 입력해 주세요.');
+      speak('나이를 입력해 주세요.');
       return;
     }
     goTo(nextId);
+
+    if (nextId === 'screen-reg-name') speak('성함을 입력해 주세요.');
+    else if (nextId === 'screen-reg-phone') speak('휴대폰 번호를 입력해 주세요.');
+    else if (nextId === 'screen-reg-address') speak('거주하시는 주소를 입력해 주세요.');
+    else if (nextId === 'screen-reg-age') speak('연세를 입력해 주세요.');
+    else if (nextId === 'screen-reg-disease') speak('기저질환을 선택해 주세요.');
   }
 
   function checkDiseaseOther() {
@@ -885,6 +935,7 @@
 
     if (diseaseSelect === '기타' && !diseaseOther) {
       showAlert('⚠️', '기타 질환명을\n입력해 주세요.');
+      speak('기타 질환명을 입력해 주세요.');
       return;
     }
 
@@ -909,15 +960,19 @@
       if (result.success) {
         document.getElementById('login-phone').value = phone;
         showAlert('✅', '회원가입이\n완료되었습니다.');
-        setTimeout(() => {
-          closeModal();
-          goTo('screen-login');
-        }, 900);
+        speak('회원가입이 완료되었습니다.', () => {
+          setTimeout(() => {
+            closeModal();
+            goTo('screen-login');
+          }, 300);
+        });
       } else {
         showAlert('⚠️', result.message || '가입에 실패했습니다.');
+        speak(result.message || '가입에 실패했습니다.');
       }
     } catch (err) {
       showAlert('⚠️', '서버와의 통신에\n실패했습니다.');
+      speak('서버와의 통신에 실패했습니다.');
     }
   }
 
@@ -969,20 +1024,26 @@
     checkHealthNext();
     checkMealButtons();
     goTo('screen-health');
+    speak('오늘 건강 상태는 어떠세요?');
   }
 
+  // 💡 선택 음성이 끝난 뒤 다음 화면으로 자동 이동
   function selectHealth(score, btn) {
     formData.health = score;
     document.querySelectorAll('.health-btn').forEach(el => el.classList.remove('selected'));
     btn.classList.add('selected');
     checkHealthNext();
 
-    // 선택 시 0.2초 후 다음 화면(아침)으로 자동 이동
-    setTimeout(() => {
+    const selectedVoice = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][score] || '';
+    
+    // 음성이 끝난 후 다음 화면으로 이동
+    speak(`${selectedVoice}`, () => {
       goTo('screen-meal-breakfast');
-    }, 200);
+      speak('아침 식사는 하셨나요?');
+    });
   }
 
+  // 💡 식사 선택 음성이 끝난 뒤 다음 식사 화면으로 자동 이동
   function selectSingleMeal(slot, choice, btn) {
     formData[slot] = choice;
     document.querySelectorAll(`.single-meal-btn[data-slot="${slot}"]`).forEach(el => {
@@ -991,22 +1052,23 @@
     btn.classList.add('selected', choice);
     checkMealButtons();
 
-    // 선택 시 다음 단계 화면으로 자동 이동
-    setTimeout(() => {
+    const choiceVoice = { yes: '먹었어요', plan: '먹을 거예요', no: '안 먹었어요' }[choice];
+
+    speak(`${choiceVoice}`, () => {
       if (slot === 'breakfast') {
         goTo('screen-meal-lunch');
+        speak('점심 식사는 하셨나요?');
       } else if (slot === 'lunch') {
         goTo('screen-meal-dinner');
+        speak('저녁 식사는 하셨나요?');
       }
-    }, 200);
+    });
   }
 
   function refreshAllSelections() {
-    // 건강 버튼 리프레시
     document.querySelectorAll('.health-btn').forEach(btn => {
       btn.classList.toggle('selected', Number(btn.dataset.score) === formData.health);
     });
-    // 식사 버튼들 리프레시
     ['breakfast', 'lunch', 'dinner'].forEach(slot => {
       document.querySelectorAll(`.single-meal-btn[data-slot="${slot}"]`).forEach(btn => {
         btn.className = 'single-meal-btn';
@@ -1027,10 +1089,11 @@
     document.getElementById('dinner-save-btn').classList.toggle('disabled', !formData.dinner);
   }
 
-  // 건강 상태 & 식사 정보 서버 저장 (MySQL HEALTH_STATUS 테이블 연동)
+  // 건강 상태 & 식사 정보 서버 저장
   async function saveStatus() {
     if (!(formData.health && formData.breakfast && formData.lunch && formData.dinner)) {
       showAlert('⚠️', '모든 식사 여부를\n선택해 주세요.');
+      speak('모든 식사 여부를 선택해 주세요.');
       return;
     }
 
@@ -1058,11 +1121,14 @@
         buildSummary();
         document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
         goTo('screen-done');
+        speak(isModifyMode ? '오늘 상태 수정이 완료되었습니다.' : '오늘 건강 상태 저장이 완료되었습니다.');
       } else {
         showAlert('⚠️', result.message || '저장에 실패했습니다.');
+        speak(result.message || '저장에 실패했습니다.');
       }
     } catch (err) {
       showAlert('⚠️', '서버 통신에\n실패했습니다.');
+      speak('서버 통신에 실패했습니다.');
     }
   }
 
@@ -1077,6 +1143,7 @@
   }
 
   function confirmEmergency() {
+    speak('긴급 연락을 연결하시겠습니까?');
     showConfirm(
       '📞',
       '긴급 연락을\n연결할까요?',

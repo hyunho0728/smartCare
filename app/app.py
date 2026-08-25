@@ -51,7 +51,6 @@ def format_phone_display(phone_str):
 def generate_svg_chart_points(scores_7days):
     """최근 7일 점수 리스트를 SVG Polyline 좌표 문자열로 변환 (0~100점 -> Y:170~30)"""
     x_coords = [0, 112, 224, 336, 448, 560, 650]
-    # 7일 미만일 경우 앞부분을 첫 점수로 채움
     while len(scores_7days) < 7:
         scores_7days.insert(0, scores_7days[0] if scores_7days else 100)
     scores_7days = scores_7days[-7:]
@@ -176,7 +175,7 @@ def api_admin_check_session():
 
 @app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
-    """로그인한 사회복지사의 배정/미배정 어르신을 분리하고 RISK_ANALYSIS 및 AI 감점 태그를 완벽히 연동하여 반환"""
+    """로그인한 사회복지사의 배정/미배정 어르신을 분리하고 RISK_ANALYSIS 및 AI 감점 태그를 연동하여 반환"""
     current_worker_id = session.get('admin_worker_id')
     if not current_worker_id:
         admin_login_id = session.get('admin_id')
@@ -211,11 +210,11 @@ def api_get_elders():
 
         display_last_time = last_input_str if latest_health else (latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음")
 
-        # 💡 AI 및 규칙 점수/감점 사유를 일원화하여 실시간 도출
+        # 💡 AI 및 규칙 점수/감점 사유를 일원화하여 도출
         eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
         risk_score = eval_res["score"]
         risk_level = eval_res["risk_level"]
-        score_breakdown = eval_res["score_breakdown"]  # AI 감점 태그 포함 전체 사유
+        score_breakdown = eval_res["score_breakdown"]
         ai_desc = eval_res["ai_summary"]
 
         # 최근 7일 그래프 좌표 생성
@@ -235,7 +234,7 @@ def api_get_elders():
             "meal": meal,
             "meal_short": meal_short,
             "score": risk_score,
-            "score_breakdown": score_breakdown, # 일치된 산출 사유 태그 전달
+            "score_breakdown": score_breakdown,
             "risk": risk_level,
             "last": display_last_time,
             "lastInput": last_input_str,
@@ -283,7 +282,6 @@ def api_assign_elder():
         return jsonify({"success": False, "message": f"배정 실패: {str(e)}"}), 500
 
 
-# 💡 시점 ③: 사후 조치 작성 결과 POST_MANAGEMENT 테이블 저장 API
 @app.route('/api/admin/actions/save', methods=['POST'])
 def api_save_post_management():
     data = request.get_json() or {}
@@ -311,7 +309,6 @@ def api_save_post_management():
     if not user_id or not feedback:
         return jsonify({"success": False, "message": "대상자 정보 및 확인 내용을 입력해주세요."}), 400
 
-    # 가장 최근의 위험 분석 레코드 조회 연동
     latest_risk = RiskAnalysis.query.filter_by(user_id=user_id)\
         .order_by(RiskAnalysis.analyzed_at.desc()).first()
 
@@ -444,8 +441,6 @@ def api_user_register():
         return jsonify({"success": False, "message": f"가입 실패: {str(e)}"}), 500
 
 
-# 💡 시점 ①: 상태 저장 시 AI 분석 실행 후 RISK_ANALYSIS 테이블에 자동 적재
-@app.route('/api/user/health', methods=['POST'])
 # 💡 req_01_01_03: 상태 저장 및 1시간 이내 재입력 시 UPDATE 처리
 @app.route('/api/user/health', methods=['POST'])
 def api_record_health():
@@ -470,12 +465,10 @@ def api_record_health():
     try:
         now_dt = datetime.datetime.now()
         
-        # 1. 사용자의 가장 최근 건강 기록 조회
         latest_health = HealthStatus.query.filter_by(user_id=user_id)\
             .order_by(HealthStatus.recorded_at.desc()).first()
 
         is_update = False
-        # 2. 1시간(3600초) 이내에 다시 저장하는 경우: 기존 레코드 UPDATE
         if latest_health and latest_health.target_date == now_dt.date():
             diff_seconds = (now_dt - latest_health.recorded_at).total_seconds()
             if diff_seconds <= 3600:
@@ -483,11 +476,10 @@ def api_record_health():
                 latest_health.breakfast_status = breakfast
                 latest_health.lunch_status = lunch
                 latest_health.dinner_status = dinner
-                latest_health.recorded_at = now_dt  # 수정 시점 반영
+                latest_health.recorded_at = now_dt
                 db.session.commit()
                 is_update = True
 
-        # 3. 1시간 초과 또는 최초 저장인 경우: 신규 INSERT
         if not is_update:
             health_record = HealthStatus(
                 user_id=user_id,
@@ -501,7 +493,6 @@ def api_record_health():
             db.session.add(health_record)
             db.session.commit()
 
-        # 4. 시계열 이상 탐지 AI 실행 및 RISK_ANALYSIS 테이블 동기화
         user = User.query.get(user_id)
         health_history = HealthStatus.query.filter_by(user_id=user_id)\
             .order_by(HealthStatus.recorded_at.desc()).all()
