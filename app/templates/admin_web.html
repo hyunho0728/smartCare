@@ -360,9 +360,14 @@
       <!-- 5. 담당자 배정 -->
       <section class="page" id="match">
         <div class="panel">
-          <div class="panel-head"><h3>주소지 거리 기반 담당자 자동 배정</h3></div>
+          <div class="panel-head">
+            <div>
+              <h3>담당자 배정 지원</h3>
+              <span>미배정된 어르신을 선택하여 담당으로 배정합니다.</span>
+            </div>
+          </div>
           <table class="table">
-            <thead><tr><th>어르신</th><th>거주 위치</th><th>기저질환 유무</th><th>배정</th></tr></thead>
+            <thead><tr><th>어르신</th><th>연세</th><th>거주 주소</th><th>기저질환</th><th>배정</th></tr></thead>
             <tbody id="match-tbody"></tbody>
           </table>
         </div>
@@ -673,7 +678,7 @@ function renderOtherSections() {
   if (aiList && aiRiskTbody) {
     if (!users || users.length === 0) {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
-      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">데이터가 없습니다.</td></tr>';
+      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:color:var(--muted)">데이터가 없습니다.</td></tr>';
     } else {
       aiList.innerHTML = users.map(u => `
         <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
@@ -716,11 +721,12 @@ function renderOtherSections() {
   const matchTbody = document.getElementById('match-tbody');
   if (matchTbody) {
     if (!unassignedUsers || unassignedUsers.length === 0) {
-      matchTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)">현재 배정 대기 중인 어르신이 없습니다.</td></tr>';
+      matchTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:24px;color:var(--muted)">현재 배정 대기 중인 어르신이 없습니다.</td></tr>';
     } else {
       matchTbody.innerHTML = unassignedUsers.map(u => `
         <tr>
-          <td><b>${u.name}</b> (${u.age}세)</td>
+          <td><b>${u.name}</b></td>
+          <td>${u.age}세</td>
           <td>${u.address || '-'}</td>
           <td>${u.disease || '없음'}</td>
           <td>
@@ -759,7 +765,7 @@ function nav(id, btn) {
     elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
     analysis: '건강 상태와 생활 패턴 데이터를 기반으로 AI 분석 결과와 예측 위험도를 확인합니다.',
     alerts: '이상 징후 알림 발생 내역과 사회복지사의 조치 결과를 기록하고 관리합니다.',
-    match: '주소지 거리와 위험도 정보를 바탕으로 담당 복지사 배정을 지원합니다.'
+    match: '미배정된 어르신을 선택하여 담당으로 배정합니다.'
   };
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1180,4 +1186,4 @@ async function remoteLogoutElder(userId, name) {
 }
 </script>
 </body>
-</html>
+</html> 

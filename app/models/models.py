@@ -31,33 +31,33 @@ class User(db.Model):
     has_underlying_disease = db.Column(db.Boolean, default=False)
     underlying_disease_severity = db.Column(db.Integer, default=0)
     note = db.Column(db.Text)
-    session_token = db.Column(db.String(64), nullable=True) # 💡 원격 로그아웃 토큰
+    session_token = db.Column(db.String(64), nullable=True) # 원격 로그아웃 토큰
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 
-# 3. 건강 상태 모델
+# 3. 건강 상태 모델 (인덱스 적용)
 class HealthStatus(db.Model):
     __tablename__ = 'HEALTH_STATUS'
     status_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False, index=True)
     condition_level = db.Column(db.SmallInteger, nullable=False)
     breakfast_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
     lunch_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
     dinner_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
     blood_pressure = db.Column(db.String(20))
     blood_sugar = db.Column(db.Integer)
-    target_date = db.Column(db.Date, default=datetime.now().date, nullable=False)
-    recorded_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    target_date = db.Column(db.Date, default=datetime.now().date, nullable=False, index=True)
+    recorded_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
     note = db.Column(db.Text)
 
 
-# 4. 고독사 위험 및 AI 분석 리포트 모델 (신규)
+# 4. 고독사 위험 및 AI 분석 리포트 모델 (인덱스 적용)
 class RiskAnalysis(db.Model):
     __tablename__ = 'RISK_ANALYSIS'
     analysis_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False, index=True)
     risk_score = db.Column(db.Numeric(5, 2), nullable=False)
     risk_level = db.Column(db.Enum('SAFE', 'WATCH', 'WARN', 'DANGER'), default='SAFE', nullable=False)
     is_anomaly = db.Column(db.Boolean, default=False, nullable=False)
@@ -65,14 +65,14 @@ class RiskAnalysis(db.Model):
     time_deviation = db.Column(db.Integer)
     predicted_risk_prob = db.Column(db.Numeric(5, 2))
     ai_summary = db.Column(db.Text)
-    analyzed_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    analyzed_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
 
 
-# 5. 사후 조치 및 피드백 모델 (신규)
+# 5. 사후 조치 및 피드백 모델
 class PostManagement(db.Model):
     __tablename__ = 'POST_MANAGEMENT'
     management_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False, index=True)
     worker_id = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id', ondelete='CASCADE'), nullable=False)
     analysis_id = db.Column(db.BigInteger, db.ForeignKey('RISK_ANALYSIS.analysis_id', ondelete='SET NULL'))
     alert_time = db.Column(db.DateTime, default=datetime.now, nullable=False)
@@ -85,8 +85,8 @@ class PostManagement(db.Model):
 class LoginHistory(db.Model):
     __tablename__ = 'LOGIN_HISTORY'
     history_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'))
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), index=True)
     phone_number = db.Column(db.String(20), nullable=False)
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(255))
-    auth_time = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    auth_time = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)

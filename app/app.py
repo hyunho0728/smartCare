@@ -27,7 +27,6 @@ db.init_app(app)
 
 with app.app_context():
     db.create_all()
-    # session_token 컬럼이 DB에 없으면 자동 추가
     try:
         from sqlalchemy import text
         with db.engine.connect() as conn:
@@ -378,7 +377,7 @@ def api_admin_register_elder():
         return jsonify({"success": False, "message": f"등록 실패: {str(e)}"}), 500
 
 
-# 💡 req_02_03_02 / req_03_04_02: 사회복지사 대시보드 어르신 계정 삭제(비활성화)
+# 💡 req_02_03_02: 사회복지사 대시보드 어르신 계정 삭제(비활성화)
 @app.route('/api/admin/elders/<int:user_id>', methods=['DELETE'])
 def api_admin_delete_elder(user_id):
     current_worker_id = session.get('admin_worker_id')
@@ -504,7 +503,6 @@ def api_user_login():
     })
 
 
-# 💡 어르신 모바일 웹 세션 실시간 확인 API (단일 엔드포인트 유지)
 @app.route('/api/user/check-session', methods=['GET'])
 def api_user_check_session():
     user_id = session.get('user_id')

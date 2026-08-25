@@ -309,7 +309,6 @@
   .h-emoji { font-size: clamp(40px, 5.5vh, 58px); line-height: 1; }
   .h-text { font-size: clamp(20px, 2.65vh, 29px); font-weight: 900; }
 
-  /* 단일 식사 카드 레이아웃 */
   .single-meal-card {
     width: 100%;
     background: white;
@@ -725,7 +724,7 @@
 <section class="screen done-screen" id="screen-done">
   <div class="done-icon">✅</div>
   <div class="done-title" id="done-title">오늘 입력 완료</div>
-  <div class="done-sub">담당 사회복지사에게<br>전달되었습니다.</div>
+  <div class="done-sub" id="done-sub">담당 사회복지사에게<br>전달되었습니다.</div>
   <div class="summary" id="summary"></div>
   <button class="main-btn" style="background:white;color:var(--green);" onclick="goMain()">메인으로 돌아가기</button>
 </section>
@@ -763,9 +762,6 @@
     no: '안 먹었어요'
   };
 
-  // ==========================================
-  // 💡 req_01_02_02: Web Speech API 기반 음성 안내 (콜백 지원)
-  // ==========================================
   function speak(text, onEndCallback = null) {
     if (!('speechSynthesis' in window)) {
       if (onEndCallback) onEndCallback();
@@ -785,13 +781,8 @@
     utterance.pitch = 1.0;
 
     if (onEndCallback) {
-      utterance.onend = () => {
-        onEndCallback();
-      };
-      // 음성 재생 실패 시 타임아웃 처리
-      utterance.onerror = () => {
-        onEndCallback();
-      };
+      utterance.onend = () => onEndCallback();
+      utterance.onerror = () => onEndCallback();
     }
 
     window.speechSynthesis.speak(utterance);
@@ -824,8 +815,6 @@
     document.getElementById('dinner-date').textContent = date;
   }
 
-  // 어르신 로그인 (서버 API 연동)
-  // 어르신 로그인 (오늘 입력 여부 동기화)
   async function login() {
     const phone = document.getElementById('login-phone').value.trim();
     if (phone.replace(/\D/g, '').length < 9) {
@@ -847,7 +836,6 @@
         currentUserName = result.user_name || '어르신';
         document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
 
-        // 💡 오늘 입력 이력 복원
         if (result.today_saved && result.today_data) {
           todaySaved = true;
           savedData = {
@@ -941,7 +929,6 @@
     }
   }
 
-  // 어르신 회원가입
   async function finishRegister() {
     const name = document.getElementById('reg-name').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -1044,7 +1031,6 @@
     speak('오늘 건강 상태는 어떠세요?');
   }
 
-  // 💡 선택 음성이 끝난 뒤 다음 화면으로 자동 이동
   function selectHealth(score, btn) {
     formData.health = score;
     document.querySelectorAll('.health-btn').forEach(el => el.classList.remove('selected'));
@@ -1052,15 +1038,12 @@
     checkHealthNext();
 
     const selectedVoice = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][score] || '';
-    
-    // 음성이 끝난 후 다음 화면으로 이동
     speak(`${selectedVoice}`, () => {
       goTo('screen-meal-breakfast');
       speak('아침 식사는 하셨나요?');
     });
   }
 
-  // 💡 식사 선택 음성이 끝난 뒤 다음 식사 화면으로 자동 이동
   function selectSingleMeal(slot, choice, btn) {
     formData[slot] = choice;
     document.querySelectorAll(`.single-meal-btn[data-slot="${slot}"]`).forEach(el => {
@@ -1106,8 +1089,6 @@
     document.getElementById('dinner-save-btn').classList.toggle('disabled', !formData.dinner);
   }
 
-  // 건강 상태 & 식사 정보 서버 저장
-  // 건강 상태 & 식사 정보 서버 저장 (배정 여부에 따른 문구/음성 분기)
   async function saveStatus() {
     if (!(formData.health && formData.breakfast && formData.lunch && formData.dinner)) {
       showAlert('⚠️', '모든 식사 여부를\n선택해 주세요.');
@@ -1139,7 +1120,6 @@
         buildSummary();
         document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
         
-        // 💡 복지사 배정 여부에 따른 완료 안내 문구 및 TTS 음성 분기
         const doneSub = document.getElementById('done-sub');
         let voiceMessage = '';
 
@@ -1227,60 +1207,55 @@
   document.getElementById('login-phone').addEventListener('input', formatPhone);
   document.getElementById('reg-phone').addEventListener('input', formatPhone);
 
-  // 💡 페이지 로드/새로고침 시 자동 로그인 유지 검사 (요구사항 req_02_03_03)
-async function autoLoginOnLoad() {
-  try {
-    const res = await fetch('/api/user/check-session');
-    const result = await res.json();
+  // 자동 로그인 검사
+  async function autoLoginOnLoad() {
+    try {
+      const res = await fetch('/api/user/check-session?_t=' + new Date().getTime());
+      const result = await res.json();
 
-    // 서버 세션이 유효한 경우 사용자 정보 및 오늘 입력 상태를 불러와 메인 화면으로 직행
-    if (result.valid && result.user_info) {
-      currentUserPhone = result.user_info.phone_number;
-      currentUserName = result.user_info.user_name || '어르신';
-      document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
+      if (result.valid && result.user_info) {
+        currentUserPhone = result.user_info.phone_number;
+        currentUserName = result.user_info.user_name || '어르신';
+        document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
 
-      if (result.today_saved && result.today_data) {
-        todaySaved = true;
-        savedData = {
-          health: result.today_data.health,
-          breakfast: result.today_data.breakfast,
-          lunch: result.today_data.lunch,
-          dinner: result.today_data.dinner
-        };
-        savedTime = result.today_data.saved_time || '';
-      } else {
-        todaySaved = false;
-        savedData = null;
-        savedTime = '';
+        if (result.today_saved && result.today_data) {
+          todaySaved = true;
+          savedData = {
+            health: result.today_data.health,
+            breakfast: result.today_data.breakfast,
+            lunch: result.today_data.lunch,
+            dinner: result.today_data.dinner
+          };
+          savedTime = result.today_data.saved_time || '';
+        } else {
+          todaySaved = false;
+          savedData = null;
+          savedTime = '';
+        }
+
+        setDates();
+        updateMainStatus();
+        goTo('screen-main');
       }
-
-      setDates();
-      updateMainStatus();
-      goTo('screen-main');
+    } catch (err) {
+      console.error('자동 로그인 확인 실패:', err);
     }
-  } catch (err) {
-    console.error('자동 로그인 확인 실패:', err);
   }
-}
 
-window.addEventListener('DOMContentLoaded', autoLoginOnLoad);
+  window.addEventListener('DOMContentLoaded', autoLoginOnLoad);
 
-// 💡 req_02_03_03: 1.5초마다 원격 로그아웃 실시간 백그라운드 체크
+  // 1.5초마다 원격 로그아웃 실시간 체크
   let isLoggingOut = false;
-
   setInterval(async () => {
-    // 로그인 화면(screen-login)에 머물러 있거나 이미 로그아웃 처리 중이면 중단
     const loginScreen = document.getElementById('screen-login');
     if (isLoggingOut || (loginScreen && loginScreen.classList.contains('active'))) {
       return;
     }
 
     try {
-      // 캐시 방지를 위해 타임스탬프 파라미터 추가
       const res = await fetch('/api/user/check-session?_t=' + new Date().getTime());
       const data = await res.json();
 
-      // 세션이 파기되었을 때 즉각 화면 전환 및 알림 실행
       if (!data.valid) {
         isLoggingOut = true;
         speak('사회복지사에 의해 원격으로 로그아웃되었습니다.');
