@@ -1090,6 +1090,7 @@
   }
 
   // 건강 상태 & 식사 정보 서버 저장
+  // 건강 상태 & 식사 정보 서버 저장 (배정 여부에 따른 문구/음성 분기)
   async function saveStatus() {
     if (!(formData.health && formData.breakfast && formData.lunch && formData.dinner)) {
       showAlert('⚠️', '모든 식사 여부를\n선택해 주세요.');
@@ -1120,8 +1121,25 @@
 
         buildSummary();
         document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
+        
+        // 💡 복지사 배정 여부에 따른 완료 안내 문구 및 TTS 음성 분기
+        const doneSub = document.getElementById('done-sub');
+        let voiceMessage = '';
+
+        if (result.has_worker) {
+          if (doneSub) doneSub.innerHTML = '담당 사회복지사에게<br>전달되었습니다.';
+          voiceMessage = isModifyMode 
+            ? '오늘 상태 수정이 완료되었습니다. 담당 사회복지사에게 전달되었습니다.' 
+            : '오늘 건강 상태 저장이 완료되었습니다. 담당 사회복지사에게 전달되었습니다.';
+        } else {
+          if (doneSub) doneSub.innerHTML = '건강 상태가 등록되었습니다.<br>곧 관할 복지센터 담당자가 배정됩니다.';
+          voiceMessage = isModifyMode
+            ? '오늘 상태 수정이 완료되었습니다. 곧 관할 복지센터 담당자가 배정됩니다.'
+            : '건강 상태가 등록되었습니다. 곧 관할 복지센터 담당자가 배정됩니다.';
+        }
+
         goTo('screen-done');
-        speak(isModifyMode ? '오늘 상태 수정이 완료되었습니다.' : '오늘 건강 상태 저장이 완료되었습니다.');
+        speak(voiceMessage);
       } else {
         showAlert('⚠️', result.message || '저장에 실패했습니다.');
         speak(result.message || '저장에 실패했습니다.');

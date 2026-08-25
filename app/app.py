@@ -491,6 +491,8 @@ def api_user_register():
 
 # 💡 req_01_01_03: 상태 저장 및 1시간 이내 재입력 시 UPDATE 처리
 @app.route('/api/user/health', methods=['POST'])
+# 💡 req_01_01_03: 상태 저장 및 1시간 이내 재입력 시 UPDATE 처리
+@app.route('/api/user/health', methods=['POST'])
 def api_record_health():
     data = request.get_json() or {}
     user_id = session.get('user_id')
@@ -555,6 +557,7 @@ def api_record_health():
             "success": True,
             "message": msg,
             "is_update": is_update,
+            "has_worker": bool(user.worker_id is not None), # 💡 복지사 배정 여부 전달
             "saved_at": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
             "risk_score": eval_res["score"],
             "risk_level": eval_res["risk_level"]
