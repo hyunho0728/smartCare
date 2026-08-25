@@ -31,6 +31,7 @@ class User(db.Model):
     has_underlying_disease = db.Column(db.Boolean, default=False)
     underlying_disease_severity = db.Column(db.Integer, default=0)
     note = db.Column(db.Text)
+    session_token = db.Column(db.String(64), nullable=True) # 💡 원격 로그아웃 토큰
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.now)
     updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)

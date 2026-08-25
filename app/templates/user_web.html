@@ -1226,6 +1226,80 @@
 
   document.getElementById('login-phone').addEventListener('input', formatPhone);
   document.getElementById('reg-phone').addEventListener('input', formatPhone);
+
+  // 💡 페이지 로드/새로고침 시 자동 로그인 유지 검사 (요구사항 req_02_03_03)
+async function autoLoginOnLoad() {
+  try {
+    const res = await fetch('/api/user/check-session');
+    const result = await res.json();
+
+    // 서버 세션이 유효한 경우 사용자 정보 및 오늘 입력 상태를 불러와 메인 화면으로 직행
+    if (result.valid && result.user_info) {
+      currentUserPhone = result.user_info.phone_number;
+      currentUserName = result.user_info.user_name || '어르신';
+      document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
+
+      if (result.today_saved && result.today_data) {
+        todaySaved = true;
+        savedData = {
+          health: result.today_data.health,
+          breakfast: result.today_data.breakfast,
+          lunch: result.today_data.lunch,
+          dinner: result.today_data.dinner
+        };
+        savedTime = result.today_data.saved_time || '';
+      } else {
+        todaySaved = false;
+        savedData = null;
+        savedTime = '';
+      }
+
+      setDates();
+      updateMainStatus();
+      goTo('screen-main');
+    }
+  } catch (err) {
+    console.error('자동 로그인 확인 실패:', err);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', autoLoginOnLoad);
+
+// 💡 req_02_03_03: 1.5초마다 원격 로그아웃 실시간 백그라운드 체크
+  let isLoggingOut = false;
+
+  setInterval(async () => {
+    // 로그인 화면(screen-login)에 머물러 있거나 이미 로그아웃 처리 중이면 중단
+    const loginScreen = document.getElementById('screen-login');
+    if (isLoggingOut || (loginScreen && loginScreen.classList.contains('active'))) {
+      return;
+    }
+
+    try {
+      // 캐시 방지를 위해 타임스탬프 파라미터 추가
+      const res = await fetch('/api/user/check-session?_t=' + new Date().getTime());
+      const data = await res.json();
+
+      // 세션이 파기되었을 때 즉각 화면 전환 및 알림 실행
+      if (!data.valid) {
+        isLoggingOut = true;
+        speak('사회복지사에 의해 원격으로 로그아웃되었습니다.');
+        showAlert('🔒', '사회복지사에 의해\n원격 로그아웃되었습니다.');
+        
+        setTimeout(() => {
+          closeModal();
+          todaySaved = false;
+          savedData = null;
+          currentUserPhone = '';
+          currentUserName = '어르신';
+          goTo('screen-login');
+          isLoggingOut = false;
+        }, 1200);
+      }
+    } catch (e) {
+      // 통신 에러 무시
+    }
+  }, 1500);
 </script>
 </body>
 </html>
