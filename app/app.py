@@ -446,6 +446,8 @@ def api_user_register():
 
 # 💡 시점 ①: 상태 저장 시 AI 분석 실행 후 RISK_ANALYSIS 테이블에 자동 적재
 @app.route('/api/user/health', methods=['POST'])
+# 💡 req_01_01_03: 상태 저장 및 1시간 이내 재입력 시 UPDATE 처리
+@app.route('/api/user/health', methods=['POST'])
 def api_record_health():
     data = request.get_json() or {}
     user_id = session.get('user_id')
@@ -467,19 +469,39 @@ def api_record_health():
 
     try:
         now_dt = datetime.datetime.now()
-        health_record = HealthStatus(
-            user_id=user_id,
-            condition_level=int(condition_level),
-            breakfast_status=breakfast,
-            lunch_status=lunch,
-            dinner_status=dinner,
-            target_date=now_dt.date(),
-            recorded_at=now_dt
-        )
-        db.session.add(health_record)
-        db.session.commit()
+        
+        # 1. 사용자의 가장 최근 건강 기록 조회
+        latest_health = HealthStatus.query.filter_by(user_id=user_id)\
+            .order_by(HealthStatus.recorded_at.desc()).first()
 
-        # 💡 시계열 이상 탐지 AI 실행 및 RISK_ANALYSIS 테이블에 INSERT
+        is_update = False
+        # 2. 1시간(3600초) 이내에 다시 저장하는 경우: 기존 레코드 UPDATE
+        if latest_health and latest_health.target_date == now_dt.date():
+            diff_seconds = (now_dt - latest_health.recorded_at).total_seconds()
+            if diff_seconds <= 3600:
+                latest_health.condition_level = int(condition_level)
+                latest_health.breakfast_status = breakfast
+                latest_health.lunch_status = lunch
+                latest_health.dinner_status = dinner
+                latest_health.recorded_at = now_dt  # 수정 시점 반영
+                db.session.commit()
+                is_update = True
+
+        # 3. 1시간 초과 또는 최초 저장인 경우: 신규 INSERT
+        if not is_update:
+            health_record = HealthStatus(
+                user_id=user_id,
+                condition_level=int(condition_level),
+                breakfast_status=breakfast,
+                lunch_status=lunch,
+                dinner_status=dinner,
+                target_date=now_dt.date(),
+                recorded_at=now_dt
+            )
+            db.session.add(health_record)
+            db.session.commit()
+
+        # 4. 시계열 이상 탐지 AI 실행 및 RISK_ANALYSIS 테이블 동기화
         user = User.query.get(user_id)
         health_history = HealthStatus.query.filter_by(user_id=user_id)\
             .order_by(HealthStatus.recorded_at.desc()).all()
@@ -488,9 +510,12 @@ def api_record_health():
 
         eval_res = evaluate_and_record_risk(user, health_history, login_history, db.session, RiskAnalysis)
 
+        msg = "건강 상태가 수정(UPDATE)되었습니다." if is_update else "건강 상태가 정상적으로 저장(INSERT)되었습니다."
+
         return jsonify({
             "success": True,
-            "message": "건강 상태가 정상적으로 저장되고 AI 위험 분석이 완료되었습니다.",
+            "message": msg,
+            "is_update": is_update,
             "saved_at": now_dt.strftime("%Y-%m-%d %H:%M:%S"),
             "risk_score": eval_res["score"],
             "risk_level": eval_res["risk_level"]
