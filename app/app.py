@@ -368,6 +368,35 @@ def api_admin_register_elder():
         return jsonify({"success": False, "message": f"등록 실패: {str(e)}"}), 500
 
 
+# 💡 req_02_03_02 / req_03_04_02: 사회복지사 대시보드 어르신 계정 삭제(비활성화)
+@app.route('/api/admin/elders/<int:user_id>', methods=['DELETE'])
+def api_admin_delete_elder(user_id):
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "사회복지사 로그인이 필요합니다."}), 401
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"success": False, "message": "대상 어르신 정보를 찾을 수 없습니다."}), 404
+
+    try:
+        # 안전한 소프트 딜리트(비활성화) 처리
+        user.is_active = False
+        user.worker_id = None
+        db.session.commit()
+        return jsonify({"success": True, "message": f"'{user.name}' 어르신 계정이 서비스에서 삭제(비활성화)되었습니다."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"삭제 처리 실패: {str(e)}"}), 500
+
+
 # ==========================================
 # 3. 사용자(어르신) 모바일 API
 # ==========================================
@@ -409,6 +438,7 @@ def api_user_login():
 
 
 @app.route('/api/user/register', methods=['POST'])
+@app.route('/api/user/register', methods=['POST'])
 def api_user_register():
     data = request.get_json() or {}
     name = data.get('name', '').strip()
@@ -421,17 +451,35 @@ def api_user_register():
     if not all([name, phone_clean, address, age]):
         return jsonify({"success": False, "message": "모든 필수 항목을 입력해주세요."}), 400
 
-    if User.query.filter_by(phone_number=phone_clean).first():
+    # 기존 계정 조회
+    existing_user = User.query.filter_by(phone_number=phone_clean).first()
+
+    # 1. 이미 활성화된 정상 사용자가 가입을 시도할 때 -> 중복 차단
+    if existing_user and existing_user.is_active:
         return jsonify({"success": False, "message": "이미 등록된 휴대폰 번호입니다."}), 409
 
     try:
+        # 2. 이전에 삭제(비활성화)되었던 사용자가 재가입할 때 -> 최신 정보 갱신 및 재활성화
+        if existing_user and not existing_user.is_active:
+            existing_user.name = name
+            existing_user.age = int(age)
+            existing_user.address = address
+            existing_user.has_underlying_disease = bool(has_disease)
+            existing_user.note = disease_note
+            existing_user.is_active = True
+            existing_user.worker_id = None  # 신규 재배정을 위해 초기화
+            db.session.commit()
+            return jsonify({"success": True, "message": "서비스 재가입이 완료되었습니다."})
+
+        # 3. 최초 신규 가입자 -> INSERT
         new_user = User(
             name=name,
             age=int(age),
             address=address,
             phone_number=phone_clean,
             has_underlying_disease=bool(has_disease),
-            note=disease_note
+            note=disease_note,
+            is_active=True
         )
         db.session.add(new_user)
         db.session.commit()

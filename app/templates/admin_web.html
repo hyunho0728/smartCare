@@ -270,6 +270,7 @@
     </div>
   </div>
 </div>
+
 <!-- 조치 결과 작성 모달 -->
 <div class="modal-bg" id="feedback">
   <div class="modal">
@@ -489,6 +490,7 @@ function populateChartSelect(){
 }
 
 function renderOtherSections() {
+  // 1. 담당 어르신 계정 관리 탭
   const elderTbody = document.getElementById('elder-manage-tbody');
   if (elderTbody) {
     if (!users || users.length === 0) {
@@ -506,6 +508,7 @@ function renderOtherSections() {
             <div class="actions">
               <button class="mini-btn" onclick="openFeedback('${u.name}')">기록</button>
               <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">번호 복사</button>
+              <button class="mini-btn danger" onclick="deleteElder(${u.id}, '${u.name}')">삭제</button>
             </div>
           </td>
         </tr>
@@ -513,6 +516,7 @@ function renderOtherSections() {
     }
   }
 
+  // 2. AI 분석 리포트 탭
   const aiList = document.getElementById('ai-analysis-list');
   const aiRiskTbody = document.getElementById('ai-risk-tbody');
   if (aiList && aiRiskTbody) {
@@ -538,6 +542,7 @@ function renderOtherSections() {
     }
   }
 
+  // 3. 위험 알림 및 조치 기록 탭
   const alertsTbody = document.getElementById('alerts-record-tbody');
   if (alertsTbody) {
     const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
@@ -556,6 +561,7 @@ function renderOtherSections() {
     }
   }
 
+  // 4. 담당자 배정 탭
   const matchTbody = document.getElementById('match-tbody');
   if (matchTbody) {
     if (!unassignedUsers || unassignedUsers.length === 0) {
@@ -977,6 +983,29 @@ async function submitFeedback() {
     toast('서버와의 통신에 실패했습니다.');
   }
 }
+
+// 💡 req_02_03_02: 어르신 삭제 요청 (실수 방지 재확인 알림창 연동)
+async function deleteElder(userId, name) {
+  if (!confirm(`정말로 '${name}' 어르신을 서비스 관리 대상에서 삭제하시겠습니까?\n삭제된 사용자는 대시보드 모니터링 대상에서 제외됩니다.`)) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/elders/${userId}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      toast(result.message);
+      await loadEldersData(); // 대시보드 및 목록 즉시 갱신
+    } else {
+      toast(result.message || '삭제 처리에 실패했습니다.');
+    }
+  } catch (err) {
+    toast('서버와의 통신에 실패했습니다.');
+  }
+} 
 </script>
 </body>
 </html>
