@@ -996,13 +996,11 @@
   }
 
   // 건강 상태 & 식사 정보 서버 저장 (MySQL HEALTH_STATUS 테이블 연동)
+  // 건강 상태 & 식사 정보 서버 저장
   async function saveStatus() {
     if (!(formData.health && formData.breakfast && formData.lunch)) return;
 
-    let mealSummary = '결식';
-    if (formData.breakfast === 'yes' && formData.lunch === 'yes') mealSummary = '점심';
-    else if (formData.breakfast === 'yes') mealSummary = '아침';
-    else if (formData.lunch === 'yes') mealSummary = '점심';
+    const mapAction = { yes: '완료', plan: '예정', no: '결식' };
 
     try {
       const res = await fetch('/api/user/health', {
@@ -1011,7 +1009,9 @@
         body: JSON.stringify({
           phone_number: currentUserPhone,
           condition_level: formData.health,
-          meal_status: mealSummary
+          breakfast: mapAction[formData.breakfast] || '완료',
+          lunch: mapAction[formData.lunch] || '완료',
+          dinner: '완료'
         })
       });
       const result = await res.json();

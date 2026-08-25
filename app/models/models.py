@@ -3,39 +3,61 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+# 1. 사회복지사 모델
 class Worker(db.Model):
-    __tablename__ = 'WORKER'
-    worker_id = db.Column(db.String(50), primary_key=True)
+    __tablename__ = 'SOCIAL_WORKER'
+    worker_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    login_id = db.Column(db.String(50), unique=True, nullable=False)
     password = db.Column(db.String(255), nullable=False)
     name = db.Column(db.String(50), nullable=False)
-    org = db.Column(db.String(100), nullable=False)
-    phone_number = db.Column(db.String(20), nullable=False)
-    email = db.Column(db.String(100), nullable=False)
-    region = db.Column(db.String(255), nullable=False)
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
+    email = db.Column(db.String(100))
+    org = db.Column(db.String(100))
+    address = db.Column(db.String(255), nullable=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+# 2. 어르신(사용자) 모델
 class User(db.Model):
     __tablename__ = 'USER'
-    phone_number = db.Column(db.String(20), primary_key=True)
+    user_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id', ondelete='SET NULL'))
     name = db.Column(db.String(50), nullable=False)
     age = db.Column(db.Integer, nullable=False)
+    phone_number = db.Column(db.String(20), unique=True, nullable=False)
     address = db.Column(db.String(255), nullable=False)
     emergency_contact = db.Column(db.String(20))
     has_underlying_disease = db.Column(db.Boolean, default=False)
+    underlying_disease_severity = db.Column(db.Integer, default=0)
     note = db.Column(db.Text)
-    worker_phone_number = db.Column(db.String(20))
+    is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
+# 3. 건강 상태 모델
 class HealthStatus(db.Model):
     __tablename__ = 'HEALTH_STATUS'
-    phone_number = db.Column(db.String(20), db.ForeignKey('USER.phone_number', ondelete='CASCADE'), primary_key=True)
-    timestamp = db.Column(db.DateTime, primary_key=True, default=datetime.utcnow)
-    condition_level = db.Column(db.Integer, nullable=False)
-    meal_status = db.Column(db.Enum('아침', '점심', '저녁', '결식', name='meal_enum'))
-    metadata_info = db.Column('metadata', db.Text)
+    status_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False)
+    condition_level = db.Column(db.SmallInteger, nullable=False)
+    breakfast_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
+    lunch_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
+    dinner_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
+    blood_pressure = db.Column(db.String(20))
+    blood_sugar = db.Column(db.Integer)
+    target_date = db.Column(db.Date, default=datetime.utcnow().date, nullable=False)
+    recorded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    note = db.Column(db.Text)
 
+
+# 4. 접속 이력 모델
 class LoginHistory(db.Model):
     __tablename__ = 'LOGIN_HISTORY'
-    phone_number = db.Column(db.String(20), db.ForeignKey('USER.phone_number', ondelete='CASCADE'), primary_key=True)
-    auth_time = db.Column(db.DateTime, primary_key=True, default=datetime.utcnow)
+    history_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'))
+    phone_number = db.Column(db.String(20), nullable=False)
     ip_address = db.Column(db.String(45))
+    user_agent = db.Column(db.String(255))
+    auth_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
