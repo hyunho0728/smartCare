@@ -162,29 +162,38 @@ def api_admin_check_session():
 
 
 @app.route('/api/admin/elders', methods=['GET'])
-@app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
     users = User.query.filter_by(is_active=True).all()
     elders_data = []
 
     for u in users:
+        # 1. 최근 건강 상태 입력 기록 조회
         latest_health = HealthStatus.query.filter_by(user_id=u.user_id)\
             .order_by(HealthStatus.recorded_at.desc()).first()
 
+        # 2. 최근 접속(로그인) 기록 조회
         latest_login = LoginHistory.query.filter_by(user_id=u.user_id)\
             .order_by(LoginHistory.auth_time.desc()).first()
 
         condition = latest_health.condition_level if latest_health else 3
         
-        # 아침 / 점심 / 저녁 식사 상태 종합
+        # 식사 상태 요약
         if latest_health:
             meal = f"아침: {latest_health.breakfast_status} · 점심: {latest_health.lunch_status} · 저녁: {latest_health.dinner_status}"
             meal_short = f"아침: {latest_health.breakfast_status}<br>점심: {latest_health.lunch_status}<br>저녁: {latest_health.dinner_status}"
+            last_input_str = latest_health.recorded_at.strftime("%m/%d %H:%M")
         else:
             meal = "미입력"
             meal_short = "미입력"
+            last_input_str = "기록 없음"
 
-        last_str = latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음"
+        # 목록에 표시될 마지막 활동 시간: 건강 상태 입력 시간이 있으면 이를 최우선으로 표시
+        if latest_health:
+            display_last_time = last_input_str
+        elif latest_login:
+            display_last_time = latest_login.auth_time.strftime("%m/%d %H:%M")
+        else:
+            display_last_time = "기록 없음"
 
         # 위험 지수 계산
         risk_score = 80
@@ -208,7 +217,8 @@ def api_get_elders():
             "meal_short": meal_short,
             "score": risk_score,
             "risk": risk_level,
-            "last": last_str,
+            "last": display_last_time,       # 목록의 '마지막 접속' 열에 최신 입력 시간 바인딩
+            "lastInput": last_input_str,    # 상세 대시보드의 '마지막 입력 시간'에 바인딩
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
             "chart": "0,120 110,115 220,118 330,110 440,116 550,112 700,108",
             "desc": f"최근 건강 상태는 {condition}단계이며 오늘 식사는 ({meal}) 상태입니다."
@@ -356,7 +366,7 @@ def api_record_health():
             lunch_status=lunch,
             dinner_status=dinner,
             target_date=datetime.date.today(),
-            recorded_at=datetime.datetime.utcnow()
+            recorded_at=datetime.datetime.now()
         )
         db.session.add(health_record)
         db.session.commit()

@@ -14,8 +14,8 @@ class Worker(db.Model):
     email = db.Column(db.String(100))
     org = db.Column(db.String(100))
     address = db.Column(db.String(255), nullable=False)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # 2. 어르신(사용자) 모델
@@ -32,8 +32,8 @@ class User(db.Model):
     underlying_disease_severity = db.Column(db.Integer, default=0)
     note = db.Column(db.Text)
     is_active = db.Column(db.Boolean, default=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    created_at = db.Column(db.DateTime, default=datetime.now)
+    updated_at = db.Column(db.DateTime, default=datetime.now, onupdate=datetime.now)
 
 
 # 3. 건강 상태 모델
@@ -47,8 +47,8 @@ class HealthStatus(db.Model):
     dinner_status = db.Column(db.Enum('완료', '예정', '결식'), default='완료', nullable=False)
     blood_pressure = db.Column(db.String(20))
     blood_sugar = db.Column(db.Integer)
-    target_date = db.Column(db.Date, default=datetime.utcnow().date, nullable=False)
-    recorded_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    target_date = db.Column(db.Date, default=datetime.now().date, nullable=False)
+    recorded_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
     note = db.Column(db.Text)
 
 
@@ -60,4 +60,4 @@ class LoginHistory(db.Model):
     phone_number = db.Column(db.String(20), nullable=False)
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(255))
-    auth_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    auth_time = db.Column(db.DateTime, default=datetime.now, nullable=False)
