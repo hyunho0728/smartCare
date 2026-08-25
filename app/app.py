@@ -60,7 +60,7 @@ def admin_view():
 
 
 # ==========================================
-# 2. 사회복지사(관리자) 인증 API (DB 연동)
+# 2. 사회복지사(관리자) 인증 및 관제 API
 # ==========================================
 
 @app.route('/api/admin/login', methods=['POST'])
@@ -140,6 +140,105 @@ def api_admin_logout():
     return jsonify({"success": True, "message": "로그아웃되었습니다."})
 
 
+@app.route('/api/admin/elders', methods=['GET'])
+def api_get_elders():
+    """MySQL DB에서 전체 어르신 및 최근 건강 상태 조회 (대시보드 실시간 목록용)"""
+    users = User.query.all()
+    elders_data = []
+
+    for u in users:
+        # 최근 건강 기록 조회
+        latest_health = HealthStatus.query.filter_by(phone_number=u.phone_number)\
+            .order_by(HealthStatus.timestamp.desc()).first()
+        
+        # 최근 접속 기록 조회
+        latest_login = LoginHistory.query.filter_by(phone_number=u.phone_number)\
+            .order_by(LoginHistory.auth_time.desc()).first()
+
+        condition = latest_health.condition_level if latest_health else 3
+        meal = latest_health.meal_status if latest_health else "미입력"
+        last_str = latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음"
+
+        # 위험 점수 및 단계 산출 로직
+        risk_score = 80
+        if condition <= 2:
+            risk_score -= 30
+        if u.has_underlying_disease:
+            risk_score -= 15
+        
+        risk_level = "danger" if risk_score < 50 else "warn" if risk_score < 70 else "safe"
+
+        elders_data.append({
+            "name": u.name,
+            "age": u.age,
+            "phone": u.phone_number,
+            "address": u.address,
+            "disease": u.note if u.has_underlying_disease and u.note else ("기저질환 보유" if u.has_underlying_disease else "없음"),
+            "emergency_contact": u.emergency_contact,
+            "health": condition,
+            "meal": meal,
+            "score": risk_score,
+            "risk": risk_level,
+            "last": last_str,
+            "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
+            "chart": "0,120 110,115 220,118 330,110 440,116 550,112 700,108",
+            "desc": f"최근 건강 상태는 {condition}단계이며 식사 상태는 {meal}입니다."
+        })
+
+    return jsonify({"success": True, "data": elders_data})
+
+
+@app.route('/api/admin/elders/register', methods=['POST'])
+def api_admin_register_elder():
+    """사회복지사 대시보드 내 신규 어르신 직접 등록 API"""
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    age = data.get('age')
+    phone_number = data.get('phone_number', '').strip()
+    address = data.get('address', '').strip()
+    emergency_contact = data.get('emergency_contact', '').strip()
+    disease_note = data.get('disease_note', '없음').strip()
+    has_disease = disease_note != '없음' and len(disease_note) > 0
+
+    if not all([name, age, phone_number, address]):
+        return jsonify({"success": False, "message": "성함, 나이, 휴대폰 번호, 주소는 필수 입력값입니다."}), 400
+
+    # 중복 등록 검사
+    existing_user = User.query.filter_by(phone_number=phone_number).first()
+    if existing_user:
+        return jsonify({"success": False, "message": "이미 등록된 휴대폰 번호의 어르신입니다."}), 409
+
+    # 현재 로그인된 사회복지사 번호 연동
+    current_worker_id = session.get('admin_id')
+    worker_phone = None
+    if current_worker_id:
+        worker = Worker.query.filter_by(worker_id=current_worker_id).first()
+        if worker:
+            worker_phone = worker.phone_number
+
+    try:
+        new_elder = User(
+            phone_number=phone_number,
+            name=name,
+            age=int(age),
+            address=address,
+            emergency_contact=emergency_contact if emergency_contact else None,
+            has_underlying_disease=has_disease,
+            note=disease_note if has_disease else None,
+            worker_phone_number=worker_phone
+        )
+        db.session.add(new_elder)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": f"'{name}' 어르신 계정이 성공적으로 등록되었습니다."
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"등록 실패: {str(e)}"}), 500
+
+
 # ==========================================
 # 3. 사용자(어르신) 관련 API 엔드포인트
 # ==========================================
@@ -179,7 +278,7 @@ def api_user_login():
 
 @app.route('/api/user/register', methods=['POST'])
 def api_user_register():
-    """어르신 회원가입"""
+    """어르신 사용자 직접 회원가입"""
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     phone_number = data.get('phone_number', '').strip()

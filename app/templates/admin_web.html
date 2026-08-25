@@ -188,20 +188,20 @@
     <div class="modal-body">
       <div class="form-grid">
         <div>
-          <label class="label">이름</label>
-          <input class="input" id="newElderName" placeholder="이름을 입력하세요">
+          <label class="label">성함 *</label>
+          <input class="input" id="newElderName" placeholder="예: 홍길동">
         </div>
         <div>
-          <label class="label">나이</label>
-          <input class="input" id="newElderAge" type="number" placeholder="나이를 입력하세요">
+          <label class="label">연세 (나이) *</label>
+          <input class="input" id="newElderAge" type="number" placeholder="예: 78">
         </div>
       </div>
 
-      <label class="label">휴대폰 번호 <span style="color:var(--muted);font-weight:700;">(로그인 계정)</span></label>
+      <label class="label">휴대폰 번호 * <span style="color:var(--muted);font-weight:700;">(로그인 식별용)</span></label>
       <input class="input" id="newElderPhone" placeholder="010-0000-0000">
 
-      <label class="label">주소</label>
-      <input class="input" id="newElderAddress" placeholder="주소를 입력하세요 (예: 서울시 강남구...)">
+      <label class="label">거주 주소 *</label>
+      <input class="input" id="newElderAddress" placeholder="예: 서울시 강남구 역삼동 123-4">
 
       <div class="form-grid">
         <div>
@@ -217,15 +217,15 @@
           </select>
         </div>
         <div>
-          <label class="label">비상 연락처</label>
-          <input class="input" id="newElderEmergency" placeholder="보호자 연락처">
+          <label class="label">비상 연락처 (보호자)</label>
+          <input class="input" id="newElderEmergency" placeholder="010-9999-8888">
         </div>
       </div>
       <input class="input form-gap" id="newDiseaseOther" placeholder="기타 질환명을 입력해주세요" style="display:none;margin-top:10px;">
 
-      <div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;">
+      <div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;">
         <button class="btn soft" onclick="closeModal('add')">취소</button>
-        <button class="btn primary" onclick="addElder()">등록하기</button>
+        <button class="btn primary" onclick="addElder()">등록 완료</button>
       </div>
     </div>
   </div>
@@ -332,7 +332,8 @@ async function logout(){
   document.getElementById('loginPw').value = '';
 }
 
-async function loadEldersData(){
+// 3. 데이터 로딩 후 렌더링 호출
+async function loadEldersData() {
   try {
     const res = await fetch('/api/admin/elders');
     const result = await res.json();
@@ -342,7 +343,7 @@ async function loadEldersData(){
       renderTable();
       renderOtherSections();
       populateChartSelect();
-      if(users.length > 0) updateMainChart(0);
+      if (users.length > 0) updateMainChart(0);
     }
   } catch (err) {
     console.error('데이터 로드 실패:', err);
@@ -367,60 +368,81 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
-function renderOtherSections(){
-  // 1. 어르신 계정 관리 탭
+// 2. 어르신 계정 관리 탭 테이블 렌더링 함수 보강
+function renderOtherSections() {
+  // 1. 담당 어르신 계정 관리 탭
   const elderTbody = document.getElementById('elder-manage-tbody');
-  if(elderTbody){
-    elderTbody.innerHTML = users.map(u => `
-      <tr>
-        <td><b>${u.name}</b></td>
-        <td>${u.age}세</td>
-        <td>${u.phone}</td>
-        <td>${u.address || '-'}</td>
-        <td>${u.disease ? `<span class="badge b-yellow">${u.disease}</span>` : '<span class="badge b-green">없음</span>'}</td>
-        <td>${u.created_at || '-'}</td>
-        <td><button class="mini-btn" onclick="openFeedback('${u.name}')">상태 기록</button></td>
-      </tr>
-    `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted)">등록된 어르신이 없습니다.</td></tr>';
+  if (elderTbody) {
+    if (!users || users.length === 0) {
+      elderTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">등록된 어르신이 없습니다.</td></tr>';
+    } else {
+      elderTbody.innerHTML = users.map((u, i) => `
+        <tr>
+          <td><b>${u.name}</b></td>
+          <td>${u.age}세</td>
+          <td>${u.phone}</td>
+          <td>${u.address || '-'}</td>
+          <td>${u.disease && u.disease !== '없음' ? `<span class="badge b-yellow">${u.disease}</span>` : '<span class="badge b-green">없음</span>'}</td>
+          <td>${u.created_at || '-'}</td>
+          <td>
+            <div class="actions">
+              <button class="mini-btn" onclick="openFeedback('${u.name}')">기록</button>
+              <button class="mini-btn" onclick="toast('${u.name} 어르신 전화 연결 화면입니다.')">전화</button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+    }
   }
 
-  // 2. AI 분석 탭
+  // 2. AI 분석 리포트 탭
   const aiList = document.getElementById('ai-analysis-list');
   const aiRiskTbody = document.getElementById('ai-risk-tbody');
-  if(aiList && aiRiskTbody){
-    aiList.innerHTML = users.map(u => `
-      <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
-        <h4>${u.name} 어르신 패턴 분석</h4>
-        <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
-      </div>
-    `).join('') || '<p style="color:var(--muted)">등록된 분석 기록이 없습니다.</p>';
+  if (aiList && aiRiskTbody) {
+    if (!users || users.length === 0) {
+      aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
+      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">데이터가 없습니다.</td></tr>';
+    } else {
+      aiList.innerHTML = users.map(u => `
+        <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
+          <h4>${u.name} 어르신 패턴 분석</h4>
+          <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
+        </div>
+      `).join('');
 
-    aiRiskTbody.innerHTML = users.map(u => `
-      <tr>
-        <td><b>${u.name}</b></td>
-        <td>${u.health ? u.health + '단계' : '미입력'}</td>
-        <td>${u.meal || '미입력'}</td>
-        <td><span class="badge ${risk[u.risk][1]}">${risk[u.risk][0]} (${u.score}점)</span></td>
-      </tr>
-    `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted)">데이터가 없습니다.</td></tr>';
+      aiRiskTbody.innerHTML = users.map(u => `
+        <tr>
+          <td><b>${u.name}</b></td>
+          <td>${u.health ? u.health + '단계' : '미입력'}</td>
+          <td>${u.meal || '미입력'}</td>
+          <td><span class="badge ${risk[u.risk][1]}">${risk[u.risk][0]} (${u.score}점)</span></td>
+        </tr>
+      `).join('');
+    }
   }
 
-  // 3. 알림 및 기록 관리 탭
+  // 3. 위험 알림 및 조치 기록 탭
   const alertsTbody = document.getElementById('alerts-record-tbody');
-  if(alertsTbody){
-    alertsTbody.innerHTML = users.filter(u => u.risk === 'danger' || u.risk === 'warn').map(u => `
-      <tr>
-        <td><b>${u.name}</b></td>
-        <td>${u.phone}</td>
-        <td><span class="badge ${risk[u.risk][1]}">${risk[u.risk][0]}</span></td>
-        <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">안부 전화</span>'}</td>
-        <td><button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 작성</button></td>
-      </tr>
-    `).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted)">확인이 필요한 위험 알림이 없습니다.</td></tr>';
+  if (alertsTbody) {
+    const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
+    if (dangerList.length === 0) {
+      alertsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">확인이 필요한 위험 알림이 없습니다.</td></tr>';
+    } else {
+      alertsTbody.innerHTML = dangerList.map(u => `
+        <tr>
+          <td><b>${u.name}</b></td>
+          <td>${u.phone}</td>
+          <td><span class="badge ${risk[u.risk][1]}">${risk[u.risk][0]}</span></td>
+          <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">안부 전화</span>'}</td>
+          <td><button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 작성</button></td>
+        </tr>
+      `).join('');
+    }
   }
 }
 
-function nav(id,btn){
+// 1. 탭 전환 시 화면 렌더링 함수 다시 호출
+function nav(id, btn) {
   const descriptions = {
     live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
     elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
@@ -429,14 +451,19 @@ function nav(id,btn){
     match: '주소지 거리와 위험도 정보를 바탕으로 담당 복지사 배정을 지원합니다.'
   };
 
-  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.getElementById(id).classList.add('active');
-  document.querySelectorAll('.nav button').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
   btn.classList.add('active');
 
-  document.getElementById('pageTitle').innerText = btn.innerText.replace(/[^가-힣\s]/g,'').trim();
+  document.getElementById('pageTitle').innerText = btn.innerText.replace(/[^가-힣\s]/g, '').trim();
   const desc = document.getElementById('pageDesc');
-  if(desc) desc.innerText = descriptions[id] || '';
+  if (desc) desc.innerText = descriptions[id] || '';
+
+  // 탭을 누를 때마다 해당 탭 테이블 데이터 갱신
+  if (id === 'elder' || id === 'analysis' || id === 'alerts') {
+    renderOtherSections();
+  }
 }
 
 function setFilter(f,btn){
@@ -619,41 +646,43 @@ function updateMainChart(index){
   if(info) info.innerText = `선택 대상자: ${u.name} 어르신 · 현재 위험도: ${r[0]} · 현재 점수: ${u.score}점 · 건강 상태: ${healthText}`;
 }
 
-function handleDiseaseSelect(){
+// 기저질환 직접 입력 토글
+function handleDiseaseSelect() {
   const disease = document.getElementById('newElderDisease')?.value;
   const otherInput = document.getElementById('newDiseaseOther');
-  if(!otherInput) return;
+  if (!otherInput) return;
 
-  if(disease === '기타'){
+  if (disease === '기타') {
     otherInput.style.display = 'block';
     otherInput.focus();
-  }else{
+  } else {
     otherInput.style.display = 'none';
     otherInput.value = '';
   }
 }
 
-function getSelectedDisease(){
+function getSelectedDisease() {
   const disease = document.getElementById('newElderDisease')?.value || '없음';
   const other = document.getElementById('newDiseaseOther')?.value.trim();
-  return disease === '기타' ? other : disease;
+  return disease === '기타' ? (other || '기타') : disease;
 }
 
-async function addElder(){
+// 신규 어르신 등록 요청
+async function addElder() {
   const name = document.getElementById('newElderName')?.value.trim();
   const age = document.getElementById('newElderAge')?.value.trim();
   const phone = document.getElementById('newElderPhone')?.value.trim();
   const address = document.getElementById('newElderAddress')?.value.trim();
-  const disease = getSelectedDisease();
-  const emergency = document.getElementById('newElderEmergency')?.value.trim();
+  const emergency_contact = document.getElementById('newElderEmergency')?.value.trim();
+  const disease_note = getSelectedDisease();
 
-  if(!name || !age || !phone || !address){
-    toast('필수 정보를 모두 입력해주세요.');
+  if (!name || !age || !phone || !address) {
+    toast('성함, 나이, 휴대폰 번호, 주소는 필수 입력 항목입니다.');
     return;
   }
 
   try {
-    const res = await fetch('/api/user/register', {
+    const res = await fetch('/api/admin/elders/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -661,20 +690,33 @@ async function addElder(){
         age: parseInt(age),
         phone_number: phone,
         address,
-        has_disease: disease !== '없음',
-        disease_note: disease
+        emergency_contact,
+        disease_note
       })
     });
     const result = await res.json();
-    if(result.success){
-      toast('어르신이 등록되었습니다.');
+
+    if (result.success) {
+      toast(result.message);
       closeModal('add');
+
+      // 입력 필드 초기화
+      document.getElementById('newElderName').value = '';
+      document.getElementById('newElderAge').value = '';
+      document.getElementById('newElderPhone').value = '';
+      document.getElementById('newElderAddress').value = '';
+      document.getElementById('newElderEmergency').value = '';
+      document.getElementById('newElderDisease').value = '없음';
+      document.getElementById('newDiseaseOther').style.display = 'none';
+      document.getElementById('newDiseaseOther').value = '';
+
+      // 실시간 현황판 및 어르신 목록 즉시 새로고침
       await loadEldersData();
     } else {
       toast(result.message);
     }
-  } catch(err) {
-    toast('등록에 실패했습니다.');
+  } catch (err) {
+    toast('서버와의 통신에 실패했습니다.');
   }
 }
 
