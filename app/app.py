@@ -167,17 +167,14 @@ def api_get_elders():
     elders_data = []
 
     for u in users:
-        # 1. 최근 건강 상태 입력 기록 조회
         latest_health = HealthStatus.query.filter_by(user_id=u.user_id)\
             .order_by(HealthStatus.recorded_at.desc()).first()
 
-        # 2. 최근 접속(로그인) 기록 조회
         latest_login = LoginHistory.query.filter_by(user_id=u.user_id)\
             .order_by(LoginHistory.auth_time.desc()).first()
 
         condition = latest_health.condition_level if latest_health else 3
         
-        # 식사 상태 요약
         if latest_health:
             meal = f"아침: {latest_health.breakfast_status} · 점심: {latest_health.lunch_status} · 저녁: {latest_health.dinner_status}"
             meal_short = f"아침: {latest_health.breakfast_status}<br>점심: {latest_health.lunch_status}<br>저녁: {latest_health.dinner_status}"
@@ -187,21 +184,46 @@ def api_get_elders():
             meal_short = "미입력"
             last_input_str = "기록 없음"
 
-        # 목록에 표시될 마지막 활동 시간: 건강 상태 입력 시간이 있으면 이를 최우선으로 표시
-        if latest_health:
-            display_last_time = last_input_str
-        elif latest_login:
-            display_last_time = latest_login.auth_time.strftime("%m/%d %H:%M")
-        else:
-            display_last_time = "기록 없음"
+        display_last_time = last_input_str if latest_health else (latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음")
 
-        # 위험 지수 계산
-        risk_score = 80
-        if condition <= 2:
-            risk_score -= 30
+        # ==========================================
+        # 💡 [시간 비례 선형 감점 모델 기반 지수 산출]
+        # ==========================================
+        risk_score = 100
+        score_breakdown = [
+            {"item": "기본 만점", "score": "100점", "type": "base"}
+        ]
+
+        # 1. 고위험군 페널티 (나이 / 기저질환)
+        if u.age >= 80:
+            risk_score -= 10
+            score_breakdown.append({"item": f"고령 페널티 ({u.age}세)", "score": "-10점", "type": "minus"})
+
         if u.has_underlying_disease:
-            risk_score -= 15
+            risk_score -= 10
+            disease_name = u.note if u.note else "기저질환"
+            score_breakdown.append({"item": f"기저질환 보유 ({disease_name})", "score": "-10점", "type": "minus"})
 
+        # 2. 상태 페널티 (결식) & 3. 시간 비례 감점
+        if latest_health:
+            # 2-1. 결식 페널티 (아침, 점심, 저녁 중 결식 존재 시 -20점)
+            if '결식' in [latest_health.breakfast_status, latest_health.lunch_status, latest_health.dinner_status]:
+                risk_score -= 20
+                score_breakdown.append({"item": "식사 결식 페널티", "score": "-20점", "type": "minus"})
+
+            # 2-2. 시간 경과 감점 (마지막 상태 입력 시간 기준 1시간당 2점 차감)
+            elapsed_hours = int((datetime.datetime.now() - latest_health.recorded_at).total_seconds() // 3600)
+            if elapsed_hours > 0:
+                time_penalty = elapsed_hours * 2
+                risk_score -= time_penalty
+                score_breakdown.append({"item": f"미입력 시간 경과 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
+        else:
+            # 건강 상태를 한 번도 입력하지 않은 경우 (최대 감점 적용 예시)
+            risk_score -= 40
+            score_breakdown.append({"item": "건강 상태 미등록", "score": "-40점", "type": "minus"})
+
+        # 점수 범위 제한 (0점 ~ 100점)
+        risk_score = max(0, min(100, risk_score))
         risk_level = "danger" if risk_score < 50 else "warn" if risk_score < 70 else "safe"
 
         elders_data.append({
@@ -216,9 +238,10 @@ def api_get_elders():
             "meal": meal,
             "meal_short": meal_short,
             "score": risk_score,
+            "score_breakdown": score_breakdown, # 산출 내역 전달
             "risk": risk_level,
-            "last": display_last_time,       # 목록의 '마지막 접속' 열에 최신 입력 시간 바인딩
-            "lastInput": last_input_str,    # 상세 대시보드의 '마지막 입력 시간'에 바인딩
+            "last": display_last_time,
+            "lastInput": last_input_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
             "chart": "0,120 110,115 220,118 330,110 440,116 550,112 700,108",
             "desc": f"최근 건강 상태는 {condition}단계이며 오늘 식사는 ({meal}) 상태입니다."
