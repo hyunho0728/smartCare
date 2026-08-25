@@ -168,7 +168,7 @@
     opacity: 0.85;
   }
 
-  .top-emergency {
+  .top-emergency, .auth-emergency {
     position: absolute;
     right: 4vw;
     top: 2.2vh;
@@ -188,31 +188,8 @@
     z-index: 20;
   }
 
-  .top-emergency .phone { font-size: 3.1vh; line-height: 1; }
-  .top-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
-
-  .auth-emergency {
-    position: absolute;
-    right: 4vw;
-    top: 2.2vh;
-    width: 7.2vh;
-    height: 7.2vh;
-    border: none;
-    border-radius: 50%;
-    background: var(--red);
-    color: white;
-    box-shadow: 0 6px 22px rgba(211,47,47,0.38);
-    cursor: pointer;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    font-weight: 900;
-    z-index: 20;
-  }
-
-  .auth-emergency .phone { font-size: 3.1vh; line-height: 1; }
-  .auth-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
+  .top-emergency .phone, .auth-emergency .phone { font-size: 3.1vh; line-height: 1; }
+  .top-emergency .txt, .auth-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
 
   .page {
     flex: 1;
@@ -477,16 +454,6 @@
     gap: 2vw;
     margin-top: 3vh;
   }
-
-  @media (max-height: 700px) {
-    .top { padding-top: 2vh; padding-bottom: 1.5vh; }
-    .page { gap: 1.1vh; padding-top: 1.3vh; padding-bottom: 1.3vh; }
-    .status-button { min-height: 20vh; }
-    .health-btn { height: 13vh; }
-    .meal-card { padding-top: 1.4vh; padding-bottom: 1.4vh; }
-    .meal-btn { height: 6.8vh; }
-    .top-emergency { width: 6.6vh; height: 6.6vh; top: 1.7vh; }
-  }
 </style>
 </head>
 <body>
@@ -749,6 +716,7 @@
 
 <script>
   let currentUserName = '어르신';
+  let currentUserPhone = '';
   let todaySaved = false;
   let savedTime = '';
   let isModifyMode = false;
@@ -795,15 +763,36 @@
     document.getElementById('meal-date').textContent = date;
   }
 
-  function login() {
-    const phone = document.getElementById('login-phone').value.replace(/\D/g, '');
-    if (phone.length < 9) {
-      showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
+  // 어르신 로그인 (서버 API 연동)
+  async function login() {
+    const phone = document.getElementById('login-phone').value.trim();
+    if (phone.replace(/\D/g, '').length < 9) {
+      showAlert('⚠️', '휴대폰 번호를\n정확히 입력해 주세요.');
       return;
     }
-    setDates();
-    updateMainStatus();
-    goTo('screen-main');
+
+    try {
+      const res = await fetch('/api/user/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone_number: phone })
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        currentUserPhone = result.phone_number;
+        currentUserName = result.user_name || '어르신';
+        document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
+
+        setDates();
+        updateMainStatus();
+        goTo('screen-main');
+      } else {
+        showAlert('⚠️', result.message || '로그인에 실패했습니다.');
+      }
+    } catch (err) {
+      showAlert('⚠️', '서버와의 통신에\n실패했습니다.');
+    }
   }
 
   function startRegister() {
@@ -829,8 +818,6 @@
         showAlert('⚠️', '이름을 입력해 주세요.');
         return;
       }
-      currentUserName = nameVal;
-      document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
     }
     if (type === 'phone' && document.getElementById('reg-phone').value.replace(/\D/g,'').length < 9) {
       showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
@@ -860,18 +847,51 @@
     }
   }
 
-  function finishRegister() {
-    if (document.getElementById('reg-disease').value === '기타' && !document.getElementById('reg-disease-other').value.trim()) {
+  // 어르신 회원가입 (MySQL USER 테이블 INSERT 연동)
+  async function finishRegister() {
+    const name = document.getElementById('reg-name').value.trim();
+    const phone = document.getElementById('reg-phone').value.trim();
+    const address = document.getElementById('reg-address').value.trim();
+    const age = document.getElementById('reg-age').value.trim();
+    const diseaseSelect = document.getElementById('reg-disease').value;
+    const diseaseOther = document.getElementById('reg-disease-other').value.trim();
+
+    if (diseaseSelect === '기타' && !diseaseOther) {
       showAlert('⚠️', '기타 질환명을\n입력해 주세요.');
       return;
     }
 
-    document.getElementById('login-phone').value = document.getElementById('reg-phone').value;
-    showAlert('✅', '회원가입이\n완료되었습니다.');
-    setTimeout(() => {
-      closeModal();
-      goTo('screen-login');
-    }, 900);
+    const disease_note = diseaseSelect === '기타' ? diseaseOther : diseaseSelect;
+    const has_disease = diseaseSelect !== '없음';
+
+    try {
+      const res = await fetch('/api/user/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          phone_number: phone,
+          address,
+          age: parseInt(age),
+          has_disease,
+          disease_note
+        })
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        document.getElementById('login-phone').value = phone;
+        showAlert('✅', '회원가입이\n완료되었습니다.');
+        setTimeout(() => {
+          closeModal();
+          goTo('screen-login');
+        }, 900);
+      } else {
+        showAlert('⚠️', result.message || '가입에 실패했습니다.');
+      }
+    } catch (err) {
+      showAlert('⚠️', '서버와의 통신에\n실패했습니다.');
+    }
   }
 
   function goMain() {
@@ -910,7 +930,6 @@
 
   function startHealth(modify) {
     isModifyMode = modify;
-
     document.getElementById('health-top-title').textContent = modify ? '오늘 상태 수정' : '오늘 상태 입력';
     document.getElementById('meal-top-title').textContent = modify ? '오늘 식사 수정' : '오늘 식사 입력';
 
@@ -976,16 +995,41 @@
     document.getElementById('save-btn').classList.toggle('disabled', !ready);
   }
 
-  function saveStatus() {
+  // 건강 상태 & 식사 정보 서버 저장 (MySQL HEALTH_STATUS 테이블 연동)
+  async function saveStatus() {
     if (!(formData.health && formData.breakfast && formData.lunch)) return;
 
-    savedData = { ...formData };
-    todaySaved = true;
-    savedTime = getTimeText();
+    let mealSummary = '결식';
+    if (formData.breakfast === 'yes' && formData.lunch === 'yes') mealSummary = '점심';
+    else if (formData.breakfast === 'yes') mealSummary = '아침';
+    else if (formData.lunch === 'yes') mealSummary = '점심';
 
-    buildSummary();
-    document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
-    goTo('screen-done');
+    try {
+      const res = await fetch('/api/user/health', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          phone_number: currentUserPhone,
+          condition_level: formData.health,
+          meal_status: mealSummary
+        })
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        savedData = { ...formData };
+        todaySaved = true;
+        savedTime = getTimeText();
+
+        buildSummary();
+        document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
+        goTo('screen-done');
+      } else {
+        showAlert('⚠️', result.message || '저장에 실패했습니다.');
+      }
+    } catch (err) {
+      showAlert('⚠️', '서버 통신에\n실패했습니다.');
+    }
   }
 
   function buildSummary() {

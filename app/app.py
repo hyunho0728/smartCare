@@ -3,6 +3,7 @@ from models.models import db, Worker, User, HealthStatus, LoginHistory
 import os
 import urllib.parse
 import datetime
+import re
 
 app = Flask(__name__)
 app.secret_key = "smartcare-secret-key-replace-with-env"
@@ -36,6 +37,12 @@ def is_mobile_request():
         'windows phone', 'iemobile', 'mobile', 'webos', 'opera mini'
     ]
     return any(keyword in user_agent for keyword in mobile_keywords)
+
+def extract_numbers(text):
+    """문자열에서 숫자만 추출 (전화번호 하이픈 제거용)"""
+    if not text:
+        return ""
+    return re.sub(r'\D', '', str(text))
 
 
 # ==========================================
@@ -100,7 +107,7 @@ def api_admin_signup():
     name = data.get('name', '').strip()
     org = data.get('org', '').strip()
     admin_id = data.get('admin_id', '').strip()
-    phone = data.get('phone', '').strip()
+    phone = extract_numbers(data.get('phone', ''))
     email = data.get('email', '').strip()
     password = data.get('password', '').strip()
     region = data.get('region', '').strip()
@@ -190,10 +197,17 @@ def api_get_elders():
         
         risk_level = "danger" if risk_score < 50 else "warn" if risk_score < 70 else "safe"
 
+        # 프론트엔드 출력을 위한 하이픈 추가 (01012345678 -> 010-1234-5678)
+        display_phone = u.phone_number
+        if len(display_phone) == 11:
+            display_phone = f"{display_phone[:3]}-{display_phone[3:7]}-{display_phone[7:]}"
+        elif len(display_phone) == 10:
+            display_phone = f"{display_phone[:3]}-{display_phone[3:6]}-{display_phone[6:]}"
+
         elders_data.append({
             "name": u.name,
             "age": u.age,
-            "phone": u.phone_number,
+            "phone": display_phone,
             "address": u.address,
             "disease": u.note if u.has_underlying_disease and u.note else ("기저질환 보유" if u.has_underlying_disease else "없음"),
             "emergency_contact": u.emergency_contact,
@@ -216,9 +230,9 @@ def api_admin_register_elder():
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     age = data.get('age')
-    phone_number = data.get('phone_number', '').strip()
+    phone_number = extract_numbers(data.get('phone_number', ''))
     address = data.get('address', '').strip()
-    emergency_contact = data.get('emergency_contact', '').strip()
+    emergency_contact = extract_numbers(data.get('emergency_contact', ''))
     disease_note = data.get('disease_note', '없음').strip()
     has_disease = disease_note != '없음' and len(disease_note) > 0
 
@@ -269,7 +283,7 @@ def api_admin_register_elder():
 def api_user_login():
     """어르신 전화번호 로그인 처리 & 접속 이력 기록"""
     data = request.get_json() or {}
-    phone_number = data.get('phone_number', '').strip()
+    phone_number = extract_numbers(data.get('phone_number', ''))
 
     if not phone_number:
         return jsonify({"success": False, "message": "휴대폰 번호를 입력해주세요."}), 400
@@ -303,7 +317,7 @@ def api_user_register():
     """어르신 사용자 직접 회원가입"""
     data = request.get_json() or {}
     name = data.get('name', '').strip()
-    phone_number = data.get('phone_number', '').strip()
+    phone_number = extract_numbers(data.get('phone_number', ''))
     address = data.get('address', '').strip()
     age = data.get('age')
     has_disease = data.get('has_disease', False)
@@ -338,6 +352,10 @@ def api_record_health():
     """건강 상태 및 식사 여부 기록"""
     data = request.get_json() or {}
     phone_number = session.get('user_phone') or data.get('phone_number')
+    
+    # 여기서도 방어적으로 한 번 더 정제
+    phone_number = extract_numbers(phone_number)
+    
     condition_level = data.get('condition_level')
     meal_status = data.get('meal_status')
 
