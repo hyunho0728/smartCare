@@ -163,10 +163,22 @@ def api_admin_check_session():
 
 @app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
-    users = User.query.filter_by(is_active=True).all()
-    elders_data = []
+    """로그인한 사회복지사의 배정 어르신과 미배정 어르신을 분리하여 반환"""
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
 
-    for u in users:
+    # 1. 본인에게 배정된 어르신 조회
+    assigned_users = User.query.filter_by(worker_id=current_worker_id, is_active=True).all() if current_worker_id else []
+    
+    # 2. 담당자가 없는 미배정 어르신 조회
+    unassigned_users = User.query.filter(User.worker_id.is_(None), User.is_active.is_(True)).all()
+
+    def process_elder_data(u):
         latest_health = HealthStatus.query.filter_by(user_id=u.user_id)\
             .order_by(HealthStatus.recorded_at.desc()).first()
 
@@ -186,15 +198,10 @@ def api_get_elders():
 
         display_last_time = last_input_str if latest_health else (latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음")
 
-        # ==========================================
-        # 💡 [시간 비례 선형 감점 모델 기반 지수 산출]
-        # ==========================================
+        # 시간 비례 선형 감점 모델 점수 산출
         risk_score = 100
-        score_breakdown = [
-            {"item": "기본 만점", "score": "100점", "type": "base"}
-        ]
+        score_breakdown = [{"item": "기본 만점", "score": "100점", "type": "base"}]
 
-        # 1. 고위험군 페널티 (나이 / 기저질환)
         if u.age >= 80:
             risk_score -= 10
             score_breakdown.append({"item": f"고령 페널티 ({u.age}세)", "score": "-10점", "type": "minus"})
@@ -202,31 +209,26 @@ def api_get_elders():
         if u.has_underlying_disease:
             risk_score -= 10
             disease_name = u.note if u.note else "기저질환"
-            score_breakdown.append({"item": f"기저질환 보유 ({disease_name})", "score": "-10점", "type": "minus"})
+            score_breakdown.append({"item": f"기저질환 ({disease_name})", "score": "-10점", "type": "minus"})
 
-        # 2. 상태 페널티 (결식) & 3. 시간 비례 감점
         if latest_health:
-            # 2-1. 결식 페널티 (아침, 점심, 저녁 중 결식 존재 시 -20점)
             if '결식' in [latest_health.breakfast_status, latest_health.lunch_status, latest_health.dinner_status]:
                 risk_score -= 20
                 score_breakdown.append({"item": "식사 결식 페널티", "score": "-20점", "type": "minus"})
 
-            # 2-2. 시간 경과 감점 (마지막 상태 입력 시간 기준 1시간당 2점 차감)
             elapsed_hours = int((datetime.datetime.now() - latest_health.recorded_at).total_seconds() // 3600)
             if elapsed_hours > 0:
                 time_penalty = elapsed_hours * 2
                 risk_score -= time_penalty
-                score_breakdown.append({"item": f"미입력 시간 경과 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
+                score_breakdown.append({"item": f"미입력 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
         else:
-            # 건강 상태를 한 번도 입력하지 않은 경우 (최대 감점 적용 예시)
             risk_score -= 40
             score_breakdown.append({"item": "건강 상태 미등록", "score": "-40점", "type": "minus"})
 
-        # 점수 범위 제한 (0점 ~ 100점)
         risk_score = max(0, min(100, risk_score))
         risk_level = "danger" if risk_score < 50 else "warn" if risk_score < 70 else "safe"
 
-        elders_data.append({
+        return {
             "id": u.user_id,
             "name": u.name,
             "age": u.age,
@@ -238,16 +240,53 @@ def api_get_elders():
             "meal": meal,
             "meal_short": meal_short,
             "score": risk_score,
-            "score_breakdown": score_breakdown, # 산출 내역 전달
+            "score_breakdown": score_breakdown,
             "risk": risk_level,
             "last": display_last_time,
             "lastInput": last_input_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
             "chart": "0,120 110,115 220,118 330,110 440,116 550,112 700,108",
             "desc": f"최근 건강 상태는 {condition}단계이며 오늘 식사는 ({meal}) 상태입니다."
-        })
+        }
 
-    return jsonify({"success": True, "data": elders_data})
+    assigned_list = [process_elder_data(u) for u in assigned_users]
+    unassigned_list = [process_elder_data(u) for u in unassigned_users]
+
+    return jsonify({
+        "success": True, 
+        "data": assigned_list,
+        "unassigned": unassigned_list
+    })
+
+
+@app.route('/api/admin/elders/assign', methods=['POST'])
+def api_assign_elder():
+    """미배정 어르신을 현재 사회복지사에게 배정"""
+    data = request.get_json() or {}
+    user_id = data.get('user_id')
+    current_worker_id = session.get('admin_worker_id')
+
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id or not user_id:
+        return jsonify({"success": False, "message": "배정 요청 정보가 올바르지 않습니다."}), 400
+
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"success": False, "message": "어르신 정보를 찾을 수 없습니다."}), 404
+
+    try:
+        user.worker_id = current_worker_id
+        db.session.commit()
+        return jsonify({"success": True, "message": f"'{user.name}' 어르신이 담당으로 배정되었습니다."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"배정 실패: {str(e)}"}), 500
 
 
 @app.route('/api/admin/elders/register', methods=['POST'])

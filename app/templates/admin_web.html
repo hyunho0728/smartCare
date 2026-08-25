@@ -52,6 +52,7 @@
 .chart-title-row{display:flex;align-items:center;justify-content:space-between;gap:16px;width:100%;}
 .chart-person-select{height:36px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px;font-weight:800;color:#111827;outline:none;}
 .chart-person-info{padding:0 24px 10px;color:var(--muted);font-size:13px;}
+
 /* 점수 산출 사유 박스 스타일 */
 .score-reason-box {
   margin-top: 14px;
@@ -265,8 +266,10 @@
   </div>
 </div>
 <div class="modal-bg" id="feedback"><div class="modal"><div class="modal-head"><h3>조치 결과 작성</h3><button class="close" onclick="closeModal('feedback')">×</button></div><div class="modal-body"><label class="label">대상 어르신</label><input class="input" id="fbName" readonly><label class="label">조치 유형</label><select class="input"><option>전화 확인</option><option>방문 확인</option><option>119/보호자 연계</option></select><label class="label">확인 내용</label><textarea class="input textarea" placeholder="통화 또는 방문 확인 내용을 입력하세요."></textarea><button class="btn primary full" onclick="toast('조치 기록이 저장되었습니다.');closeModal('feedback')">저장</button></div></div></div>
+
 <script>
 let users = [];
+let unassignedUsers = [];
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
   watch: ['주의', 'b-yellow', '#f97316'],
@@ -295,8 +298,8 @@ async function signupDone(){
   const passwordConfirm = document.getElementById('signupPwConfirm')?.value.trim();
   const region = document.getElementById('signupRegion')?.value.trim();
 
-  if (!name || !org || !admin_id || !phone || !email || !password || !region) {
-    toast('모든 회원가입 항목을 입력해 주세요.');
+  if (!name || !admin_id || !phone || !password || !region) {
+    toast('필수 입력 항목(이름, 아이디, 연락처, 비밀번호, 담당 지역)을 모두 입력해 주세요.');
     return;
   }
 
@@ -317,7 +320,7 @@ async function signupDone(){
       toast(result.message);
       showLogin();
     } else {
-      toast(result.message);
+      toast(result.message || '회원가입에 실패했습니다.');
     }
   } catch (err) {
     toast('서버와의 통신에 실패했습니다.');
@@ -351,7 +354,7 @@ async function login(){
       document.getElementById('dashboard').style.display = 'block';
       await loadEldersData();
     } else {
-      toast(result.message);
+      toast(result.message || '아이디 또는 비밀번호가 일치하지 않습니다.');
     }
   } catch (err) {
     toast('서버와의 통신에 실패했습니다.');
@@ -366,22 +369,44 @@ async function logout(){
   document.getElementById('loginPw').value = '';
 }
 
-// 3. 데이터 로딩 후 렌더링 호출
 async function loadEldersData() {
   try {
     const res = await fetch('/api/admin/elders');
     const result = await res.json();
     if (result.success) {
       users = result.data || [];
+      unassignedUsers = result.unassigned || [];
+
       updateKPIs();
       renderTable();
       renderOtherSections();
+      renderUnassignedList();
       populateChartSelect();
       if (users.length > 0) updateMainChart(0);
     }
   } catch (err) {
     console.error('데이터 로드 실패:', err);
   }
+}
+
+function renderUnassignedList() {
+  const unassignedBox = document.getElementById('unassigned-list');
+  if (!unassignedBox) return;
+
+  if (unassignedUsers.length === 0) {
+    unassignedBox.innerHTML = '<p style="padding:15px;color:var(--muted);font-size:13px;">미배정 어르신이 없습니다.</p>';
+    return;
+  }
+
+  unassignedBox.innerHTML = unassignedUsers.map(u => `
+    <div class="alert blue" style="border-left-color:var(--sky);">
+      <h4>
+        <span><b>${u.name}</b> (${u.age}세)</span>
+        <button class="mini-btn" style="background:var(--blue);color:white;border:none;padding:4px 9px;" onclick="assignElder(${u.id}, '${u.name}')">나에게 배정</button>
+      </h4>
+      <p style="margin-top:4px;">${u.address || '주소 미입력'} · ${u.phone}</p>
+    </div>
+  `).join('');
 }
 
 function updateKPIs(){
@@ -402,13 +427,11 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
-// 2. 어르신 계정 관리 탭 테이블 렌더링 함수 보강
 function renderOtherSections() {
-  // 1. 담당 어르신 계정 관리 탭
   const elderTbody = document.getElementById('elder-manage-tbody');
   if (elderTbody) {
     if (!users || users.length === 0) {
-      elderTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">등록된 어르신이 없습니다.</td></tr>';
+      elderTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">배정된 담당 어르신이 없습니다.</td></tr>';
     } else {
       elderTbody.innerHTML = users.map((u, i) => `
         <tr>
@@ -429,7 +452,6 @@ function renderOtherSections() {
     }
   }
 
-  // 2. AI 분석 리포트 탭
   const aiList = document.getElementById('ai-analysis-list');
   const aiRiskTbody = document.getElementById('ai-risk-tbody');
   if (aiList && aiRiskTbody) {
@@ -455,7 +477,6 @@ function renderOtherSections() {
     }
   }
 
-  // 3. 위험 알림 및 조치 기록 탭
   const alertsTbody = document.getElementById('alerts-record-tbody');
   if (alertsTbody) {
     const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
@@ -473,9 +494,47 @@ function renderOtherSections() {
       `).join('');
     }
   }
+
+  const matchTbody = document.getElementById('match-tbody');
+  if (matchTbody) {
+    if (!unassignedUsers || unassignedUsers.length === 0) {
+      matchTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:24px;color:var(--muted)">현재 배정 대기 중인 어르신이 없습니다.</td></tr>';
+    } else {
+      matchTbody.innerHTML = unassignedUsers.map(u => `
+        <tr>
+          <td><b>${u.name}</b> (${u.age}세)</td>
+          <td>${u.address || '-'}</td>
+          <td>${u.disease || '없음'}</td>
+          <td>
+            <button class="mini-btn" style="background:var(--blue);color:white;border:none;" onclick="assignElder(${u.id}, '${u.name}')">담당 배정</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
 }
 
-// 1. 탭 전환 시 화면 렌더링 함수 다시 호출
+async function assignElder(userId, name) {
+  if (!confirm(`'${name}' 어르신을 담당 어르신으로 배정하시겠습니까?`)) return;
+
+  try {
+    const res = await fetch('/api/admin/elders/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_id: userId })
+    });
+    const result = await res.json();
+    if (result.success) {
+      toast(result.message);
+      await loadEldersData();
+    } else {
+      toast(result.message || '배정에 실패했습니다.');
+    }
+  } catch (err) {
+    toast('서버와의 통신에 실패했습니다.');
+  }
+}
+
 function nav(id, btn) {
   const descriptions = {
     live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
@@ -494,8 +553,7 @@ function nav(id, btn) {
   const desc = document.getElementById('pageDesc');
   if (desc) desc.innerText = descriptions[id] || '';
 
-  // 탭을 누를 때마다 해당 탭 테이블 데이터 갱신
-  if (id === 'elder' || id === 'analysis' || id === 'alerts') {
+  if (id === 'elder' || id === 'analysis' || id === 'alerts' || id === 'match') {
     renderOtherSections();
   }
 }
@@ -527,7 +585,6 @@ function renderTable(){
     const actionText = u.risk === 'danger' ? '즉시 전화 / 방문 확인' : u.risk === 'warn' ? '안부 전화 권장' : u.risk === 'watch' ? '오늘 중 재확인' : '정기 관찰';
     const chartFillId = 'riskFillV2' + i;
 
-    // 점수 산출 사유 태그 HTML 생성
     const breakdownHtml = (u.score_breakdown || []).map(b => `
       <span class="score-tag ${b.type}">
         <span>${b.item}</span>
@@ -625,7 +682,6 @@ function renderTable(){
                   <text x="650" y="210" font-size="12" fill="#64748b">오늘</text>
                 </svg>
 
-                <!-- 💡 점수 산출 근거 UI -->
                 <div class="score-reason-box">
                   <div class="score-reason-title">
                     <span>💡 현재 점수 산출 사유</span>
@@ -698,7 +754,6 @@ function updateMainChart(index){
   if(info) info.innerText = `선택 대상자: ${u.name} 어르신 · 현재 위험도: ${r[0]} · 현재 점수: ${u.score}점 · 건강 상태: ${healthText}`;
 }
 
-// 기저질환 직접 입력 토글
 function handleDiseaseSelect() {
   const disease = document.getElementById('newElderDisease')?.value;
   const otherInput = document.getElementById('newDiseaseOther');
@@ -719,7 +774,6 @@ function getSelectedDisease() {
   return disease === '기타' ? (other || '기타') : disease;
 }
 
-// 신규 어르신 등록 요청
 async function addElder() {
   const name = document.getElementById('newElderName')?.value.trim();
   const age = document.getElementById('newElderAge')?.value.trim();
@@ -752,7 +806,6 @@ async function addElder() {
       toast(result.message);
       closeModal('add');
 
-      // 입력 필드 초기화
       document.getElementById('newElderName').value = '';
       document.getElementById('newElderAge').value = '';
       document.getElementById('newElderPhone').value = '';
@@ -762,7 +815,6 @@ async function addElder() {
       document.getElementById('newDiseaseOther').style.display = 'none';
       document.getElementById('newDiseaseOther').value = '';
 
-      // 실시간 현황판 및 어르신 목록 즉시 새로고침
       await loadEldersData();
     } else {
       toast(result.message);
@@ -772,28 +824,23 @@ async function addElder() {
   }
 }
 
-// 페이지 로드 시(새로고침 포함) 서버 세션 확인
 async function checkSessionOnLoad() {
   try {
     const res = await fetch('/api/admin/check-session');
     const result = await res.json();
 
     if (result.is_logged_in && result.admin) {
-      // 복지사 정보 업데이트
       const workerBox = document.querySelector('.worker b');
       const workerDesc = document.querySelector('.worker p');
       if (workerBox) workerBox.innerText = `${result.admin.name} 복지사`;
       if (workerDesc) workerDesc.innerHTML = `${result.admin.region} 담당<br>실시간 모니터링`;
 
-      // 로그인 화면 숨기고 대시보드 표시
       document.getElementById('login').style.display = 'none';
       document.getElementById('signup').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
 
-      // DB 데이터 불러오기
       await loadEldersData();
     } else {
-      // 로그인되지 않은 경우 로그인 화면 표시
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('signup').style.display = 'none';
       document.getElementById('login').style.display = 'flex';
@@ -803,7 +850,6 @@ async function checkSessionOnLoad() {
   }
 }
 
-// 브라우저가 켜지거나 새로고침될 때 즉시 실행
 window.addEventListener('DOMContentLoaded', checkSessionOnLoad);
 
 function toggle(i){document.getElementById('detail-'+i)?.classList.toggle('open')}
