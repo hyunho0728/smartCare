@@ -162,6 +162,7 @@ def api_admin_check_session():
 
 
 @app.route('/api/admin/elders', methods=['GET'])
+@app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
     users = User.query.filter_by(is_active=True).all()
     elders_data = []
@@ -175,11 +176,13 @@ def api_get_elders():
 
         condition = latest_health.condition_level if latest_health else 3
         
-        # 아침/점심 식사 상태 요약
+        # 아침 / 점심 / 저녁 식사 상태 종합
         if latest_health:
-            meal = f"아침:{latest_health.breakfast_status} 점심:{latest_health.lunch_status}"
+            meal = f"아침: {latest_health.breakfast_status} · 점심: {latest_health.lunch_status} · 저녁: {latest_health.dinner_status}"
+            meal_short = f"아침: {latest_health.breakfast_status}<br>점심: {latest_health.lunch_status}<br>저녁: {latest_health.dinner_status}"
         else:
             meal = "미입력"
+            meal_short = "미입력"
 
         last_str = latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음"
 
@@ -202,12 +205,13 @@ def api_get_elders():
             "emergency_contact": format_phone_display(u.emergency_contact),
             "health": condition,
             "meal": meal,
+            "meal_short": meal_short,
             "score": risk_score,
             "risk": risk_level,
             "last": last_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
             "chart": "0,120 110,115 220,118 330,110 440,116 550,112 700,108",
-            "desc": f"최근 건강 상태는 {condition}단계이며 오늘 식사는 {meal} 상태입니다."
+            "desc": f"최근 건강 상태는 {condition}단계이며 오늘 식사는 ({meal}) 상태입니다."
         })
 
     return jsonify({"success": True, "data": elders_data})

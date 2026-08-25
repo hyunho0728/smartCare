@@ -474,23 +474,23 @@ function setFilter(f,btn){
 }
 
 function renderTable(){
-  const q=document.getElementById('search')?.value||'';
-  const body=document.getElementById('tbody');
-  if(!body)return;
+  const q = document.getElementById('search')?.value || '';
+  const body = document.getElementById('tbody');
+  if(!body) return;
 
-  const data=users.filter(u=>(filter==='all'||u.risk===filter)&&u.name.includes(q));
-  const order={danger:0,warn:1,watch:2,safe:3};
-  data.sort((a,b)=>order[a.risk]-order[b.risk]);
+  const data = users.filter(u => (filter === 'all' || u.risk === filter) && u.name.includes(q));
+  const order = { danger: 0, warn: 1, watch: 2, safe: 3 };
+  data.sort((a, b) => order[a.risk] - order[b.risk]);
 
   if(data.length === 0){
     body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">조회된 어르신 데이터가 없습니다.</td></tr>';
     return;
   }
 
-  body.innerHTML=data.map((u,i)=>{
-    const r=risk[u.risk] || risk.safe;
-    const healthText=['','매우 나쁨','나쁨','보통','좋음','매우 좋음'][u.health] || '미입력';
-    const actionText = u.risk==='danger' ? '즉시 전화 / 방문 확인' : u.risk==='warn' ? '안부 전화 권장' : u.risk==='watch' ? '오늘 중 재확인' : '정기 관찰';
+  body.innerHTML = data.map((u, i) => {
+    const r = risk[u.risk] || risk.safe;
+    const healthText = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력';
+    const actionText = u.risk === 'danger' ? '즉시 전화 / 방문 확인' : u.risk === 'warn' ? '안부 전화 권장' : u.risk === 'watch' ? '오늘 중 재확인' : '정기 관찰';
     const chartFillId = 'riskFillV2' + i;
 
     return `
@@ -509,7 +509,7 @@ function renderTable(){
         </div>
       </td>
       <td style="font-size:22px">${emoji[u.health] || '⏳'} <small style="font-size:13px;color:#6b7688">${healthText}</small></td>
-      <td><span style="color:${u.late?'#ef4444':u.recent?'#16a34a':'#6b7688'};font-weight:${u.late?'900':'700'}">${u.last}</span></td>
+      <td><span style="color:${u.late ? '#ef4444' : u.recent ? '#16a34a' : '#6b7688'};font-weight:${u.late ? '900' : '700'}">${u.last}</span></td>
       <td>
         <div class="actions">
           <button class="mini-btn" onclick="event.stopPropagation();toggle(${i})">상세</button>
@@ -547,7 +547,7 @@ function renderTable(){
                 <div class="info-card-v2"><span>전화번호</span><b>${u.phone}</b></div>
                 <div class="info-card-v2"><span>보호자 연락처</span><b>${u.emergency_contact || '보호자 미등록'}</b></div>
                 <div class="info-card-v2"><span>기저질환</span><b>${u.disease || '없음'}</b></div>
-                <div class="info-card-v2"><span>오늘 식사 여부</span><b>${u.meal || '미입력'}</b></div>
+                <div class="info-card-v2"><span>오늘 식사 여부</span><b style="line-height:1.5;">${u.meal_short || u.meal || '미입력'}</b></div>
                 <div class="info-card-v2"><span>마지막 입력 시간</span><b>${u.lastInput || u.last}</b></div>
               </div>
             </div>
@@ -585,7 +585,7 @@ function renderTable(){
 
                 <div class="quick-grid-v2">
                   <div class="quick-card-v2"><span>건강 상태</span><b>${emoji[u.health] || '⏳'} ${healthText}</b></div>
-                  <div class="quick-card-v2"><span>식사 상태</span><b>${u.meal || '미입력'}</b></div>
+                  <div class="quick-card-v2"><span>식사 상태</span><b style="font-size:13px;line-height:1.4;">${u.meal_short || u.meal || '미입력'}</b></div>
                   <div class="quick-card-v2"><span>권장 조치</span><b>${actionText}</b></div>
                 </div>
               </div>

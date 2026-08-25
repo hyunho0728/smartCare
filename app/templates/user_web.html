@@ -270,6 +270,7 @@
     font-size: clamp(17px, 2.2vh, 24px);
     color: var(--sub);
     font-weight: 700;
+    margin-top: 0.8vh;
   }
 
   .health-grid {
@@ -308,56 +309,54 @@
   .h-emoji { font-size: clamp(40px, 5.5vh, 58px); line-height: 1; }
   .h-text { font-size: clamp(20px, 2.65vh, 29px); font-weight: 900; }
 
-  .meal-card {
+  /* 단일 식사 카드 레이아웃 */
+  .single-meal-card {
     width: 100%;
     background: white;
     border-radius: var(--radius);
     box-shadow: var(--shadow);
-    padding: 1.4vh 4vw;
-  }
-
-  .meal-title {
-    font-size: clamp(22px, 2.8vh, 32px);
-    font-weight: 900;
-    text-align: center;
-    margin-bottom: 1vh;
-  }
-
-  .meal-options {
+    padding: 3vh 5vw;
     display: flex;
     flex-direction: column;
-    gap: 1vh;
+    gap: 1.8vh;
   }
 
-  .meal-btn {
-    height: 6.3vh;
-    border: 0.3vh solid var(--border);
-    border-radius: 1.6vh;
+  .single-meal-btn {
+    width: 100%;
+    height: 9vh;
+    border: 0.35vh solid var(--border);
+    border-radius: 1.8vh;
     background: #F9F7F4;
     color: var(--text);
-    font-size: clamp(18px, 2.25vh, 25px);
+    font-size: clamp(22px, 2.8vh, 32px);
     font-weight: 900;
     cursor: pointer;
-    line-height: 1.15;
-    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 2vw;
+    transition: 0.15s;
   }
 
-  .meal-btn.selected.yes {
+  .single-meal-btn.selected.yes {
     border-color: var(--green);
     background: #E6F4EA;
     color: var(--green);
+    transform: scale(1.02);
   }
 
-  .meal-btn.selected.plan {
+  .single-meal-btn.selected.plan {
     border-color: var(--primary);
     background: #EEF4FF;
     color: var(--primary);
+    transform: scale(1.02);
   }
 
-  .meal-btn.selected.no {
+  .single-meal-btn.selected.no {
     border-color: var(--orange);
     background: #FEF0EC;
     color: var(--orange);
+    transform: scale(1.02);
   }
 
   .bottom-row {
@@ -612,15 +611,12 @@
   </main>
 </section>
 
-<!-- 건강 상태 입력 -->
+<!-- 1. 건강 상태 입력 -->
 <section class="screen" id="screen-health">
   <div class="top">
     <div class="hello" id="health-top-title">오늘 건강 상태</div>
     <div class="date" id="health-date"></div>
-    <button class="top-emergency" onclick="confirmEmergency()">
-      <span class="phone">📞</span>
-      <span class="txt">긴급</span>
-    </button>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
   </div>
 
   <main class="page">
@@ -630,68 +626,97 @@
     </div>
 
     <div class="health-grid">
-      <button class="health-btn" data-score="5" onclick="selectHealth(5,this)">
-        <span class="h-emoji">😄</span><span class="h-text">매우 좋음</span>
-      </button>
-      <button class="health-btn" data-score="4" onclick="selectHealth(4,this)">
-        <span class="h-emoji">😊</span><span class="h-text">좋음</span>
-      </button>
-      <button class="health-btn" data-score="3" onclick="selectHealth(3,this)">
-        <span class="h-emoji">😐</span><span class="h-text">보통</span>
-      </button>
-      <button class="health-btn" data-score="2" onclick="selectHealth(2,this)">
-        <span class="h-emoji">😟</span><span class="h-text">나쁨</span>
-      </button>
-      <button class="health-btn" data-score="1" onclick="selectHealth(1,this)">
-        <span class="h-emoji">😫</span><span class="h-text">매우 나쁨</span>
-      </button>
+      <button class="health-btn" data-score="5" onclick="selectHealth(5,this)"><span class="h-emoji">😄</span><span class="h-text">매우 좋음</span></button>
+      <button class="health-btn" data-score="4" onclick="selectHealth(4,this)"><span class="h-emoji">😊</span><span class="h-text">좋음</span></button>
+      <button class="health-btn" data-score="3" onclick="selectHealth(3,this)"><span class="h-emoji">😐</span><span class="h-text">보통</span></button>
+      <button class="health-btn" data-score="2" onclick="selectHealth(2,this)"><span class="h-emoji">😟</span><span class="h-text">나쁨</span></button>
+      <button class="health-btn" data-score="1" onclick="selectHealth(1,this)"><span class="h-emoji">😫</span><span class="h-text">매우 나쁨</span></button>
     </div>
 
     <div class="bottom-row">
       <button class="main-btn gray-btn" onclick="goMain()">취소</button>
-      <button class="main-btn next-btn disabled" id="health-next" onclick="goMeal()">다음</button>
+      <button class="main-btn next-btn disabled" id="health-next" onclick="goTo('screen-meal-breakfast')">다음 (아침 식사)</button>
     </div>
   </main>
 </section>
 
-<!-- 식사 여부 입력 -->
-<section class="screen" id="screen-meal">
+<!-- 2. 아침 식사 입력 -->
+<section class="screen" id="screen-meal-breakfast">
   <div class="top">
-    <div class="hello" id="meal-top-title">오늘 식사 여부</div>
-    <div class="date" id="meal-date"></div>
-    <button class="top-emergency" onclick="confirmEmergency()">
-      <span class="phone">📞</span>
-      <span class="txt">긴급</span>
-    </button>
+    <div class="hello">아침 식사 확인</div>
+    <div class="date" id="breakfast-date"></div>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
   </div>
 
   <main class="page">
     <div>
-      <div class="step-title">오늘 식사는<br>하셨나요?</div>
-      <div class="step-sub">아침과 점심을 선택해주세요</div>
+      <div class="step-title">🌅 아침 식사는<br>하셨나요?</div>
+      <div class="step-sub">해당하는 항목을 선택해주세요</div>
     </div>
 
-    <div class="meal-card">
-      <div class="meal-title">🌅 아침 식사</div>
-      <div class="meal-options">
-        <button class="meal-btn" data-slot="breakfast" data-choice="yes" onclick="selectMeal('breakfast','yes',this)">먹었어요</button>
-        <button class="meal-btn" data-slot="breakfast" data-choice="plan" onclick="selectMeal('breakfast','plan',this)">먹을 거예요</button>
-        <button class="meal-btn" data-slot="breakfast" data-choice="no" onclick="selectMeal('breakfast','no',this)">안 먹었어요</button>
-      </div>
-    </div>
-
-    <div class="meal-card">
-      <div class="meal-title">🌞 점심 식사</div>
-      <div class="meal-options">
-        <button class="meal-btn" data-slot="lunch" data-choice="yes" onclick="selectMeal('lunch','yes',this)">먹었어요</button>
-        <button class="meal-btn" data-slot="lunch" data-choice="plan" onclick="selectMeal('lunch','plan',this)">먹을 거예요</button>
-        <button class="meal-btn" data-slot="lunch" data-choice="no" onclick="selectMeal('lunch','no',this)">안 먹었어요</button>
-      </div>
+    <div class="single-meal-card">
+      <button class="single-meal-btn" data-slot="breakfast" data-choice="yes" onclick="selectSingleMeal('breakfast','yes',this)">🍚 먹었어요</button>
+      <button class="single-meal-btn" data-slot="breakfast" data-choice="plan" onclick="selectSingleMeal('breakfast','plan',this)">⏰ 먹을 거예요</button>
+      <button class="single-meal-btn" data-slot="breakfast" data-choice="no" onclick="selectSingleMeal('breakfast','no',this)">❌ 안 먹었어요</button>
     </div>
 
     <div class="bottom-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-health')">이전</button>
-      <button class="main-btn green-btn save-btn disabled" id="save-btn" onclick="saveStatus()">저장하기</button>
+      <button class="main-btn next-btn disabled" id="breakfast-next" onclick="goTo('screen-meal-lunch')">다음 (점심 식사)</button>
+    </div>
+  </main>
+</section>
+
+<!-- 3. 점심 식사 입력 -->
+<section class="screen" id="screen-meal-lunch">
+  <div class="top">
+    <div class="hello">점심 식사 확인</div>
+    <div class="date" id="lunch-date"></div>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  </div>
+
+  <main class="page">
+    <div>
+      <div class="step-title">🌞 점심 식사는<br>하셨나요?</div>
+      <div class="step-sub">해당하는 항목을 선택해주세요</div>
+    </div>
+
+    <div class="single-meal-card">
+      <button class="single-meal-btn" data-slot="lunch" data-choice="yes" onclick="selectSingleMeal('lunch','yes',this)">🍚 먹었어요</button>
+      <button class="single-meal-btn" data-slot="lunch" data-choice="plan" onclick="selectSingleMeal('lunch','plan',this)">⏰ 먹을 거예요</button>
+      <button class="single-meal-btn" data-slot="lunch" data-choice="no" onclick="selectSingleMeal('lunch','no',this)">❌ 안 먹었어요</button>
+    </div>
+
+    <div class="bottom-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-meal-breakfast')">이전</button>
+      <button class="main-btn next-btn disabled" id="lunch-next" onclick="goTo('screen-meal-dinner')">다음 (저녁 식사)</button>
+    </div>
+  </main>
+</section>
+
+<!-- 4. 저녁 식사 입력 -->
+<section class="screen" id="screen-meal-dinner">
+  <div class="top">
+    <div class="hello">저녁 식사 확인</div>
+    <div class="date" id="dinner-date"></div>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  </div>
+
+  <main class="page">
+    <div>
+      <div class="step-title">🌙 저녁 식사는<br>하셨나요?</div>
+      <div class="step-sub">해당하는 항목을 선택해주세요</div>
+    </div>
+
+    <div class="single-meal-card">
+      <button class="single-meal-btn" data-slot="dinner" data-choice="yes" onclick="selectSingleMeal('dinner','yes',this)">🍚 먹었어요</button>
+      <button class="single-meal-btn" data-slot="dinner" data-choice="plan" onclick="selectSingleMeal('dinner','plan',this)">⏰ 먹을 거예요</button>
+      <button class="single-meal-btn" data-slot="dinner" data-choice="no" onclick="selectSingleMeal('dinner','no',this)">❌ 안 먹었어요</button>
+    </div>
+
+    <div class="bottom-row">
+      <button class="main-btn gray-btn" onclick="goTo('screen-meal-lunch')">이전</button>
+      <button class="main-btn green-btn save-btn disabled" id="dinner-save-btn" onclick="saveStatus()">저장 완료</button>
     </div>
   </main>
 </section>
@@ -721,7 +746,7 @@
   let savedTime = '';
   let isModifyMode = false;
 
-  let formData = { health: null, breakfast: null, lunch: null };
+  let formData = { health: null, breakfast: null, lunch: null, dinner: null };
   let savedData = null;
 
   const healthText = {
@@ -760,7 +785,9 @@
     const date = getDateText();
     document.getElementById('main-date').textContent = date;
     document.getElementById('health-date').textContent = date;
-    document.getElementById('meal-date').textContent = date;
+    document.getElementById('breakfast-date').textContent = date;
+    document.getElementById('lunch-date').textContent = date;
+    document.getElementById('dinner-date').textContent = date;
   }
 
   // 어르신 로그인 (서버 API 연동)
@@ -847,7 +874,7 @@
     }
   }
 
-  // 어르신 회원가입 (MySQL USER 테이블 INSERT 연동)
+  // 어르신 회원가입
   async function finishRegister() {
     const name = document.getElementById('reg-name').value.trim();
     const phone = document.getElementById('reg-phone').value.trim();
@@ -931,18 +958,16 @@
   function startHealth(modify) {
     isModifyMode = modify;
     document.getElementById('health-top-title').textContent = modify ? '오늘 상태 수정' : '오늘 상태 입력';
-    document.getElementById('meal-top-title').textContent = modify ? '오늘 식사 수정' : '오늘 식사 입력';
 
     if (modify && savedData) {
       formData = { ...savedData };
     } else {
-      formData = { health: null, breakfast: null, lunch: null };
+      formData = { health: null, breakfast: null, lunch: null, dinner: null };
     }
 
-    refreshHealth();
-    refreshMeal();
+    refreshAllSelections();
     checkHealthNext();
-    checkSaveReady();
+    checkMealButtons();
     goTo('screen-health');
   }
 
@@ -951,11 +976,44 @@
     document.querySelectorAll('.health-btn').forEach(el => el.classList.remove('selected'));
     btn.classList.add('selected');
     checkHealthNext();
+
+    // 선택 시 0.2초 후 다음 화면(아침)으로 자동 이동
+    setTimeout(() => {
+      goTo('screen-meal-breakfast');
+    }, 200);
   }
 
-  function refreshHealth() {
+  function selectSingleMeal(slot, choice, btn) {
+    formData[slot] = choice;
+    document.querySelectorAll(`.single-meal-btn[data-slot="${slot}"]`).forEach(el => {
+      el.className = 'single-meal-btn';
+    });
+    btn.classList.add('selected', choice);
+    checkMealButtons();
+
+    // 선택 시 다음 단계 화면으로 자동 이동
+    setTimeout(() => {
+      if (slot === 'breakfast') {
+        goTo('screen-meal-lunch');
+      } else if (slot === 'lunch') {
+        goTo('screen-meal-dinner');
+      }
+    }, 200);
+  }
+
+  function refreshAllSelections() {
+    // 건강 버튼 리프레시
     document.querySelectorAll('.health-btn').forEach(btn => {
       btn.classList.toggle('selected', Number(btn.dataset.score) === formData.health);
+    });
+    // 식사 버튼들 리프레시
+    ['breakfast', 'lunch', 'dinner'].forEach(slot => {
+      document.querySelectorAll(`.single-meal-btn[data-slot="${slot}"]`).forEach(btn => {
+        btn.className = 'single-meal-btn';
+        if (formData[slot] === btn.dataset.choice) {
+          btn.classList.add('selected', btn.dataset.choice);
+        }
+      });
     });
   }
 
@@ -963,42 +1021,18 @@
     document.getElementById('health-next').classList.toggle('disabled', !formData.health);
   }
 
-  function goMeal() {
-    if (!formData.health) return;
-    refreshMeal();
-    checkSaveReady();
-    goTo('screen-meal');
-  }
-
-  function selectMeal(slot, choice, btn) {
-    formData[slot] = choice;
-    document.querySelectorAll(`.meal-btn[data-slot="${slot}"]`).forEach(el => {
-      el.className = 'meal-btn';
-    });
-    btn.classList.add('selected', choice);
-    checkSaveReady();
-  }
-
-  function refreshMeal() {
-    document.querySelectorAll('.meal-btn').forEach(btn => {
-      btn.className = 'meal-btn';
-      const slot = btn.dataset.slot;
-      const choice = btn.dataset.choice;
-      if (formData[slot] === choice) {
-        btn.classList.add('selected', choice);
-      }
-    });
-  }
-
-  function checkSaveReady() {
-    const ready = formData.health && formData.breakfast && formData.lunch;
-    document.getElementById('save-btn').classList.toggle('disabled', !ready);
+  function checkMealButtons() {
+    document.getElementById('breakfast-next').classList.toggle('disabled', !formData.breakfast);
+    document.getElementById('lunch-next').classList.toggle('disabled', !formData.lunch);
+    document.getElementById('dinner-save-btn').classList.toggle('disabled', !formData.dinner);
   }
 
   // 건강 상태 & 식사 정보 서버 저장 (MySQL HEALTH_STATUS 테이블 연동)
-  // 건강 상태 & 식사 정보 서버 저장
   async function saveStatus() {
-    if (!(formData.health && formData.breakfast && formData.lunch)) return;
+    if (!(formData.health && formData.breakfast && formData.lunch && formData.dinner)) {
+      showAlert('⚠️', '모든 식사 여부를\n선택해 주세요.');
+      return;
+    }
 
     const mapAction = { yes: '완료', plan: '예정', no: '결식' };
 
@@ -1011,7 +1045,7 @@
           condition_level: formData.health,
           breakfast: mapAction[formData.breakfast] || '완료',
           lunch: mapAction[formData.lunch] || '완료',
-          dinner: '완료'
+          dinner: mapAction[formData.dinner] || '완료'
         })
       });
       const result = await res.json();
@@ -1037,6 +1071,7 @@
       <div class="summary-row"><span>건강 상태</span><span>${healthText[savedData.health]}</span></div>
       <div class="summary-row"><span>아침 식사</span><span>${mealText[savedData.breakfast]}</span></div>
       <div class="summary-row"><span>점심 식사</span><span>${mealText[savedData.lunch]}</span></div>
+      <div class="summary-row"><span>저녁 식사</span><span>${mealText[savedData.dinner]}</span></div>
       <div class="summary-row"><span>저장 시간</span><span>${savedTime}</span></div>
     `;
   }
