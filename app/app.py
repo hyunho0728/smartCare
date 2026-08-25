@@ -140,6 +140,28 @@ def api_admin_logout():
     return jsonify({"success": True, "message": "로그아웃되었습니다."})
 
 
+@app.route('/api/admin/check-session', methods=['GET'])
+def api_admin_check_session():
+    """새로고침 시 사회복지사 세션 유지 여부 확인"""
+    admin_id = session.get('admin_id')
+    if not admin_id:
+        return jsonify({"is_logged_in": False})
+
+    worker = Worker.query.filter_by(worker_id=admin_id).first()
+    if not worker:
+        session.clear()
+        return jsonify({"is_logged_in": False})
+
+    return jsonify({
+        "is_logged_in": True,
+        "admin": {
+            "name": worker.name,
+            "org": worker.org,
+            "region": worker.region
+        }
+    })
+
+
 @app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
     """MySQL DB에서 전체 어르신 및 최근 건강 상태 조회 (대시보드 실시간 목록용)"""
