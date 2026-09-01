@@ -6,6 +6,9 @@ import urllib.parse
 import datetime
 import re
 import secrets
+import subprocess
+import threading
+import time
 
 app = Flask(__name__)
 app.secret_key = "smartcare-secret-key-replace-with-env"
@@ -666,6 +669,36 @@ def api_record_health():
         db.session.rollback()
         return jsonify({"success": False, "message": f"저장 실패: {str(e)}"}), 500
 
+def start_localtunnel():
+    """Flask 서버 실행 시 localtunnel을 통해 자동으로 외부 접속 주소를 생성합니다."""
+    if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
+        time.sleep(2.0)  # 서버가 완전히 켜질 때까지 대기
+        try:
+            # npx를 통해 localtunnel 실행 (별도 설치 불필요)
+            cmd = ["npx", "localtunnel", "--port", "5000"]
+            
+            env = os.environ.copy()
+            env["PYTHONUNBUFFERED"] = "1"
+            
+            # shell=True 옵션을 주어 Windows 환경에서 npx 명령어가 원활히 실행되도록 함
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, shell=True)
+            
+            print("\n" + "=" * 65)
+            print("🌍 [외부 접속 링크 생성 중... 잠시만 기다려주세요]")
+            print("=" * 65)
+            
+            for line in process.stdout:
+                if "url" in line or "https://" in line:
+                    # localtunnel이 출력하는 주소 텍스트 추출
+                    print(line.strip())
+                    print("=" * 65 + "\n")
+                    break
+        except Exception as e:
+            print(f"⚠️ 자동 터널 생성 실패: {e}")
 
 if __name__ == '__main__':
+    # 백그라운드 스레드로 자동 터널 실행
+    threading.Thread(target=start_localtunnel, daemon=True).start()
+    
+    # Flask 서버 구동
     app.run(host='0.0.0.0', port=5000, debug=True)
