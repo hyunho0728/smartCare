@@ -469,6 +469,15 @@ const risk = {
 const emoji = ['', '😫', '😟', '😐', '😊', '😄'];
 let filter = 'all';
 
+function setFilter(f, btn) {
+  filter = f;
+  document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+  if (btn) {
+    btn.classList.add('active');
+  }
+  renderTable();
+}
+
 function copyPhoneNumber(name, phone) {
   if (!phone || phone === '-') {
     toast('등록된 연락처가 없습니다.');
@@ -628,7 +637,7 @@ function renderUnassignedList() {
 
 function updateKPIs(){
   const total = users.length;
-  const done = users.filter(u => u.meal && u.meal !== '미입력').length;
+  const done = users.filter(u => u.meal && u.meal !== '미입력' && !u.meal.includes('입력이 필요')).length;
   const watch = users.filter(u => u.risk === 'watch' || u.risk === 'warn').length;
   const danger = users.filter(u => u.risk === 'danger').length;
 
@@ -645,7 +654,6 @@ function populateChartSelect(){
 }
 
 function renderOtherSections() {
-  // 1. 담당 어르신 계정 관리 탭
   const elderTbody = document.getElementById('elder-manage-tbody');
   if (elderTbody) {
     if (!users || users.length === 0) {
@@ -672,7 +680,6 @@ function renderOtherSections() {
     }
   }
 
-  // 2. AI 분석 리포트 탭
   const aiList = document.getElementById('ai-analysis-list');
   const aiRiskTbody = document.getElementById('ai-risk-tbody');
   if (aiList && aiRiskTbody) {
@@ -692,13 +699,12 @@ function renderOtherSections() {
           <td><b>${u.name}</b></td>
           <td>${u.health ? u.health + '단계' : '미입력'}</td>
           <td>${u.meal || '미입력'}</td>
-          <td><span class="badge ${risk[u.risk][1]}">${risk[u.risk][0]} (${u.score}점)</span></td>
+          <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'} (${u.score}점)</span></td>
         </tr>
       `).join('');
     }
   }
 
-  // 3. 위험 알림 및 조치 기록 탭
   const alertsTbody = document.getElementById('alerts-record-tbody');
   if (alertsTbody) {
     const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
@@ -709,7 +715,7 @@ function renderOtherSections() {
         <tr>
           <td><b>${u.name}</b></td>
           <td>${u.phone}</td>
-          <td><span class="badge ${risk[u.risk][1]}">${risk[u.risk][0]}</span></td>
+          <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
           <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">안부 전화</span>'}</td>
           <td><button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 작성</button></td>
         </tr>
@@ -717,7 +723,6 @@ function renderOtherSections() {
     }
   }
 
-  // 4. 담당자 배정 탭
   const matchTbody = document.getElementById('match-tbody');
   if (matchTbody) {
     if (!unassignedUsers || unassignedUsers.length === 0) {
@@ -782,32 +787,56 @@ function nav(id, btn) {
   }
 }
 
-function setFilter(f,btn){
-  filter=f;
-  document.querySelectorAll('.chip').forEach(c=>c.classList.remove('active'));
-  btn.classList.add('active');
-  renderTable();
-}
-
 function renderTable(){
-  const q = document.getElementById('search')?.value || '';
+  const searchInput = document.getElementById('search');
+  const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
   const body = document.getElementById('tbody');
   if(!body) return;
 
-  const data = users.filter(u => (filter === 'all' || u.risk === filter) && u.name.includes(q));
+  if (!users || !Array.isArray(users) || users.length === 0) {
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">등록된 담당 어르신 데이터가 없습니다.</td></tr>';
+    return;
+  }
+
+  const data = users.filter(u => {
+    const nameMatch = u.name ? u.name.toLowerCase().includes(q) : true;
+    if (!nameMatch) return false;
+
+    if (filter === 'all') return true;
+    if (filter === 'watch') {
+      return u.risk === 'watch' || u.risk === 'warn';
+    }
+    return u.risk === filter;
+  });
+
   const order = { danger: 0, warn: 1, watch: 2, safe: 3 };
-  data.sort((a, b) => order[a.risk] - order[b.risk]);
+  data.sort((a, b) => (order[a.risk] ?? 4) - (order[b.risk] ?? 4));
 
   if(data.length === 0){
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">조회된 어르신 데이터가 없습니다.</td></tr>';
+    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">조건에 일치하는 어르신 데이터가 없습니다.</td></tr>';
     return;
   }
 
   body.innerHTML = data.map((u, i) => {
     const r = risk[u.risk] || risk.safe;
-    const healthText = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력';
-    const actionText = u.risk === 'danger' ? '즉시 방문 / 확인' : u.risk === 'warn' ? '안부 확인 권장' : u.risk === 'watch' ? '오늘 중 재확인' : '정기 관찰';
+    const isUnrecorded = (u.lastInput === '기록 없음' || !u.lastInput);
+    const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
     const chartFillId = 'riskFillV2' + i;
+
+    let breakfastDisplay = '-';
+    let lunchDisplay = '-';
+    let dinnerDisplay = '-';
+
+    if (u.meal_short && typeof u.meal_short === 'string' && u.meal_short.includes('<br>')) {
+      const parts = u.meal_short.split('<br>');
+      breakfastDisplay = parts[0] ? parts[0].replace('아침: ', '') : '-';
+      lunchDisplay = parts[1] ? parts[1].replace('점심: ', '') : '-';
+      dinnerDisplay = parts[2] ? parts[2].replace('저녁: ', '') : '-';
+    } else {
+      breakfastDisplay = '미입력';
+      lunchDisplay = '미입력';
+      dinnerDisplay = '미입력';
+    }
 
     const breakdownHtml = (u.score_breakdown || []).map(b => `
       <span class="score-tag ${b.type}">
@@ -831,8 +860,10 @@ function renderTable(){
           <span class="badge ${r[1]}">● ${r[0]}</span>
         </div>
       </td>
-      <td style="font-size:22px;white-space:nowrap;">${emoji[u.health] || '⏳'} <small style="font-size:13px;color:#6b7688;font-weight:700;">${healthText}</small></td>
-      <td><span style="color:${u.late ? '#ef4444' : u.recent ? '#16a34a' : '#6b7688'};font-weight:${u.late ? '900' : '700'};white-space:nowrap;">${u.last}</span></td>
+      <td style="font-size:${isUnrecorded ? '14px' : '22px'};white-space:nowrap;font-weight:${isUnrecorded ? '800' : 'normal'};color:${isUnrecorded ? '#d97706' : 'inherit'};">
+        ${isUnrecorded ? '⚠️ 첫 건강 상태 입력이 필요합니다' : `${emoji[u.health] || '⏳'} <small style="font-size:13px;color:#6b7688;font-weight:700;">${healthText}</small>`}
+      </td>
+      <td><span style="color:${isUnrecorded ? '#d97706' : '#6b7688'};font-weight:700;white-space:nowrap;">${u.last}</span></td>
       <td>
         <div class="actions">
           <button class="mini-btn" onclick="event.stopPropagation();toggle(${i})">상세</button>
@@ -873,9 +904,9 @@ function renderTable(){
                 <div class="info-card-v2">
                   <span>오늘 식사 여부</span>
                   <div class="meal-inline" style="margin-top:4px;">
-                    <div>• 아침: <b>${u.meal_short ? u.meal_short.split('<br>')[0].replace('아침: ', '') : '-'}</b></div>
-                    <div>• 점심: <b>${u.meal_short ? u.meal_short.split('<br>')[1].replace('점심: ', '') : '-'}</b></div>
-                    <div>• 저녁: <b>${u.meal_short ? u.meal_short.split('<br>')[2].replace('저녁: ', '') : '-'}</b></div>
+                    <div>• 아침: <b>${breakfastDisplay}</b></div>
+                    <div>• 점심: <b>${lunchDisplay}</b></div>
+                    <div>• 저녁: <b>${dinnerDisplay}</b></div>
                   </div>
                 </div>
                 <div class="info-card-v2"><span>마지막 입력 시간</span><b>${u.lastInput || u.last}</b></div>
@@ -926,28 +957,26 @@ function renderTable(){
                   <div class="quick-card-v2">
                     <span>건강 상태</span>
                     <b style="font-size:15px;display:flex;align-items:center;gap:4px;white-space:nowrap;">
-                      <span>${emoji[u.health] || '⏳'}</span>
-                      <span>${healthText}</span>
+                      <span>${isUnrecorded ? '⚠️' : (emoji[u.health] || '⏳')}</span>
+                      <span>${isUnrecorded ? '첫 입력 필요' : healthText}</span>
                     </b>
                   </div>
                   <div class="quick-card-v2">
                     <span>식사 상태</span>
                     <div class="meal-inline">
-                      <div>아침: <b>${u.meal_short ? u.meal_short.split('<br>')[0].replace('아침: ', '') : '-'}</b></div>
-                      <div>점심: <b>${u.meal_short ? u.meal_short.split('<br>')[1].replace('점심: ', '') : '-'}</b></div>
-                      <div>저녁: <b>${u.meal_short ? u.meal_short.split('<br>')[2].replace('저녁: ', '') : '-'}</b></div>
+                      <div><b>${u.meal}</b></div>
                     </div>
                   </div>
                   <div class="quick-card-v2">
                     <span>권장 조치</span>
-                    <b style="font-size:14px;color:var(--primary-dark);white-space:nowrap;">${actionText}</b>
+                    <b style="font-size:14px;color:var(--primary-dark);white-space:nowrap;">${isUnrecorded ? '첫 건강 상태 입력 안내' : '정기 관찰'}</b>
                   </div>
                 </div>
               </div>
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
                 <h4>🤖 AI 생활 패턴 진단</h4>
-                <p>${u.desc || '특이 징후가 발견되지 않은 정상 상태입니다.'}</p>
+                <p>${u.desc}</p>
                 <div class="ai-actions-v2">
                   <button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 결과 작성</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
@@ -967,7 +996,8 @@ function updateMainChart(index){
 
   const r = risk[u.risk] || risk.safe;
   const points = u.chart || '0,120 700,120';
-  const healthText = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력';
+  const isUnrecorded = (u.lastInput === '기록 없음' || !u.lastInput);
+  const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
 
   const line = document.getElementById('mainChartLine');
   const fill = document.getElementById('mainChartFill');
@@ -1186,4 +1216,4 @@ async function remoteLogoutElder(userId, name) {
 }
 </script>
 </body>
-</html> 
+</html>

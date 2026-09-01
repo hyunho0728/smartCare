@@ -186,7 +186,7 @@ def api_admin_check_session():
 
 @app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
-    """로그인한 사회복지사의 배정/미배정 어르신을 분리하고 RISK_ANALYSIS 및 AI 감점 태그를 연동하여 반환"""
+    """로그인한 사회복지사의 배정/미배정 어르신을 분리하고 미입력 어르신 안내 문구 처리"""
     current_worker_id = session.get('admin_worker_id')
     if not current_worker_id:
         admin_login_id = session.get('admin_id')
@@ -208,25 +208,35 @@ def api_get_elders():
         latest_health = health_history[0] if health_history else None
         latest_login = login_history[0] if login_history else None
 
-        condition = latest_health.condition_level if latest_health else 3
-        
+        # 기록 유무에 따른 상태 및 문구 분기 처리
         if latest_health:
+            condition = latest_health.condition_level
             meal = f"아침: {latest_health.breakfast_status} · 점심: {latest_health.lunch_status} · 저녁: {latest_health.dinner_status}"
             meal_short = f"아침: {latest_health.breakfast_status}<br>점심: {latest_health.lunch_status}<br>저녁: {latest_health.dinner_status}"
             last_input_str = latest_health.recorded_at.strftime("%m/%d %H:%M")
+            display_last_time = last_input_str
         else:
-            meal = "미입력"
-            meal_short = "미입력"
+            condition = 3  # 기본 보통 처리
+            meal = "첫 건강 상태 입력이 필요합니다"
+            meal_short = "첫 건강 상태 입력이 필요합니다"
             last_input_str = "기록 없음"
+            display_last_time = "입력 이력 없음"
 
-        display_last_time = last_input_str if latest_health else (latest_login.auth_time.strftime("%m/%d %H:%M") if latest_login else "기록 없음")
+        # 위험도 평가 실행
+        try:
+            eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
+            risk_score = eval_res["score"]
+            risk_level = eval_res["risk_level"].lower()  # 프론트엔드와 일치하도록 소문자로 변환 (safe, watch, warn, danger)
+            score_breakdown = eval_res["score_breakdown"]
+            ai_desc = eval_res["ai_summary"]
+        except Exception:
+            risk_score = 50
+            risk_level = "watch"
+            score_breakdown = [{"item": "초기 상태 (기록 없음)", "score": "-50점", "type": "minus"}]
+            ai_desc = "아직 건강 상태가 입력되지 않았습니다. 첫 건강 상태 입력이 필요합니다."
 
-        # AI 및 규칙 점수/감점 사유를 일원화하여 도출
-        eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
-        risk_score = eval_res["score"]
-        risk_level = eval_res["risk_level"]
-        score_breakdown = eval_res["score_breakdown"]
-        ai_desc = eval_res["ai_summary"]
+        if not latest_health:
+            ai_desc = "어르신이 아직 오늘의 건강 상태와 식사 여부를 입력하지 않았습니다. 첫 건강 상태 입력이 필요합니다."
 
         # 최근 7일 그래프 좌표 생성
         recent_risks = RiskAnalysis.query.filter_by(user_id=u.user_id)\
@@ -251,7 +261,8 @@ def api_get_elders():
             "lastInput": last_input_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
             "chart": chart_points,
-            "desc": ai_desc
+            "desc": ai_desc,
+            "has_recorded": bool(latest_health is not None)
         }
 
     assigned_list = [process_elder_data(u) for u in assigned_users]
@@ -674,23 +685,22 @@ def start_localtunnel():
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         time.sleep(2.0)  # 서버가 완전히 켜질 때까지 대기
         try:
-            # npx를 통해 localtunnel 실행 (별도 설치 불필요)
-            cmd = ["npx", "localtunnel", "--port", "5000"]
+            cmd = ["lt", "--port", "5000", "--print-uri"]
             
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             
-            # shell=True 옵션을 주어 Windows 환경에서 npx 명령어가 원활히 실행되도록 함
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, shell=True)
             
             print("\n" + "=" * 65)
-            print("🌍 [외부 접속 링크 생성 중... 잠시만 기다려주세요]")
+            print("🌍 [외부 접속 링크 생성 중...]")
             print("=" * 65)
             
             for line in process.stdout:
-                if "url" in line or "https://" in line:
-                    # localtunnel이 출력하는 주소 텍스트 추출
-                    print(line.strip())
+                if "https://" in line:
+                    url = line.strip()
+                    print(f"\n🎉 외부 접속 링크가 생성되었습니다!")
+                    print(f"🔗 링크: {url}")
                     print("=" * 65 + "\n")
                     break
         except Exception as e:
