@@ -597,8 +597,12 @@
     <div style="position:relative;background:#fff;border-radius:24px;overflow:hidden;padding:12px;box-shadow:0 25px 50px rgba(0,0,0,.35);">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:4px 8px;">
         <b id="viewer-doc-title" style="font-size:16px;color:#1e293b;">건강검진표 원본</b>
-        <button class="close" onclick="closeImageViewer()" style="width:34px;height:34px;font-size:18px;">×</button>
+        <div style="display:flex;gap:8px;align-items:center;">
+          <button class="mini-btn" onclick="downloadCurrentImageView()" style="padding:6px 12px;">다운로드</button>
+          <button class="close" onclick="closeImageViewer()" style="width:34px;height:34px;font-size:18px;">×</button>
+        </div>
       </div>
+      <!-- 🖼️ 누락되었던 이미지 렌더링 영역 복구 -->
       <div style="max-height:80vh;overflow:auto;display:flex;align-items:center;justify-content:center;border-radius:14px;background:#f1f5f9;">
         <img id="viewer-img" src="" alt="건강검진표 원본 사진" style="max-width:100%;max-height:78vh;object-fit:contain;border-radius:10px;">
       </div>
@@ -1341,6 +1345,34 @@ function closeImageViewer() {
   if (viewerModal) {
     viewerModal.classList.remove('show');
     if (viewerImg) viewerImg.src = '';
+  }
+}
+
+async function downloadCurrentImageView() {
+  /* 현재 모달에 띄워진 이미지를 fetch 블롭(Blob) 방식으로 안전하게 다운로드합니다. */
+  const viewerImg = document.getElementById('viewer-img');
+  if (!viewerImg || !viewerImg.src) {
+    toast("다운로드할 이미지 경로가 없습니다.");
+    return;
+  }
+
+  const imagePath = viewerImg.src;
+  const fileName = imagePath.split('/').pop() || 'checkup_document.jpg';
+
+  try {
+    const response = await fetch(imagePath);
+    const blob = await response.blob();
+    const blobUrl = window.URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = blobUrl;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(blobUrl);
+  } catch (err) {
+    toast("이미지 다운로드에 실패했습니다.");
   }
 }
 
