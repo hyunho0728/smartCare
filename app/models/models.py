@@ -90,3 +90,13 @@ class LoginHistory(db.Model):
     ip_address = db.Column(db.String(45))
     user_agent = db.Column(db.String(255))
     auth_time = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
+
+
+# 7. 건강검진표 / 처방전 사진 문서 모델
+class CheckupDocument(db.Model):
+    __tablename__ = 'CHECKUP_DOCUMENT'
+    doc_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False, index=True)
+    file_path = db.Column(db.String(255), nullable=False)        # 웹 접근 경로 (예: /static/uploads/checkups/xxx.jpg)
+    original_name = db.Column(db.String(255), nullable=True)    # 원본 파일명
+    uploaded_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)

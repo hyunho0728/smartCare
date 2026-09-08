@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect
-from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement
+from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument
 from services.ai_service import evaluate_and_record_risk
 import os
 import urllib.parse
@@ -9,12 +9,13 @@ import secrets
 import subprocess
 import threading
 import time
+import uuid
 
 app = Flask(__name__)
 app.secret_key = "smartcare-secret-key-replace-with-env"
 
 # ==========================================
-# MySQL 연결 설정
+# MySQL 데이터베이스 및 업로드 폴더 설정
 # ==========================================
 DB_USER = os.getenv("DB_USER", "root")
 DB_PASSWORD = os.getenv("DB_PASSWORD", "0728")
@@ -25,6 +26,12 @@ DB_NAME = os.getenv("DB_NAME", "elder_care_DB")
 encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+# 건강검진표 / 처방전 사진 저장 경로 설정 (app/static/uploads/checkups)
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads', 'checkups')
+os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 db.init_app(app)
 
@@ -38,9 +45,11 @@ with app.app_context():
     except Exception:
         pass
 
+
 # ==========================================
-# 유틸리티 및 식사 자동 판정 함수
+# 유틸리티 함수
 # ==========================================
+
 MEAL_DEADLINES = {
     'breakfast': datetime.time(10, 0),  # 아침 마감 시간 (10:00)
     'lunch': datetime.time(15, 0),      # 점심 마감 시간 (15:00)
@@ -48,10 +57,7 @@ MEAL_DEADLINES = {
 }
 
 def check_and_update_missed_meals():
-    """
-    지정된 시간이 지나도록 '예정' 상태로 남아있는 식사를 '결식'으로 자동 전환하고
-    영향을 받은 대상자의 AI 위험도를 재평가합니다.
-    """
+    """마감 시간이 지나도록 '예정' 상태로 남은 식사를 '결식'으로 자동 전환하고 위험도를 재평가합니다."""
     now = datetime.datetime.now()
     current_time = now.time()
     today = now.date()
@@ -84,8 +90,6 @@ def check_and_update_missed_meals():
 
         if updated_users:
             db.session.commit()
-
-            # 상태가 변경된 대상자의 AI 위험도 재계산
             for uid in updated_users:
                 user = User.query.get(uid)
                 if user:
@@ -102,16 +106,19 @@ def check_and_update_missed_meals():
         print(f"[MealCheck] Error updating missed meals: {e}")
 
 def is_mobile_request():
+    """접속한 클라이언트의 User-Agent를 분석하여 모바일 기기 여부를 판별합니다."""
     user_agent = request.headers.get('User-Agent', '').lower()
     mobile_keywords = ['android', 'iphone', 'ipad', 'ipod', 'mobile', 'webos', 'opera mini']
     return any(keyword in user_agent for keyword in mobile_keywords)
 
 def extract_numbers(text):
+    """입력된 텍스트에서 숫자만 추출하여 반환합니다."""
     if not text:
         return ""
     return re.sub(r'\D', '', str(text))
 
 def format_phone_display(phone_str):
+    """전화번호 문자열을 보기 좋은 하이픈(-) 포맷으로 변환합니다."""
     if not phone_str:
         return "-"
     p = str(phone_str)
@@ -122,7 +129,7 @@ def format_phone_display(phone_str):
     return p
 
 def generate_svg_chart_points(scores_7days):
-    """SVG Polyline 좌표 생성 (0~100 -> Y:170~30)"""
+    """최근 7일 점수 리스트를 SVG Polyline 좌표 문자열로 변환합니다."""
     x_coords = [0, 112, 224, 336, 448, 560, 650]
     while len(scores_7days) < 7:
         scores_7days.insert(0, scores_7days[0] if scores_7days else 100)
@@ -134,38 +141,46 @@ def generate_svg_chart_points(scores_7days):
         points.append(f"{x},{y}")
     return " ".join(points)
 
+
 # ==========================================
-# 1. 뷰 라우트
+# 1. 페이지 라우트
 # ==========================================
+
 @app.route('/')
 def index():
+    """접속 기기(모바일/PC)에 따라 사용자 웹 또는 관리자 대시보드를 렌더링합니다."""
     if is_mobile_request():
         return render_template('user_web.html')
     return render_template('admin_web.html')
 
 @app.route('/user')
 def user_view():
+    """어르신용 모바일 웹 페이지를 강제로 렌더링합니다."""
     return render_template('user_web.html')
 
 @app.route('/admin')
 def admin_view():
+    """사회복지사 관제 대시보드 페이지를 강제로 렌더링합니다."""
     return render_template('admin_web.html')
 
+
 # ==========================================
-# 2. 관리자 API
+# 2. 사회복지사 관제 API
 # ==========================================
+
 @app.route('/api/admin/login', methods=['POST'])
 def api_admin_login():
+    """사회복지사 로그인 인증을 처리하고 세션을 생성합니다."""
     data = request.get_json() or {}
     admin_id = data.get('admin_id', '').strip()
     password = data.get('password', '').strip()
 
     if not admin_id or not password:
-        return jsonify({"success": False, "message": "아이디와 비밀번호를 입력해주세요."}), 400
+        return jsonify({"success": False, "message": "아이디와 비밀번호를 모두 입력해주세요."}), 400
 
     worker = Worker.query.filter_by(login_id=admin_id).first()
     if not worker or worker.password != password:
-        return jsonify({"success": False, "message": "로그인 정보가 일치하지 않습니다."}), 401
+        return jsonify({"success": False, "message": "아이디 또는 비밀번호가 일치하지 않습니다."}), 401
 
     session['admin_id'] = worker.login_id
     session['admin_worker_id'] = worker.worker_id
@@ -173,15 +188,17 @@ def api_admin_login():
 
     return jsonify({
         "success": True,
-        "message": f"{worker.name}님 환영합니다.",
+        "message": f"{worker.name}님, 환영합니다.",
         "admin": {
             "name": worker.name,
             "region": worker.address
         }
     })
 
+
 @app.route('/api/admin/signup', methods=['POST'])
 def api_admin_signup():
+    """신규 사회복지사 관리자 계정을 등록합니다."""
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     org = data.get('org', '').strip()
@@ -192,10 +209,10 @@ def api_admin_signup():
     region = data.get('region', '').strip()
 
     if not all([name, admin_id, phone, password, region]):
-        return jsonify({"success": False, "message": "필수 정보를 모두 입력해주세요."}), 400
+        return jsonify({"success": False, "message": "모든 필수 항목을 입력해주세요."}), 400
 
     if Worker.query.filter_by(login_id=admin_id).first():
-        return jsonify({"success": False, "message": "이미 사용 중인 아이디입니다."}), 409
+        return jsonify({"success": False, "message": "이미 존재하는 아이디입니다."}), 409
 
     try:
         new_worker = Worker(
@@ -209,18 +226,22 @@ def api_admin_signup():
         )
         db.session.add(new_worker)
         db.session.commit()
-        return jsonify({"success": True, "message": "회원가입이 완료되었습니다."})
+        return jsonify({"success": True, "message": "회원가입이 완료되었습니다. 로그인해주세요."})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"DB 등록 실패: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"DB 저장 실패: {str(e)}"}), 500
+
 
 @app.route('/api/admin/logout', methods=['POST'])
 def api_admin_logout():
+    """사회복지사 세션을 종료(로그아웃)합니다."""
     session.clear()
-    return jsonify({"success": True, "message": "로그아웃 되었습니다."})
+    return jsonify({"success": True, "message": "로그아웃되었습니다."})
+
 
 @app.route('/api/admin/check-session', methods=['GET'])
 def api_admin_check_session():
+    """현재 사회복지사의 로그인 세션 유효성을 검사합니다."""
     admin_login_id = session.get('admin_id')
     if not admin_login_id:
         return jsonify({"is_logged_in": False})
@@ -238,9 +259,10 @@ def api_admin_check_session():
         }
     })
 
+
 @app.route('/api/admin/elders', methods=['GET'])
 def api_get_elders():
-    # 조회 전 예정 상태를 시간 기준으로 결식 자동 변환
+    """로그인한 사회복지사의 담당/미배정 어르신 목록, 위험 분석 및 검진표 사진 목록을 반환합니다."""
     check_and_update_missed_meals()
 
     current_worker_id = session.get('admin_worker_id')
@@ -265,16 +287,16 @@ def api_get_elders():
 
         if latest_health:
             condition = latest_health.condition_level
-            meal = f"아침: {latest_health.breakfast_status} / 점심: {latest_health.lunch_status} / 저녁: {latest_health.dinner_status}"
+            meal = f"아침: {latest_health.breakfast_status} · 점심: {latest_health.lunch_status} · 저녁: {latest_health.dinner_status}"
             meal_short = f"아침: {latest_health.breakfast_status}<br>점심: {latest_health.lunch_status}<br>저녁: {latest_health.dinner_status}"
             last_input_str = latest_health.recorded_at.strftime("%m/%d %H:%M")
             display_last_time = last_input_str
         else:
             condition = 3
-            meal = "미기록"
-            meal_short = "미기록"
-            last_input_str = "미입력"
-            display_last_time = "미입력"
+            meal = "첫 건강 상태 입력이 필요합니다"
+            meal_short = "첫 건강 상태 입력이 필요합니다"
+            last_input_str = "기록 없음"
+            display_last_time = "입력 이력 없음"
 
         try:
             eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
@@ -285,15 +307,26 @@ def api_get_elders():
         except Exception:
             risk_score = 50
             risk_level = "watch"
-            score_breakdown = [{"item": "데이터 부족", "score": "-50점", "type": "minus"}]
-            ai_desc = "데이터 분석 준비 중"
+            score_breakdown = [{"item": "초기 상태 (기록 없음)", "score": "-50점", "type": "minus"}]
+            ai_desc = "아직 건강 상태가 입력되지 않았습니다."
 
         if not latest_health:
-            ai_desc = "아직 입력된 건강 상태 정보가 없습니다."
+            ai_desc = "어르신이 아직 오늘의 건강 상태와 식사 여부를 입력하지 않았습니다. 첫 건강 상태 입력이 필요합니다."
 
         recent_risks = RiskAnalysis.query.filter_by(user_id=u.user_id)\
             .order_by(RiskAnalysis.analyzed_at.asc()).all()
         chart_points = generate_svg_chart_points([float(r.risk_score) for r in recent_risks])
+
+        # 어르신이 업로드한 건강검진표/처방전 사진 목록 조회 (2단계 연동)
+        checkup_docs = CheckupDocument.query.filter_by(user_id=u.user_id)\
+            .order_by(CheckupDocument.uploaded_at.desc()).all()
+        
+        docs_list = [{
+            "doc_id": d.doc_id,
+            "file_path": d.file_path,
+            "original_name": d.original_name or "건강검진표",
+            "uploaded_at": d.uploaded_at.strftime("%Y-%m-%d %H:%M")
+        } for d in checkup_docs]
 
         return {
             "id": u.user_id,
@@ -314,7 +347,8 @@ def api_get_elders():
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
             "chart": chart_points,
             "desc": ai_desc,
-            "has_recorded": bool(latest_health is not None)
+            "has_recorded": bool(latest_health is not None),
+            "checkup_docs": docs_list
         }
 
     assigned_list = [process_elder_data(u) for u in assigned_users]
@@ -326,11 +360,14 @@ def api_get_elders():
         "unassigned": unassigned_list
     })
 
+
 @app.route('/api/admin/elders/assign', methods=['POST'])
 def api_assign_elder():
+    """미배정 어르신을 로그인한 사회복지사의 담당으로 배정합니다."""
     data = request.get_json() or {}
     user_id = data.get('user_id')
     current_worker_id = session.get('admin_worker_id')
+
     if not current_worker_id:
         admin_login_id = session.get('admin_id')
         if admin_login_id:
@@ -339,26 +376,28 @@ def api_assign_elder():
                 current_worker_id = worker.worker_id
 
     if not current_worker_id or not user_id:
-        return jsonify({"success": False, "message": "필수 정보가 누락되었습니다."}), 400
+        return jsonify({"success": False, "message": "배정 요청 정보가 올바르지 않습니다."}), 400
 
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"success": False, "message": "대상자를 찾을 수 없습니다."}), 404
+        return jsonify({"success": False, "message": "어르신 정보를 찾을 수 없습니다."}), 404
 
     try:
         user.worker_id = current_worker_id
         db.session.commit()
-        return jsonify({"success": True, "message": f"'{user.name}' 대상자가 배정되었습니다."})
+        return jsonify({"success": True, "message": f"'{user.name}' 어르신이 담당으로 배정되었습니다."})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"배정 실패: {str(e)}"}), 500
 
+
 @app.route('/api/admin/actions/save', methods=['POST'])
 def api_save_post_management():
+    """사회복지사의 사후 조치 및 피드백 기록을 저장합니다."""
     data = request.get_json() or {}
     user_id = data.get('user_id')
     name = data.get('name')
-    action_type = data.get('action_type', '전화상담')
+    action_type = data.get('action_type', '전화확인')
     feedback = data.get('feedback', '').strip()
 
     current_worker_id = session.get('admin_worker_id')
@@ -370,7 +409,7 @@ def api_save_post_management():
                 current_worker_id = worker.worker_id
 
     if not current_worker_id:
-        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+        return jsonify({"success": False, "message": "복지사 로그인이 필요합니다."}), 401
 
     if not user_id and name:
         user = User.query.filter_by(name=name).first()
@@ -378,7 +417,7 @@ def api_save_post_management():
             user_id = user.user_id
 
     if not user_id or not feedback:
-        return jsonify({"success": False, "message": "필수 정보가 누락되었습니다."}), 400
+        return jsonify({"success": False, "message": "대상자 정보 및 확인 내용을 입력해주세요."}), 400
 
     latest_risk = RiskAnalysis.query.filter_by(user_id=user_id)\
         .order_by(RiskAnalysis.analyzed_at.desc()).first()
@@ -395,13 +434,15 @@ def api_save_post_management():
         )
         db.session.add(new_action)
         db.session.commit()
-        return jsonify({"success": True, "message": "사후조치가 저장되었습니다."})
+        return jsonify({"success": True, "message": "조치 결과가 정상적으로 기록되었습니다."})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"저장 실패: {str(e)}"}), 500
 
+
 @app.route('/api/admin/elders/register', methods=['POST'])
 def api_admin_register_elder():
+    """관리자 화면에서 신규 어르신 계정을 등록합니다."""
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     age = data.get('age')
@@ -409,14 +450,13 @@ def api_admin_register_elder():
     address = data.get('address', '').strip()
     emergency_contact = extract_numbers(data.get('emergency_contact', ''))
     disease_note = data.get('disease_note', '없음').strip()
-
     has_disease = disease_note != '없음' and len(disease_note) > 0
 
     if not all([name, age, phone_clean, address]):
-        return jsonify({"success": False, "message": "필수 정보를 모두 입력해주세요."}), 400
+        return jsonify({"success": False, "message": "성함, 나이, 휴대폰 번호, 주소는 필수입니다."}), 400
 
     if User.query.filter_by(phone_number=phone_clean).first():
-        return jsonify({"success": False, "message": "이미 등록된 전화번호입니다."}), 409
+        return jsonify({"success": False, "message": "이미 등록된 휴대폰 번호입니다."}), 409
 
     worker_id = session.get('admin_worker_id')
 
@@ -434,13 +474,15 @@ def api_admin_register_elder():
         )
         db.session.add(new_elder)
         db.session.commit()
-        return jsonify({"success": True, "message": f"'{name}' 대상자가 등록되었습니다."})
+        return jsonify({"success": True, "message": f"'{name}' 어르신이 등록되었습니다."})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"등록 실패: {str(e)}"}), 500
 
+
 @app.route('/api/admin/elders/<int:user_id>', methods=['DELETE'])
 def api_admin_delete_elder(user_id):
+    """어르신 계정을 비활성화(삭제) 처리합니다."""
     current_worker_id = session.get('admin_worker_id')
     if not current_worker_id:
         admin_login_id = session.get('admin_id')
@@ -450,26 +492,29 @@ def api_admin_delete_elder(user_id):
                 current_worker_id = worker.worker_id
 
     if not current_worker_id:
-        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+        return jsonify({"success": False, "message": "사회복지사 로그인이 필요합니다."}), 401
 
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"success": False, "message": "대상자를 찾을 수 없습니다."}), 404
+        return jsonify({"success": False, "message": "대상 어르신 정보를 찾을 수 없습니다."}), 404
 
     try:
         user.is_active = False
         user.worker_id = None
         user.session_token = None
         db.session.commit()
-        return jsonify({"success": True, "message": f"'{user.name}' 대상자가 삭제되었습니다."})
+        return jsonify({"success": True, "message": f"'{user.name}' 어르신 계정이 서비스에서 삭제(비활성화)되었습니다."})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"삭제 실패: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"삭제 처리 실패: {str(e)}"}), 500
+
 
 @app.route('/api/admin/users/logout', methods=['POST'])
 def api_admin_remote_logout():
+    """어르신 모바일 기기 세션을 원격으로 종료(로그아웃)합니다."""
     data = request.get_json() or {}
     user_id = data.get('user_id')
+
     current_worker_id = session.get('admin_worker_id')
     if not current_worker_id:
         admin_login_id = session.get('admin_id')
@@ -479,36 +524,38 @@ def api_admin_remote_logout():
                 current_worker_id = worker.worker_id
 
     if not current_worker_id:
-        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+        return jsonify({"success": False, "message": "사회복지사 로그인이 필요합니다."}), 401
 
     if not user_id:
-        return jsonify({"success": False, "message": "대상자 정보가 없습니다."}), 400
+        return jsonify({"success": False, "message": "대상 어르신 정보가 필요합니다."}), 400
 
     user = User.query.get(user_id)
     if not user:
-        return jsonify({"success": False, "message": "대상자를 찾을 수 없습니다."}), 404
+        return jsonify({"success": False, "message": "어르신 정보를 찾을 수 없습니다."}), 404
 
     try:
         user.session_token = None
         db.session.commit()
-        return jsonify({"success": True, "message": f"'{user.name}' 대상자가 원격 로그아웃 되었습니다."})
+        return jsonify({"success": True, "message": f"'{user.name}' 어르신의 모바일 세션이 원격으로 종료(로그아웃)되었습니다."})
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"원격 로그아웃 실패: {str(e)}"}), 500
 
+
 # ==========================================
-# 3. 사용자 API
+# 3. 사용자(어르신) 모바일 API
 # ==========================================
+
 @app.route('/api/user/login', methods=['POST'])
 def api_user_login():
-    # 로그인 시점에 예정 상태 갱신
+    """어르신 전화번호 로그인을 처리하고 세션 토큰을 발급합니다."""
     check_and_update_missed_meals()
 
     data = request.get_json() or {}
     phone_clean = extract_numbers(data.get('phone_number', ''))
 
     if not phone_clean:
-        return jsonify({"success": False, "message": "전화번호를 입력해주세요."}), 400
+        return jsonify({"success": False, "message": "휴대폰 번호를 입력해주세요."}), 400
 
     user = User.query.filter_by(phone_number=phone_clean, is_active=True).first()
     if not user:
@@ -538,7 +585,7 @@ def api_user_login():
 
     today_status_data = None
     if today_health:
-        map_reverse_action = {'식사': 'yes', '예정': 'plan', '결식': 'no'}
+        map_reverse_action = {'완료': 'yes', '예정': 'plan', '결식': 'no'}
         h_time = today_health.recorded_at
         time_str = f"{'오전' if h_time.hour < 12 else '오후'} {h_time.hour % 12 or 12}:{h_time.minute:02d}"
         
@@ -552,7 +599,7 @@ def api_user_login():
 
     return jsonify({
         "success": True,
-        "message": f"{user.name}님 환영합니다.",
+        "message": f"{user.name} 어르신, 로그인되었습니다.",
         "user_id": user.user_id,
         "user_name": user.name,
         "phone_number": format_phone_display(phone_clean),
@@ -561,21 +608,22 @@ def api_user_login():
         "today_data": today_status_data
     })
 
+
 @app.route('/api/user/check-session', methods=['GET'])
 def api_user_check_session():
-    # 주기적인 세션 확인 시점에도 예정 상태 갱신
+    """어르신 모바일 세션 유효성 및 원격 로그아웃 여부를 검사합니다."""
     check_and_update_missed_meals()
 
     user_id = session.get('user_id')
     user_token = session.get('user_token')
 
     if not user_id:
-        return jsonify({"valid": False, "message": "세션 없음"})
+        return jsonify({"valid": False, "message": "로그아웃 상태입니다."})
 
     user = User.query.get(user_id)
     if not user or not user.is_active or not user.session_token or user.session_token != user_token:
         session.clear()
-        return jsonify({"valid": False, "message": "유효하지 않은 세션"})
+        return jsonify({"valid": False, "message": "사회복지사에 의해 원격으로 로그아웃되었습니다."})
 
     today_date = datetime.datetime.now().date()
     today_health = HealthStatus.query.filter_by(user_id=user.user_id, target_date=today_date)\
@@ -583,7 +631,7 @@ def api_user_check_session():
 
     today_status_data = None
     if today_health:
-        map_reverse_action = {'식사': 'yes', '예정': 'plan', '결식': 'no'}
+        map_reverse_action = {'완료': 'yes', '예정': 'plan', '결식': 'no'}
         h_time = today_health.recorded_at
         time_str = f"{'오전' if h_time.hour < 12 else '오후'} {h_time.hour % 12 or 12}:{h_time.minute:02d}"
         today_status_data = {
@@ -604,8 +652,10 @@ def api_user_check_session():
         "today_data": today_status_data
     })
 
+
 @app.route('/api/user/register', methods=['POST'])
 def api_user_register():
+    """어르신 모바일 회원가입을 처리합니다."""
     data = request.get_json() or {}
     name = data.get('name', '').strip()
     phone_clean = extract_numbers(data.get('phone_number', ''))
@@ -615,11 +665,11 @@ def api_user_register():
     disease_note = data.get('disease_note', '')
 
     if not all([name, phone_clean, address, age]):
-        return jsonify({"success": False, "message": "필수 정보를 모두 입력해주세요."}), 400
+        return jsonify({"success": False, "message": "모든 필수 항목을 입력해주세요."}), 400
 
     existing_user = User.query.filter_by(phone_number=phone_clean).first()
     if existing_user and existing_user.is_active:
-        return jsonify({"success": False, "message": "이미 등록된 전화번호입니다."}), 409
+        return jsonify({"success": False, "message": "이미 등록된 휴대폰 번호입니다."}), 409
 
     try:
         if existing_user and not existing_user.is_active:
@@ -631,7 +681,7 @@ def api_user_register():
             existing_user.is_active = True
             existing_user.worker_id = None
             db.session.commit()
-            return jsonify({"success": True, "message": "재등록이 완료되었습니다."})
+            return jsonify({"success": True, "message": "서비스 재가입이 완료되었습니다."})
 
         new_user = User(
             name=name,
@@ -644,13 +694,15 @@ def api_user_register():
         )
         db.session.add(new_user)
         db.session.commit()
-        return jsonify({"success": True, "message": "등록이 완료되었습니다."})
+        return jsonify({"success": True, "message": "회원가입이 완료되었습니다."})
     except Exception as e:
         db.session.rollback()
-        return jsonify({"success": False, "message": f"등록 실패: {str(e)}"}), 500
+        return jsonify({"success": False, "message": f"가입 실패: {str(e)}"}), 500
+
 
 @app.route('/api/user/health', methods=['POST'])
 def api_record_health():
+    """어르신의 건강 상태 및 식사 상태를 저장하거나 1시간 이내 수정(UPDATE)합니다."""
     data = request.get_json() or {}
     user_id = session.get('user_id')
     
@@ -662,12 +714,25 @@ def api_record_health():
                 user_id = user.user_id
 
     condition_level = data.get('condition_level')
-    breakfast = data.get('breakfast', '식사')
-    lunch = data.get('lunch', '식사')
-    dinner = data.get('dinner', '식사')
+
+    def normalize_meal_status(val):
+        if not val:
+            return '완료'
+        val = str(val).strip()
+        if val in ['완료', '식사', 'yes', '먹었어요']:
+            return '완료'
+        elif val in ['예정', 'plan', '먹을 거예요', '먹을거예요']:
+            return '예정'
+        elif val in ['결식', 'no', '안 먹었어요', '안먹었어요']:
+            return '결식'
+        return '완료'
+
+    breakfast = normalize_meal_status(data.get('breakfast'))
+    lunch = normalize_meal_status(data.get('lunch'))
+    dinner = normalize_meal_status(data.get('dinner'))
 
     if not user_id or not condition_level:
-        return jsonify({"success": False, "message": "필수 입력 정보가 누락되었습니다."}), 400
+        return jsonify({"success": False, "message": "사용자 정보 또는 건강 상태가 누락되었습니다."}), 400
 
     try:
         now_dt = datetime.datetime.now()
@@ -708,7 +773,8 @@ def api_record_health():
 
         eval_res = evaluate_and_record_risk(user, health_history, login_history, db.session, RiskAnalysis)
 
-        msg = "상태가 수정(UPDATE) 되었습니다." if is_update else "상태가 등록(INSERT) 되었습니다."
+        msg = "건강 상태가 수정(UPDATE)되었습니다." if is_update else "건강 상태가 정상적으로 저장(INSERT)되었습니다."
+
         return jsonify({
             "success": True,
             "message": msg,
@@ -722,8 +788,61 @@ def api_record_health():
         db.session.rollback()
         return jsonify({"success": False, "message": f"저장 실패: {str(e)}"}), 500
 
+
+@app.route('/api/user/checkup/upload', methods=['POST'])
+def api_upload_checkup():
+    """어르신 모바일에서 건강검진표 또는 처방전 사진을 업로드받아 저장합니다."""
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        phone_clean = extract_numbers(request.form.get('phone_number'))
+        if phone_clean:
+            user = User.query.filter_by(phone_number=phone_clean).first()
+            if user:
+                user_id = user.user_id
+
+    if not user_id:
+        return jsonify({"success": False, "message": "로그인 정보가 없습니다. 다시 로그인해주세요."}), 401
+
+    if 'file' not in request.files:
+        return jsonify({"success": False, "message": "업로드된 파일이 없습니다."}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"success": False, "message": "선택된 파일이 없습니다."}), 400
+
+    try:
+        ext = os.path.splitext(file.filename)[1].lower()
+        if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.pdf']:
+            return jsonify({"success": False, "message": "지원하지 않는 파일 형식입니다. (이미지 또는 PDF만 가능)"}), 400
+
+        filename = f"{uuid.uuid4().hex}{ext}"
+        save_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(save_path)
+
+        web_path = f"/static/uploads/checkups/{filename}"
+
+        doc = CheckupDocument(
+            user_id=user_id,
+            file_path=web_path,
+            original_name=file.filename,
+            uploaded_at=datetime.datetime.now()
+        )
+        db.session.add(doc)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "건강검진표/처방전 사진이 사회복지사에게 성공적으로 전송되었습니다.",
+            "file_path": web_path
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"파일 업로드 실패: {str(e)}"}), 500
+
+
 def start_localtunnel():
-    """Flask 실행 후 백그라운드에서 localtunnel 터널링을 시작합니다."""
+    """Flask 서버 실행 시 localtunnel을 통해 자동으로 외부 접속 주소를 생성합니다."""
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         time.sleep(2.0)
         try:
@@ -734,18 +853,18 @@ def start_localtunnel():
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, shell=True)
             
             print("\n" + "=" * 65)
-            print("[CareLink Pro - 외부 접속 주소 발급 중...]")
+            print("🌍 [외부 접속 링크 생성 중...]")
             print("=" * 65)
             
             for line in process.stdout:
                 if "https://" in line:
                     url = line.strip()
-                    print(f"\n[★ 스마트폰 접속 URL 발급 완료!]")
-                    print(f"👉 접속 링크: {url}")
+                    print(f"\n🎉 외부 접속 링크가 생성되었습니다!")
+                    print(f"🔗 링크: {url}")
                     print("=" * 65 + "\n")
                     break
         except Exception as e:
-            print(f"LocalTunnel 에러: {e}")
+            print(f"⚠️ 자동 터널 생성 실패: {e}")
 
 if __name__ == '__main__':
     threading.Thread(target=start_localtunnel, daemon=True).start()

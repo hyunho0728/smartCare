@@ -45,6 +45,17 @@
 .ai-panel-v2 h4{font-size:18px;margin-bottom:8px;}
 .ai-panel-v2 p{color:#475569;line-height:1.65;font-size:14px;word-break:keep-all;}
 .ai-actions-v2{display:flex;gap:8px;margin-top:14px;}
+
+/* 건강검진표 사진 갤러리 스타일 */
+.checkup-gallery-card{margin-top:14px;background:#f8fafc;border:1.5px dashed #cbd5e1;border-radius:16px;padding:14px;}
+.checkup-gallery-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.checkup-gallery-head span{font-size:13px;font-weight:800;color:#334155;display:flex;align-items:center;gap:6px;}
+.checkup-grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(95px, 1fr));gap:10px;}
+.checkup-thumb-wrap{position:relative;border-radius:12px;overflow:hidden;border:1px solid var(--line);background:#fff;aspect-ratio:1;cursor:pointer;transition:transform .15s;}
+.checkup-thumb-wrap:hover{transform:scale(1.04);border-color:var(--blue);}
+.checkup-thumb{width:100%;height:100%;object-fit:cover;}
+.checkup-thumb-date{position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.75);color:#fff;font-size:10px;text-align:center;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+
 @media(max-width:1180px){.detail-dashboard-v2{grid-template-columns:1fr}.quick-grid-v2{grid-template-columns:1fr}}
 
 .signup-link{text-align:center;margin-top:18px;color:var(--muted);font-size:14px;}
@@ -376,6 +387,7 @@
   </div>
 </section>
 
+<!-- 긴급 모달 -->
 <div class="modal-bg emergency" id="emergency">
   <div class="modal">
     <div class="modal-body">
@@ -387,6 +399,7 @@
   </div>
 </div>
 
+<!-- 어르신 추가 모달 -->
 <div class="modal-bg" id="add">
   <div class="modal wide">
     <div class="modal-head">
@@ -435,6 +448,7 @@
   </div>
 </div>
 
+<!-- 피드백 작성 모달 -->
 <div class="modal-bg" id="feedback">
   <div class="modal">
     <div class="modal-head">
@@ -453,6 +467,21 @@
       <label class="label">확인 내용</label>
       <textarea class="input textarea" id="fbContent" placeholder="통화 또는 방문 확인 내용을 상세히 입력하세요."></textarea>
       <button class="btn primary full" onclick="submitFeedback()">저장 완료</button>
+    </div>
+  </div>
+</div>
+
+<!-- 🔍 신규: 건강검진표 원본 사진 확대 팝업 모달 -->
+<div class="modal-bg" id="image-viewer-modal" onclick="closeImageViewer()">
+  <div class="modal" style="width:auto;max-width:90vw;background:transparent;box-shadow:none;" onclick="event.stopPropagation()">
+    <div style="position:relative;background:#fff;border-radius:24px;overflow:hidden;padding:12px;box-shadow:0 25px 50px rgba(0,0,0,.35);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;padding:4px 8px;">
+        <b id="viewer-doc-title" style="font-size:16px;color:#1e293b;">건강검진표 원본</b>
+        <button class="close" onclick="closeImageViewer()" style="width:34px;height:34px;font-size:18px;">×</button>
+      </div>
+      <div style="max-height:80vh;overflow:auto;display:flex;align-items:center;justify-content:center;border-radius:14px;background:#f1f5f9;">
+        <img id="viewer-img" src="" alt="건강검진표 원본 사진" style="max-width:100%;max-height:78vh;object-fit:contain;border-radius:10px;">
+      </div>
     </div>
   </div>
 </div>
@@ -819,7 +848,7 @@ function renderTable(){
 
   body.innerHTML = data.map((u, i) => {
     const r = risk[u.risk] || risk.safe;
-    const isUnrecorded = (u.lastInput === '기록 없음' || !u.lastInput);
+    const isUnrecorded = (u.lastInput === '기록 없음' || u.lastInput === '미입력' || !u.lastInput);
     const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
     const chartFillId = 'riskFillV2' + i;
 
@@ -844,6 +873,17 @@ function renderTable(){
         <b>${b.score}</b>
       </span>
     `).join('');
+
+    // 검진표 사진 갤러리 HTML 생성
+    const docs = u.checkup_docs || [];
+    const checkupDocsHtml = docs.length > 0 
+      ? docs.map(d => `
+          <div class="checkup-thumb-wrap" onclick="openImageViewer('${d.file_path}', '${u.name} 어르신 검진표 (${d.uploaded_at})')">
+            <img class="checkup-thumb" src="${d.file_path}" alt="검진표 썸네일">
+            <div class="checkup-thumb-date">${d.uploaded_at.split(' ')[0]}</div>
+          </div>
+        `).join('')
+      : '<p style="color:var(--muted);font-size:12px;padding:6px 0;">등록된 검진표/처방전 사진이 없습니다.</p>';
 
     return `
     <tr class="main-row" onclick="toggle(${i})">
@@ -878,7 +918,7 @@ function renderTable(){
           <div class="detail-title-v2">
             <div>
               <h3>${u.name} 어르신 상세 대시보드</h3>
-              <p>기본 인적사항, 연락처, 건강 상태, 위험점수 변화를 한 번에 확인합니다.</p>
+              <p>기본 인적사항, 연락처, 건강 상태, 위험점수 변화 및 검진표 사진을 확인합니다.</p>
             </div>
             <div class="detail-status-v2">
               <span class="badge ${r[1]}">현재 위험도 ${r[0]}</span>
@@ -910,6 +950,16 @@ function renderTable(){
                   </div>
                 </div>
                 <div class="info-card-v2"><span>마지막 입력 시간</span><b>${u.lastInput || u.last}</b></div>
+              </div>
+
+              <!-- 📷 건강검진표 / 처방전 사진 갤러리 카드 -->
+              <div class="checkup-gallery-card">
+                <div class="checkup-gallery-head">
+                  <span>📷 건강검진표 / 처방전 사진 (${docs.length}건)</span>
+                </div>
+                <div class="checkup-grid">
+                  ${checkupDocsHtml}
+                </div>
               </div>
             </div>
 
@@ -996,7 +1046,7 @@ function updateMainChart(index){
 
   const r = risk[u.risk] || risk.safe;
   const points = u.chart || '0,120 700,120';
-  const isUnrecorded = (u.lastInput === '기록 없음' || !u.lastInput);
+  const isUnrecorded = (u.lastInput === '기록 없음' || u.lastInput === '미입력' || !u.lastInput);
   const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
 
   const line = document.getElementById('mainChartLine');
@@ -1135,6 +1185,28 @@ function openAdd(){document.getElementById('add').classList.add('show')}
 function openFeedback(name){document.getElementById('fbName').value=name;document.getElementById('feedback').classList.add('show')}
 function closeModal(id){document.getElementById(id).classList.remove('show')}
 function toast(msg){alert(msg)}
+
+// 🔍 사진 확대 뷰어 모달 제어 함수
+function openImageViewer(filePath, titleText) {
+  const viewerModal = document.getElementById('image-viewer-modal');
+  const viewerImg = document.getElementById('viewer-img');
+  const viewerTitle = document.getElementById('viewer-doc-title');
+
+  if (viewerModal && viewerImg) {
+    viewerImg.src = filePath;
+    if (viewerTitle) viewerTitle.innerText = titleText || '건강검진표 원본';
+    viewerModal.classList.add('show');
+  }
+}
+
+function closeImageViewer() {
+  const viewerModal = document.getElementById('image-viewer-modal');
+  const viewerImg = document.getElementById('viewer-img');
+  if (viewerModal) {
+    viewerModal.classList.remove('show');
+    if (viewerImg) viewerImg.src = '';
+  }
+}
 
 async function submitFeedback() {
   const name = document.getElementById('fbName')?.value.trim();

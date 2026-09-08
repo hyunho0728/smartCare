@@ -123,6 +123,10 @@
     font-weight: 900;
     box-shadow: 0 6px 20px rgba(37,99,168,0.28);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
   }
   .main-btn:active { transform: scale(0.98); background: var(--primary-dark); }
   .gray-btn { background: #7A8B9E; box-shadow: none; }
@@ -178,7 +182,7 @@
   }
   .status-button {
     width: 100%;
-    min-height: 23vh;
+    min-height: 22vh;
     border: none;
     border-radius: var(--radius);
     background: white;
@@ -195,18 +199,18 @@
     border-color: rgba(34,134,58,0.25);
   }
   .status-icon {
-    font-size: clamp(50px, 7vh, 74px);
+    font-size: clamp(48px, 6.5vh, 70px);
     line-height: 1;
     margin-bottom: 1.2vh;
   }
   .status-title {
-    font-size: clamp(28px, 3.8vh, 40px);
+    font-size: clamp(26px, 3.5vh, 38px);
     font-weight: 900;
     line-height: 1.25;
   }
   .status-desc {
     margin-top: 1vh;
-    font-size: clamp(18px, 2.4vh, 26px);
+    font-size: clamp(17px, 2.3vh, 25px);
     color: var(--sub);
     font-weight: 800;
     line-height: 1.45;
@@ -214,17 +218,36 @@
   }
   .modify-button {
     width: 100%;
-    min-height: 10vh;
+    min-height: 8.5vh;
     border: 0.35vh solid rgba(37,99,168,0.28);
     border-radius: var(--radius);
     background: #EEF4FF;
     color: var(--primary-dark);
     box-shadow: var(--shadow);
-    font-size: clamp(24px, 3.1vh, 34px);
+    font-size: clamp(22px, 2.8vh, 30px);
     font-weight: 900;
     cursor: pointer;
   }
   .modify-button:active { transform: scale(0.985); }
+
+  .photo-button {
+    width: 100%;
+    min-height: 9vh;
+    border: 0.35vh solid #38bdf8;
+    border-radius: var(--radius);
+    background: #f0f9ff;
+    color: #0369a1;
+    box-shadow: var(--shadow);
+    font-size: clamp(21px, 2.7vh, 29px);
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+  .photo-button:active { transform: scale(0.985); background: #e0f2fe; }
+
   .step-title {
     text-align: center;
     font-size: clamp(29px, 3.8vh, 40px);
@@ -538,9 +561,19 @@
       <div class="status-title" id="status-title">오늘 상태 입력하기</div>
       <div class="status-desc" id="status-desc">눌러서 오늘의 건강과 식사를 알려주세요.</div>
     </button>
+    
     <button class="modify-button" id="modify-button" onclick="startHealth(true)" style="display:none;">
-      수정하기 (다시 입력)
+      ✏️ 수정하기 (다시 입력)
     </button>
+
+    <!-- 📷 신규: 건강검진표 / 처방전 사진 전송 버튼 -->
+    <button class="photo-button" onclick="triggerCheckupUpload()">
+      <span>📷</span>
+      <span>건강검진표 / 처방전 사진 보내기</span>
+    </button>
+
+    <!-- 숨겨진 모바일 카메라/갤러리 연동 파일 인풋 -->
+    <input type="file" id="checkup-file-input" accept="image/*,application/pdf" capture="camera" style="display:none;" onchange="handleCheckupFileSelected(event)">
   </main>
 </section>
 
@@ -669,7 +702,6 @@
   let formData = { health: null, breakfast: null, lunch: null, dinner: null };
   let savedData = null;
 
-  // 식사 마감 시간 설정 (시, 분)
   const MEAL_DEADLINES = {
     breakfast: { hour: 10, minute: 0 },
     lunch: { hour: 15, minute: 0 },
@@ -690,7 +722,6 @@
     no: '안 먹었어요'
   };
 
-  // 특정 끼니의 마감 시간이 지났는지 판별하는 함수
   function isDeadlinePassed(slot) {
     const deadline = MEAL_DEADLINES[slot];
     if (!deadline) return false;
@@ -700,14 +731,12 @@
     return now >= dTime;
   }
 
-  // 마감 시간이 지난 경우 "먹을거예요" (plan) 버튼을 화면에서 숨김/표시 처리
   function applyMealPlanVisibility() {
     ['breakfast', 'lunch', 'dinner'].forEach(slot => {
       const planBtn = document.querySelector(`.single-meal-btn[data-slot="${slot}"][data-choice="plan"]`);
       if (planBtn) {
         if (isDeadlinePassed(slot)) {
           planBtn.style.display = 'none';
-          // 이미 마감된 끼니에 '먹을거예요'가 선택되어 있었다면 선택 해제
           if (formData[slot] === 'plan') {
             formData[slot] = null;
           }
@@ -969,7 +998,6 @@
       formData = { health: null, breakfast: null, lunch: null, dinner: null };
     }
 
-    // 마감 시간에 따른 버튼 가시성 처리 및 선택 상태 갱신
     applyMealPlanVisibility();
     refreshAllSelections();
     checkHealthNext();
@@ -1098,6 +1126,66 @@
       <div class="summary-row"><span>저녁 식사</span><span>${mealText[savedData.dinner]}</span></div>
       <div class="summary-row"><span>입력 시각</span><span>${savedTime}</span></div>
     `;
+  }
+
+  // ==========================================
+  // 📷 신규: 건강검진표 / 처방전 사진 업로드 핸들러
+  // ==========================================
+  function triggerCheckupUpload() {
+    const fileInput = document.getElementById('checkup-file-input');
+    if (fileInput) {
+      fileInput.click();
+    }
+  }
+
+  async function handleCheckupFileSelected(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+
+    // 파일 전송 전 확인 팝업
+    showConfirm(
+      '📷',
+      `선택하신 사진을\n사회복지사에게 보낼까요?`,
+      '취소',
+      '전송하기',
+      () => {
+        closeModal();
+        event.target.value = '';
+      },
+      async () => {
+        closeModal();
+        await uploadCheckupFile(file);
+        event.target.value = '';
+      }
+    );
+  }
+
+  async function uploadCheckupFile(file) {
+    const uploadFormData = new FormData();
+    uploadFormData.append('file', file);
+    if (currentUserPhone) {
+      uploadFormData.append('phone_number', currentUserPhone);
+    }
+
+    try {
+      showAlert('⏳', '사진을 사회복지사에게\n전송하고 있습니다...');
+      const res = await fetch('/api/user/checkup/upload', {
+        method: 'POST',
+        body: uploadFormData
+      });
+      const result = await res.json();
+
+      if (result.success) {
+        showAlert('✅', '건강검진표 사진이\n사회복지사에게 전달되었습니다.');
+        speak('사진이 사회복지사에게 성공적으로 전달되었습니다.');
+      } else {
+        showAlert('⚠️', result.message || '전송에 실패했습니다.');
+        speak(result.message || '전송에 실패했습니다.');
+      }
+    } catch (err) {
+      showAlert('⚠️', '사진 전송 중 오류가 발생했습니다.');
+      speak('사진 전송 중 오류가 발생했습니다.');
+    }
   }
 
   function confirmEmergency() {
