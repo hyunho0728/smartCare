@@ -58,8 +58,8 @@ venv.bak/
 /migrations/
 
 # 사용자/어르신 개인정보 및 업로드 파일 보호
-/uploads/
-/static/uploads/
+app/static/uploads/
+**/uploads/
 
 # ==========================================
 # IDE & 에디터 (VS Code, JetBrains, etc.)
