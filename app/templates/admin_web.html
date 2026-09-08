@@ -777,6 +777,7 @@ async function logout(){
 }
 
 // 기존 함수 내부 하단에 추가
+/* 서버로부터 담당 및 미배정 어르신 목록을 불러오고 KPI, 테이블, 차트 및 저장된 아코디언/AI 분석 상태를 복원합니다. */
 async function loadEldersData() {
   try {
     const res = await fetch('/api/admin/elders');
@@ -792,7 +793,7 @@ async function loadEldersData() {
       populateChartSelect();
       if (users.length > 0) updateMainChart(0);
 
-      // ➕ [추가] 새로고침 후 저장된 아코디언 상세 창이 있다면 자동으로 다시 열기
+      // 새로고침 후 저장된 아코디언 상세 창이 있다면 자동으로 다시 열기
       const savedIndex = sessionStorage.getItem('openDetailIndex');
       if (savedIndex !== null) {
         const targetRow = document.getElementById('detail-' + savedIndex);
@@ -800,12 +801,24 @@ async function loadEldersData() {
           targetRow.classList.add('open');
         }
       }
+
+      // 저장된 AI 분석 결과가 있다면 각 어르신 패널에 복원
+      users.forEach(u => {
+        const savedAiDesc = sessionStorage.getItem(`ai_desc_${u.id}`);
+        if (savedAiDesc) {
+          const descEl = document.getElementById(`ai-desc-${u.id}`);
+          if (descEl) {
+            descEl.innerText = savedAiDesc;
+          }
+        }
+      });
     }
   } catch (err) {
     console.error('데이터 로드 실패:', err);
   }
 }
 
+/* 미배정된 어르신 목록을 화면 우측 패널에 렌더링하고 담당 배정 버튼을 활성화합니다. */
 function renderUnassignedList() {
   const unassignedBox = document.getElementById('unassigned-list');
   if (!unassignedBox) return;
@@ -1527,8 +1540,8 @@ async function remoteLogoutElder(userId, name) {
   }
 }
 
+/* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 결과를 화면에 출력하며 새로고침 대비로 sessionStorage에 저장합니다. */
 async function analyzeCheckupDoc(docId, elderName, userId) {
-  /* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 상세 대시보드 패널에 직접 출력합니다. */
   const descEl = document.getElementById(`ai-desc-${userId}`);
   if (descEl) {
     descEl.innerHTML = `⏳ <b>${elderName} 어르신의 건강검진표를 Gemini AI가 정밀 분석 중입니다... (잠시만 기다려주세요)</b>`;
@@ -1543,6 +1556,9 @@ async function analyzeCheckupDoc(docId, elderName, userId) {
     if (descEl) {
       if (result.success) {
         descEl.innerText = result.analysis;
+        
+        // AI 분석 결과를 sessionStorage에 저장 (새로고침 대비)
+        sessionStorage.setItem(`ai_desc_${userId}`, result.analysis);
       } else {
         descEl.innerText = result.message || "AI 분석에 실패했습니다.";
       }
