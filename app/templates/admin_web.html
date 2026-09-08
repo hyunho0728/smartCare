@@ -216,6 +216,11 @@
   .detail-dashboard-v2{grid-template-columns:1fr;}
   .quick-grid-v2{grid-template-columns:1fr;}
 }
+
+/* 건강 점수 변화 추이 상단 타이틀 및 드롭다운 정렬 보정 */
+.chart-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap;}
+.chart-person-select{height:38px;border:1.5px solid var(--line);border-radius:12px;background:#fff;padding:0 14px;font-weight:800;color:#172033;outline:none;cursor:pointer;}
+
 </style>
 </head>
 <body>
@@ -400,7 +405,6 @@
                   <select class="chart-person-select" id="chartUserSelect" onchange="updateMainChart(this.value)"></select>
                 </div>
               </div>
-              <div class="chart-person-info" id="chartPersonInfo">선택된 대상자가 없습니다.</div>
               <div class="chart">
                 <svg viewBox="0 0 700 210" preserveAspectRatio="none">
                   <defs>
@@ -1177,13 +1181,12 @@ function renderTable(){
 }
 
 function updateMainChart(index){
+  /*선택된 어르신의 최근 7일 건강 위험 점수 그래프를 갱신합니다.*/
   const u = users[Number(index)];
   if(!u) return;
 
   const r = risk[u.risk] || risk.safe;
   const points = u.chart || '0,120 700,120';
-  const isUnrecorded = (u.lastInput === '기록 없음' || u.lastInput === '미입력' || !u.lastInput);
-  const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
 
   const line = document.getElementById('mainChartLine');
   const fill = document.getElementById('mainChartFill');
@@ -1212,9 +1215,7 @@ function updateMainChart(index){
   if(stop2) stop2.setAttribute('stop-color', r[2]);
 
   const sub = document.getElementById('chartSubText');
-  const info = document.getElementById('chartPersonInfo');
   if(sub) sub.innerText = `${u.name} 어르신의 최근 7일 건강 위험 점수 변화입니다.`;
-  if(info) info.innerText = `선택 대상자: ${u.name} 어르신 · 현재 위험도: ${r[0]} · 현재 점수: ${u.score}점 · 건강 상태: ${healthText}`;
 }
 
 function handleDiseaseSelect() {
