@@ -762,14 +762,21 @@ async function login(){
   }
 }
 
+// 기존 코드 수정
 async function logout(){
   await fetch('/api/admin/logout', { method: 'POST' });
+  
+  // ➕ [추가] 로그아웃 시 스토리지 정리
+  sessionStorage.removeItem('activeTab');
+  sessionStorage.removeItem('openDetailIndex');
+
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('login').style.display = 'flex';
   document.getElementById('loginId').value = '';
   document.getElementById('loginPw').value = '';
 }
 
+// 기존 함수 내부 하단에 추가
 async function loadEldersData() {
   try {
     const res = await fetch('/api/admin/elders');
@@ -784,6 +791,15 @@ async function loadEldersData() {
       renderUnassignedList();
       populateChartSelect();
       if (users.length > 0) updateMainChart(0);
+
+      // ➕ [추가] 새로고침 후 저장된 아코디언 상세 창이 있다면 자동으로 다시 열기
+      const savedIndex = sessionStorage.getItem('openDetailIndex');
+      if (savedIndex !== null) {
+        const targetRow = document.getElementById('detail-' + savedIndex);
+        if (targetRow) {
+          targetRow.classList.add('open');
+        }
+      }
     }
   } catch (err) {
     console.error('데이터 로드 실패:', err);
@@ -956,6 +972,8 @@ function nav(id, btn) {
   document.getElementById('pageTitle').innerText = btn.innerText.replace(/[^가-힣\s]/g, '').trim();
   const desc = document.getElementById('pageDesc');
   if (desc) desc.innerText = descriptions[id] || '';
+
+  sessionStorage.setItem('activeTab', id);
 
   if (id === 'elder' || id === 'analysis' || id === 'alerts' || id === 'match') {
     renderOtherSections();
@@ -1294,6 +1312,7 @@ async function addElder() {
   }
 }
 
+// 기존 함수 내부 수정
 async function checkSessionOnLoad() {
   try {
     const res = await fetch('/api/admin/check-session');
@@ -1309,11 +1328,24 @@ async function checkSessionOnLoad() {
       document.getElementById('signup').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
 
+      // ➕ [추가] 새로고침 시 저장된 탭 상태 복원
+      const savedTab = sessionStorage.getItem('activeTab');
+      if (savedTab && savedTab !== 'live') {
+        const targetBtn = Array.from(document.querySelectorAll('.nav button')).find(b => b.getAttribute('onclick')?.includes(`'${savedTab}'`));
+        if (targetBtn) {
+          nav(savedTab, targetBtn);
+        }
+      }
+
       await loadEldersData();
     } else {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('signup').style.display = 'none';
       document.getElementById('login').style.display = 'flex';
+      
+      // ➕ [추가] 로그아웃/세션 없음 상태일 때 스토리지 초기화
+      sessionStorage.removeItem('activeTab');
+      sessionStorage.removeItem('openDetailIndex');
     }
   } catch (err) {
     console.error('세션 확인 실패:', err);
@@ -1322,7 +1354,22 @@ async function checkSessionOnLoad() {
 
 window.addEventListener('DOMContentLoaded', checkSessionOnLoad);
 
-function toggle(i){document.getElementById('detail-'+i)?.classList.toggle('open')}
+// 기존 코드 수정
+function toggle(i) {
+  const detailRow = document.getElementById('detail-' + i);
+  if (!detailRow) return;
+  
+  const isOpen = detailRow.classList.toggle('open');
+  
+  // ➕ [추가] 아코디언 열림/닫힘 상태 저장
+  if (isOpen) {
+    sessionStorage.setItem('openDetailIndex', i);
+  } else {
+    if (sessionStorage.getItem('openDetailIndex') === String(i)) {
+      sessionStorage.removeItem('openDetailIndex');
+    }
+  }
+}
 function openEmergency(){document.getElementById('emergency').classList.add('show')}
 function openAdd(){document.getElementById('add').classList.add('show')}
 function openFeedback(name){document.getElementById('fbName').value=name;document.getElementById('feedback').classList.add('show')}
