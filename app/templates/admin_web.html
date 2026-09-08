@@ -166,6 +166,28 @@
 .checkup-thumb-wrap:hover{transform:scale(1.04);border-color:var(--blue);}
 .checkup-thumb{width:100%;height:100%;object-fit:cover;}
 .checkup-thumb-date{position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.75);color:#fff;font-size:10px;text-align:center;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.checkup-del-btn{
+  position:absolute;
+  top:4px;
+  right:4px;
+  background:rgba(239,68,68,0.85);
+  color:#fff;
+  border:none;
+  border-radius:50%;
+  width:20px;
+  height:20px;
+  font-size:12px;
+  line-height:1;
+  cursor:pointer;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:2;
+  transition:background .15s;
+}
+.checkup-del-btn:hover{
+  background:#dc2626;
+}
 
 .score-reason-box {margin-top: 14px;background: #f8fafc;border: 1px dashed #cbd5e1;border-radius: 14px;padding: 12px 14px;}
 .score-reason-title {font-size: 12px;font-weight: 800;color: #475569;margin-bottom: 8px;display: flex;align-items: center;gap: 5px;}
@@ -993,6 +1015,7 @@ function renderTable(){
     const checkupDocsHtml = docs.length > 0 
       ? docs.map(d => `
           <div class="checkup-thumb-wrap" onclick="openImageViewer('${d.file_path}', '${u.name} 어르신 검진표 (${d.uploaded_at})')">
+            <button class="checkup-del-btn" title="사진 삭제" onclick="event.stopPropagation(); deleteCheckupDoc(${d.doc_id})">×</button>
             <img class="checkup-thumb" src="${d.file_path}" alt="검진표 썸네일">
             <div class="checkup-thumb-date">${d.uploaded_at.split(' ')[0]}</div>
           </div>
@@ -1317,6 +1340,29 @@ function closeImageViewer() {
   if (viewerModal) {
     viewerModal.classList.remove('show');
     if (viewerImg) viewerImg.src = '';
+  }
+}
+
+async function deleteCheckupDoc(docId) {
+  /* 선택한 검진표 사진 문서를 삭제 요청하고 목록을 갱신합니다. */
+  if (!confirm("해당 검진표/처방전 사진을 삭제하시겠습니까?\n삭제 후에는 복구할 수 없습니다.")) {
+    return;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/checkup/${docId}`, {
+      method: 'DELETE'
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      toast(result.message);
+      await loadEldersData();
+    } else {
+      toast(result.message || "삭제 처리에 실패했습니다.");
+    }
+  } catch (err) {
+    toast("서버와의 통신에 실패했습니다.");
   }
 }
 

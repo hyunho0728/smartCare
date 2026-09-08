@@ -840,6 +840,39 @@ def api_upload_checkup():
         db.session.rollback()
         return jsonify({"success": False, "message": f"파일 업로드 실패: {str(e)}"}), 500
 
+@app.route('/api/admin/checkup/<int:doc_id>', methods=['DELETE'])
+def api_delete_checkup(doc_id):
+    """지정된 ID의 건강검진표/처방전 DB 레코드와 로컬 저장소 파일을 함께 삭제합니다."""
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "사회복지사 로그인이 필요합니다."}), 401
+
+    doc = CheckupDocument.query.get(doc_id)
+    if not doc:
+        return jsonify({"success": False, "message": "해당 사진 문서를 찾을 수 없습니다."}), 404
+
+    try:
+        # 실제 로컬 파일 삭제 처리
+        if doc.file_path:
+            filename = os.path.basename(doc.file_path)
+            local_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            if os.path.exists(local_file_path):
+                os.remove(local_file_path)
+
+        # DB 레코드 삭제
+        db.session.delete(doc)
+        db.session.commit()
+        return jsonify({"success": True, "message": "사진 문서가 성공적으로 삭제되었습니다."})
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"삭제 처리 실패: {str(e)}"}), 500
 
 def start_localtunnel():
     """Flask 서버 실행 시 localtunnel을 통해 자동으로 외부 접속 주소를 생성합니다."""
