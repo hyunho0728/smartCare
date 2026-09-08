@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>건강 돌봄 사용자 웹</title>
+<title>스마트케어</title>
 <style>
   :root {
     --bg: #F5F0E8;
@@ -19,15 +19,12 @@
     --shadow: 0 4px 18px rgba(0,0,0,0.12);
     --radius: 22px;
   }
-
   * { box-sizing: border-box; margin: 0; padding: 0; }
-
   html {
     width: 100%;
     height: 100%;
     background: #333;
   }
-
   body {
     width: 100%;
     max-width: 480px;
@@ -40,9 +37,7 @@
     box-shadow: 0 0 30px rgba(0,0,0,0.45);
     position: relative;
   }
-
   button, input, select { font-family: inherit; }
-
   .screen {
     display: none;
     width: 100%;
@@ -50,22 +45,18 @@
     overflow: hidden;
     background: var(--bg);
   }
-
   .screen.active {
     display: flex;
     flex-direction: column;
   }
-
   .center-screen {
     justify-content: center;
     align-items: center;
     padding: 3vh 5vw;
   }
-
   .auth-screen {
     background: linear-gradient(160deg, #1A4A80 0%, #2563A8 58%, #3A7BD5 100%);
   }
-
   .logo {
     width: 10vh;
     height: 10vh;
@@ -78,21 +69,18 @@
     font-size: 5vh;
     margin-bottom: 2vh;
   }
-
   .auth-title {
     color: white;
     font-size: clamp(30px, 4.2vh, 42px);
     font-weight: 900;
     text-align: center;
   }
-
   .auth-sub {
     color: rgba(255,255,255,0.78);
     font-size: clamp(16px, 2.2vh, 22px);
     margin: 0.8vh 0 3vh;
     text-align: center;
   }
-
   .auth-card {
     width: 100%;
     background: white;
@@ -100,7 +88,6 @@
     padding: 3vh 5vw;
     box-shadow: var(--shadow);
   }
-
   .label {
     display: block;
     font-size: clamp(17px, 2.2vh, 24px);
@@ -108,7 +95,6 @@
     color: var(--sub);
     margin-bottom: 1vh;
   }
-
   .input, .select {
     width: 100%;
     height: 7vh;
@@ -120,15 +106,12 @@
     color: var(--text);
     outline: none;
   }
-
   .form-gap { margin-top: 1.6vh; }
-
   .btn-row {
     display: flex;
     gap: 2vw;
     margin-top: 2vh;
   }
-
   .main-btn {
     width: 100%;
     min-height: 7.4vh;
@@ -141,12 +124,10 @@
     box-shadow: 0 6px 20px rgba(37,99,168,0.28);
     cursor: pointer;
   }
-
   .main-btn:active { transform: scale(0.98); background: var(--primary-dark); }
   .gray-btn { background: #7A8B9E; box-shadow: none; }
   .green-btn { background: var(--green); box-shadow: 0 6px 20px rgba(34,134,58,0.28); }
   .red-btn { background: var(--red); box-shadow: 0 6px 20px rgba(211,47,47,0.28); }
-
   .top {
     background: var(--primary);
     color: white;
@@ -154,20 +135,17 @@
     flex-shrink: 0;
     position: relative;
   }
-
   .hello {
     font-size: clamp(24px, 3.2vh, 34px);
     font-weight: 800;
     line-height: 1.25;
     padding-right: 10vh;
   }
-
   .date {
     margin-top: 0.6vh;
     font-size: clamp(15px, 2vh, 21px);
     opacity: 0.85;
   }
-
   .top-emergency, .auth-emergency {
     position: absolute;
     right: 4vw;
@@ -187,10 +165,8 @@
     font-weight: 900;
     z-index: 20;
   }
-
   .top-emergency .phone, .auth-emergency .phone { font-size: 3.1vh; line-height: 1; }
   .top-emergency .txt, .auth-emergency .txt { font-size: 1.15vh; margin-top: 0.35vh; }
-
   .page {
     flex: 1;
     min-height: 0;
@@ -200,7 +176,6 @@
     justify-content: center;
     gap: 1.7vh;
   }
-
   .status-button {
     width: 100%;
     min-height: 23vh;
@@ -214,26 +189,21 @@
     text-align: center;
     border: 0.35vh solid transparent;
   }
-
   .status-button:active { transform: scale(0.985); }
-
   .status-button.done {
     background: #F4FFF7;
     border-color: rgba(34,134,58,0.25);
   }
-
   .status-icon {
     font-size: clamp(50px, 7vh, 74px);
     line-height: 1;
     margin-bottom: 1.2vh;
   }
-
   .status-title {
     font-size: clamp(28px, 3.8vh, 40px);
     font-weight: 900;
     line-height: 1.25;
   }
-
   .status-desc {
     margin-top: 1vh;
     font-size: clamp(18px, 2.4vh, 26px);
@@ -242,7 +212,6 @@
     line-height: 1.45;
     white-space: pre-line;
   }
-
   .modify-button {
     width: 100%;
     min-height: 10vh;
@@ -255,16 +224,13 @@
     font-weight: 900;
     cursor: pointer;
   }
-
   .modify-button:active { transform: scale(0.985); }
-
   .step-title {
     text-align: center;
     font-size: clamp(29px, 3.8vh, 40px);
     font-weight: 900;
     line-height: 1.25;
   }
-
   .step-sub {
     text-align: center;
     font-size: clamp(17px, 2.2vh, 24px);
@@ -272,14 +238,12 @@
     font-weight: 700;
     margin-top: 0.8vh;
   }
-
   .health-grid {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 1.5vh 3vw;
     width: 100%;
   }
-
   .health-btn {
     height: 16vh;
     border: 0.35vh solid var(--border);
@@ -293,22 +257,18 @@
     justify-content: center;
     gap: 0.8vh;
   }
-
   .health-btn:last-child {
     grid-column: 1 / -1;
     width: 58%;
     justify-self: center;
   }
-
   .health-btn.selected {
     border-color: var(--primary);
     background: #EEF4FF;
     transform: scale(1.03);
   }
-
   .h-emoji { font-size: clamp(40px, 5.5vh, 58px); line-height: 1; }
   .h-text { font-size: clamp(20px, 2.65vh, 29px); font-weight: 900; }
-
   .single-meal-card {
     width: 100%;
     background: white;
@@ -319,7 +279,6 @@
     flex-direction: column;
     gap: 1.8vh;
   }
-
   .single-meal-btn {
     width: 100%;
     height: 9vh;
@@ -336,40 +295,34 @@
     gap: 2vw;
     transition: 0.15s;
   }
-
   .single-meal-btn.selected.yes {
     border-color: var(--green);
     background: #E6F4EA;
     color: var(--green);
     transform: scale(1.02);
   }
-
   .single-meal-btn.selected.plan {
     border-color: var(--primary);
     background: #EEF4FF;
     color: var(--primary);
     transform: scale(1.02);
   }
-
   .single-meal-btn.selected.no {
     border-color: var(--orange);
     background: #FEF0EC;
     color: var(--orange);
     transform: scale(1.02);
   }
-
   .bottom-row {
     display: flex;
     gap: 2vw;
     width: 100%;
     margin-top: auto;
   }
-
   .next-btn.disabled, .save-btn.disabled {
     opacity: 0.45;
     pointer-events: none;
   }
-
   .done-screen {
     justify-content: center;
     padding: 4vh 6vw;
@@ -377,7 +330,6 @@
     color: white;
     text-align: center;
   }
-
   .done-icon { font-size: clamp(70px, 10vh, 100px); margin-bottom: 2vh; }
   .done-title {
     font-size: clamp(32px, 4.3vh, 44px);
@@ -391,7 +343,6 @@
     opacity: 0.9;
     font-weight: 700;
   }
-
   .summary {
     width: 100%;
     margin: 3vh 0 2vh;
@@ -400,7 +351,6 @@
     background: rgba(255,255,255,0.18);
     border: 0.25vh solid rgba(255,255,255,0.25);
   }
-
   .summary-row {
     display: flex;
     justify-content: space-between;
@@ -409,10 +359,8 @@
     font-size: clamp(16px, 2.15vh, 24px);
     border-bottom: 0.15vh solid rgba(255,255,255,0.16);
   }
-
   .summary-row:last-child { border-bottom: none; }
   .summary-row span:last-child { font-weight: 900; }
-
   .modal {
     display: none;
     position: absolute;
@@ -423,9 +371,7 @@
     justify-content: center;
     padding: 5vw;
   }
-
   .modal.show { display: flex; }
-
   .modal-box {
     width: 100%;
     background: white;
@@ -434,19 +380,16 @@
     text-align: center;
     box-shadow: 0 12px 45px rgba(0,0,0,0.3);
   }
-
   .modal-icon {
     font-size: clamp(48px, 7vh, 72px);
     margin-bottom: 1.5vh;
   }
-
   .modal-text {
     font-size: clamp(23px, 3.1vh, 34px);
     font-weight: 900;
     line-height: 1.35;
     white-space: pre-line;
   }
-
   .modal-row {
     display: flex;
     gap: 2vw;
@@ -455,53 +398,50 @@
 </style>
 </head>
 <body>
-
-<!-- 로그인 -->
+<!-- 로그인 화면 -->
 <section class="screen center-screen auth-screen active" id="screen-login">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
-  <div class="logo">👴</div>
-  <div class="auth-title">건강 돌봄</div>
-  <div class="auth-sub">독거노인 건강 관리 서비스</div>
-
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
+  <div class="logo">👵</div>
+  <div class="auth-title">스마트케어</div>
+  <div class="auth-sub">어르신 안부 확인 서비스</div>
   <div class="auth-card">
-    <label class="label" for="login-phone">휴대폰 번호</label>
+    <label class="label" for="login-phone">전화번호</label>
     <input class="input" id="login-phone" type="tel" inputmode="numeric" placeholder="010-0000-0000" maxlength="13">
-    <button class="main-btn form-gap" onclick="login()">로그인하기</button>
-    <button class="main-btn gray-btn form-gap" onclick="startRegister()">처음이신가요? 회원가입</button>
+    <button class="main-btn form-gap" onclick="login()">시작하기</button>
+    <button class="main-btn gray-btn form-gap" onclick="startRegister()">처음 오셨나요? (등록)</button>
   </div>
 </section>
 
-<!-- 회원가입 1 -->
+<!-- 등록 스텝 1 -->
 <section class="screen center-screen auth-screen" id="screen-reg-privacy">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
-  <div class="logo">🔒</div>
-  <div class="auth-title">회원가입 (1/6)</div>
-  <div class="auth-sub">개인정보 수집 동의</div>
-
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
+  <div class="logo">📋</div>
+  <div class="auth-title">안내 (1/6)</div>
+  <div class="auth-sub">개인정보 수집 및 이용 동의</div>
   <div class="auth-card">
     <p style="font-size:clamp(22px,3.2vh,34px);font-weight:900;line-height:1.35;text-align:center;word-break:keep-all;">
-      건강 관리를 위해 이름, 전화번호, 주소, 건강 정보를 수집합니다.
+      어르신의 안전 확인과 복지 서비스 지원을 위해 전화번호 및 주소 정보를 수집합니다.
     </p>
     <label style="display:flex;align-items:center;justify-content:center;gap:3vw;margin-top:3vh;font-size:clamp(22px,3vh,32px);font-weight:900;">
-      <input type="checkbox" id="privacy-agree" style="width:4vh;height:4vh;"> 동의합니다
+      <input type="checkbox" id="privacy-agree" style="width:4vh;height:4vh;">
+      동의합니다
     </label>
     <div class="btn-row">
-      <button class="main-btn gray-btn" onclick="goTo('screen-login')">취소</button>
+      <button class="main-btn gray-btn" onclick="goTo('screen-login')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-name','privacy')">다음</button>
     </div>
   </div>
 </section>
 
-<!-- 회원가입 2 -->
+<!-- 등록 스텝 2 -->
 <section class="screen center-screen auth-screen" id="screen-reg-name">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
-  <div class="logo">📝</div>
-  <div class="auth-title">회원가입 (2/6)</div>
-  <div class="auth-sub">성함을 알려주세요</div>
-
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
+  <div class="logo">👤</div>
+  <div class="auth-title">안내 (2/6)</div>
+  <div class="auth-sub">성함을 입력해주세요</div>
   <div class="auth-card">
-    <label class="label">이름</label>
-    <input class="input" id="reg-name" type="text" placeholder="성함을 입력하세요">
+    <label class="label">성함</label>
+    <input class="input" id="reg-name" type="text" placeholder="예: 김영희">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-privacy')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-phone','name')">다음</button>
@@ -509,15 +449,14 @@
   </div>
 </section>
 
-<!-- 회원가입 3 -->
+<!-- 등록 스텝 3 -->
 <section class="screen center-screen auth-screen" id="screen-reg-phone">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   <div class="logo">📱</div>
-  <div class="auth-title">회원가입 (3/6)</div>
-  <div class="auth-sub">휴대폰 번호를 알려주세요</div>
-
+  <div class="auth-title">안내 (3/6)</div>
+  <div class="auth-sub">전화번호를 입력해주세요</div>
   <div class="auth-card">
-    <label class="label">휴대폰 번호</label>
+    <label class="label">전화번호</label>
     <input class="input" id="reg-phone" type="tel" inputmode="numeric" placeholder="010-0000-0000" maxlength="13">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-name')">이전</button>
@@ -526,16 +465,15 @@
   </div>
 </section>
 
-<!-- 회원가입 4 -->
+<!-- 등록 스텝 4 -->
 <section class="screen center-screen auth-screen" id="screen-reg-address">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   <div class="logo">🏠</div>
-  <div class="auth-title">회원가입 (4/6)</div>
-  <div class="auth-sub">주소를 알려주세요</div>
-
+  <div class="auth-title">안내 (4/6)</div>
+  <div class="auth-sub">거주하시는 주소를 입력해주세요</div>
   <div class="auth-card">
     <label class="label">주소</label>
-    <input class="input" id="reg-address" type="text" placeholder="거주하시는 주소를 입력하세요">
+    <input class="input" id="reg-address" type="text" placeholder="예: 화성시 남양읍 123">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-phone')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-age','address')">다음</button>
@@ -543,16 +481,15 @@
   </div>
 </section>
 
-<!-- 회원가입 5 -->
+<!-- 등록 스텝 5 -->
 <section class="screen center-screen auth-screen" id="screen-reg-age">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   <div class="logo">🎂</div>
-  <div class="auth-title">회원가입 (5/6)</div>
-  <div class="auth-sub">연세를 알려주세요</div>
-
+  <div class="auth-title">안내 (5/6)</div>
+  <div class="auth-sub">연세를 입력해주세요</div>
   <div class="auth-card">
-    <label class="label">나이</label>
-    <input class="input" id="reg-age" type="number" inputmode="numeric" placeholder="나이를 입력하세요">
+    <label class="label">연세</label>
+    <input class="input" id="reg-age" type="number" inputmode="numeric" placeholder="예: 78">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-address')">이전</button>
       <button class="main-btn" onclick="nextRegister('screen-reg-disease','age')">다음</button>
@@ -560,180 +497,165 @@
   </div>
 </section>
 
-<!-- 회원가입 6 -->
+<!-- 등록 스텝 6 -->
 <section class="screen center-screen auth-screen" id="screen-reg-disease">
-  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+  <button class="auth-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   <div class="logo">💊</div>
-  <div class="auth-title">회원가입 (6/6)</div>
-  <div class="auth-sub">기저질환을 선택해주세요</div>
-
+  <div class="auth-title">안내 (6/6)</div>
+  <div class="auth-sub">가지고 계신 지병을 선택해주세요</div>
   <div class="auth-card">
     <label class="label">기저질환</label>
     <select class="select" id="reg-disease" onchange="checkDiseaseOther()">
       <option value="없음">없음</option>
       <option value="고혈압">고혈압</option>
-      <option value="당뇨병">당뇨병</option>
+      <option value="당뇨">당뇨</option>
       <option value="관절염">관절염</option>
-      <option value="심혈관질환">심혈관질환</option>
-      <option value="치매">치매 / 인지장애</option>
-      <option value="기타">기타</option>
+      <option value="심장질환">심장질환</option>
+      <option value="치매">치매</option>
+      <option value="기타">기타 (직접입력)</option>
     </select>
-    <input class="input form-gap" id="reg-disease-other" type="text" placeholder="질환명을 직접 입력해주세요" style="display:none;">
+    <input class="input form-gap" id="reg-disease-other" type="text" placeholder="질환명을 입력하세요" style="display:none;">
     <div class="btn-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-reg-age')">이전</button>
-      <button class="main-btn green-btn" onclick="finishRegister()">가입완료</button>
+      <button class="main-btn green-btn" onclick="finishRegister()">등록 완료</button>
     </div>
   </div>
 </section>
 
-<!-- 메인 -->
+<!-- 메인 대시보드 화면 -->
 <section class="screen" id="screen-main">
   <div class="top">
-    <div class="hello" id="user-greeting">어르신,<br>안녕하세요 👋</div>
+    <div class="hello" id="user-greeting">반갑습니다,<br>어르신</div>
     <div class="date" id="main-date"></div>
     <button class="top-emergency" onclick="confirmEmergency()">
       <span class="phone">📞</span>
-      <span class="txt">긴급</span>
+      <span class="txt">긴급호출</span>
     </button>
   </div>
-
   <main class="page">
     <button class="status-button" id="status-button" onclick="handleStatusButton()">
-      <div class="status-icon" id="status-icon">💚</div>
+      <div class="status-icon" id="status-icon">📝</div>
       <div class="status-title" id="status-title">오늘 상태 입력하기</div>
-      <div class="status-desc" id="status-desc">오늘 아직 입력하지 않았습니다.</div>
+      <div class="status-desc" id="status-desc">눌러서 오늘의 건강과 식사를 알려주세요.</div>
     </button>
-
     <button class="modify-button" id="modify-button" onclick="startHealth(true)" style="display:none;">
-      ✏️ 오늘 상태 수정하기
+      수정하기 (다시 입력)
     </button>
   </main>
 </section>
 
-<!-- 1. 건강 상태 입력 -->
+<!-- 1. 건강 상태 입력 화면 -->
 <section class="screen" id="screen-health">
   <div class="top">
-    <div class="hello" id="health-top-title">오늘 건강 상태</div>
+    <div class="hello" id="health-top-title">건강 상태</div>
     <div class="date" id="health-date"></div>
-    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   </div>
-
   <main class="page">
     <div>
-      <div class="step-title">오늘 건강 상태는<br>어떠세요?</div>
-      <div class="step-sub">하나를 선택한 뒤 다음을 눌러주세요</div>
+      <div class="step-title">오늘 몸 상태는<br>어떠신가요?</div>
+      <div class="step-sub">해당하는 상태를 하나 선택해주세요.</div>
     </div>
-
     <div class="health-grid">
       <button class="health-btn" data-score="5" onclick="selectHealth(5,this)"><span class="h-emoji">😄</span><span class="h-text">매우 좋음</span></button>
-      <button class="health-btn" data-score="4" onclick="selectHealth(4,this)"><span class="h-emoji">😊</span><span class="h-text">좋음</span></button>
+      <button class="health-btn" data-score="4" onclick="selectHealth(4,this)"><span class="h-emoji">🙂</span><span class="h-text">좋음</span></button>
       <button class="health-btn" data-score="3" onclick="selectHealth(3,this)"><span class="h-emoji">😐</span><span class="h-text">보통</span></button>
-      <button class="health-btn" data-score="2" onclick="selectHealth(2,this)"><span class="h-emoji">😟</span><span class="h-text">나쁨</span></button>
-      <button class="health-btn" data-score="1" onclick="selectHealth(1,this)"><span class="h-emoji">😫</span><span class="h-text">매우 나쁨</span></button>
+      <button class="health-btn" data-score="2" onclick="selectHealth(2,this)"><span class="h-emoji">🙁</span><span class="h-text">안 좋음</span></button>
+      <button class="health-btn" data-score="1" onclick="selectHealth(1,this)"><span class="h-emoji">😫</span><span class="h-text">매우 안 좋음</span></button>
     </div>
-
     <div class="bottom-row">
       <button class="main-btn gray-btn" onclick="goMain()">취소</button>
-      <button class="main-btn next-btn disabled" id="health-next" onclick="goTo('screen-meal-breakfast')">다음 (아침 식사)</button>
+      <button class="main-btn next-btn disabled" id="health-next" onclick="goTo('screen-meal-breakfast')">다음 (아침)</button>
     </div>
   </main>
 </section>
 
-<!-- 2. 아침 식사 입력 -->
+<!-- 2. 아침 식사 입력 화면 -->
 <section class="screen" id="screen-meal-breakfast">
   <div class="top">
-    <div class="hello">아침 식사 확인</div>
+    <div class="hello">아침 식사</div>
     <div class="date" id="breakfast-date"></div>
-    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   </div>
-
   <main class="page">
     <div>
-      <div class="step-title">🌅 아침 식사는<br>하셨나요?</div>
-      <div class="step-sub">해당하는 항목을 선택해주세요</div>
+      <div class="step-title">오늘 아침 식사는<br>하셨나요?</div>
+      <div class="step-sub">식사 여부를 선택해주세요.</div>
     </div>
-
     <div class="single-meal-card">
-      <button class="single-meal-btn" data-slot="breakfast" data-choice="yes" onclick="selectSingleMeal('breakfast','yes',this)">🍚 먹었어요</button>
-      <button class="single-meal-btn" data-slot="breakfast" data-choice="plan" onclick="selectSingleMeal('breakfast','plan',this)">⏰ 먹을 거예요</button>
-      <button class="single-meal-btn" data-slot="breakfast" data-choice="no" onclick="selectSingleMeal('breakfast','no',this)">❌ 안 먹었어요</button>
+      <button class="single-meal-btn" data-slot="breakfast" data-choice="yes" onclick="selectSingleMeal('breakfast','yes',this)">먹었어요</button>
+      <button class="single-meal-btn" data-slot="breakfast" data-choice="plan" onclick="selectSingleMeal('breakfast','plan',this)">먹을거예요</button>
+      <button class="single-meal-btn" data-slot="breakfast" data-choice="no" onclick="selectSingleMeal('breakfast','no',this)">안 먹었어요</button>
     </div>
-
     <div class="bottom-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-health')">이전</button>
-      <button class="main-btn next-btn disabled" id="breakfast-next" onclick="goTo('screen-meal-lunch')">다음 (점심 식사)</button>
+      <button class="main-btn next-btn disabled" id="breakfast-next" onclick="goTo('screen-meal-lunch')">다음 (점심)</button>
     </div>
   </main>
 </section>
 
-<!-- 3. 점심 식사 입력 -->
+<!-- 3. 점심 식사 입력 화면 -->
 <section class="screen" id="screen-meal-lunch">
   <div class="top">
-    <div class="hello">점심 식사 확인</div>
+    <div class="hello">점심 식사</div>
     <div class="date" id="lunch-date"></div>
-    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   </div>
-
   <main class="page">
     <div>
-      <div class="step-title">🌞 점심 식사는<br>하셨나요?</div>
-      <div class="step-sub">해당하는 항목을 선택해주세요</div>
+      <div class="step-title">오늘 점심 식사는<br>하셨나요?</div>
+      <div class="step-sub">식사 여부를 선택해주세요.</div>
     </div>
-
     <div class="single-meal-card">
-      <button class="single-meal-btn" data-slot="lunch" data-choice="yes" onclick="selectSingleMeal('lunch','yes',this)">🍚 먹었어요</button>
-      <button class="single-meal-btn" data-slot="lunch" data-choice="plan" onclick="selectSingleMeal('lunch','plan',this)">⏰ 먹을 거예요</button>
-      <button class="single-meal-btn" data-slot="lunch" data-choice="no" onclick="selectSingleMeal('lunch','no',this)">❌ 안 먹었어요</button>
+      <button class="single-meal-btn" data-slot="lunch" data-choice="yes" onclick="selectSingleMeal('lunch','yes',this)">먹었어요</button>
+      <button class="single-meal-btn" data-slot="lunch" data-choice="plan" onclick="selectSingleMeal('lunch','plan',this)">먹을거예요</button>
+      <button class="single-meal-btn" data-slot="lunch" data-choice="no" onclick="selectSingleMeal('lunch','no',this)">안 먹었어요</button>
     </div>
-
     <div class="bottom-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-meal-breakfast')">이전</button>
-      <button class="main-btn next-btn disabled" id="lunch-next" onclick="goTo('screen-meal-dinner')">다음 (저녁 식사)</button>
+      <button class="main-btn next-btn disabled" id="lunch-next" onclick="goTo('screen-meal-dinner')">다음 (저녁)</button>
     </div>
   </main>
 </section>
 
-<!-- 4. 저녁 식사 입력 -->
+<!-- 4. 저녁 식사 입력 화면 -->
 <section class="screen" id="screen-meal-dinner">
   <div class="top">
-    <div class="hello">저녁 식사 확인</div>
+    <div class="hello">저녁 식사</div>
     <div class="date" id="dinner-date"></div>
-    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급</span></button>
+    <button class="top-emergency" onclick="confirmEmergency()"><span class="phone">📞</span><span class="txt">긴급호출</span></button>
   </div>
-
   <main class="page">
     <div>
-      <div class="step-title">🌙 저녁 식사는<br>하셨나요?</div>
-      <div class="step-sub">해당하는 항목을 선택해주세요</div>
+      <div class="step-title">오늘 저녁 식사는<br>하셨나요?</div>
+      <div class="step-sub">식사 여부를 선택해주세요.</div>
     </div>
-
     <div class="single-meal-card">
-      <button class="single-meal-btn" data-slot="dinner" data-choice="yes" onclick="selectSingleMeal('dinner','yes',this)">🍚 먹었어요</button>
-      <button class="single-meal-btn" data-slot="dinner" data-choice="plan" onclick="selectSingleMeal('dinner','plan',this)">⏰ 먹을 거예요</button>
-      <button class="single-meal-btn" data-slot="dinner" data-choice="no" onclick="selectSingleMeal('dinner','no',this)">❌ 안 먹었어요</button>
+      <button class="single-meal-btn" data-slot="dinner" data-choice="yes" onclick="selectSingleMeal('dinner','yes',this)">먹었어요</button>
+      <button class="single-meal-btn" data-slot="dinner" data-choice="plan" onclick="selectSingleMeal('dinner','plan',this)">먹을거예요</button>
+      <button class="single-meal-btn" data-slot="dinner" data-choice="no" onclick="selectSingleMeal('dinner','no',this)">안 먹었어요</button>
     </div>
-
     <div class="bottom-row">
       <button class="main-btn gray-btn" onclick="goTo('screen-meal-lunch')">이전</button>
-      <button class="main-btn green-btn save-btn disabled" id="dinner-save-btn" onclick="saveStatus()">저장 완료</button>
+      <button class="main-btn green-btn save-btn disabled" id="dinner-save-btn" onclick="saveStatus()">저장하기</button>
     </div>
   </main>
 </section>
 
-<!-- 완료 -->
+<!-- 완료 화면 -->
 <section class="screen done-screen" id="screen-done">
   <div class="done-icon">✅</div>
-  <div class="done-title" id="done-title">오늘 입력 완료</div>
-  <div class="done-sub" id="done-sub">담당 사회복지사에게<br>전달되었습니다.</div>
+  <div class="done-title" id="done-title">저장 완료</div>
+  <div class="done-sub" id="done-sub">오늘의 건강 상태가<br>기록되었습니다.</div>
   <div class="summary" id="summary"></div>
-  <button class="main-btn" style="background:white;color:var(--green);" onclick="goMain()">메인으로 돌아가기</button>
+  <button class="main-btn" style="background:white;color:var(--green);" onclick="goMain()">확인</button>
 </section>
 
-<!-- 모달 -->
+<!-- 팝업 모달 -->
 <div class="modal" id="modal">
   <div class="modal-box">
     <div class="modal-icon" id="modal-icon">⚠️</div>
-    <div class="modal-text" id="modal-text"></div>
+    <div class="modal-text" id="modal-text">알림 내용</div>
     <div class="modal-row" id="modal-row"></div>
   </div>
 </div>
@@ -744,23 +666,57 @@
   let todaySaved = false;
   let savedTime = '';
   let isModifyMode = false;
-
   let formData = { health: null, breakfast: null, lunch: null, dinner: null };
   let savedData = null;
 
+  // 식사 마감 시간 설정 (시, 분)
+  const MEAL_DEADLINES = {
+    breakfast: { hour: 10, minute: 0 },
+    lunch: { hour: 15, minute: 0 },
+    dinner: { hour: 21, minute: 0 }
+  };
+
   const healthText = {
-    5: '매우 좋음 😄',
-    4: '좋음 😊',
-    3: '보통 😐',
-    2: '나쁨 😟',
-    1: '매우 나쁨 😫'
+    5: '매우 좋음',
+    4: '좋음',
+    3: '보통',
+    2: '안 좋음',
+    1: '매우 안 좋음'
   };
 
   const mealText = {
     yes: '먹었어요',
-    plan: '먹을 거예요',
+    plan: '먹을거예요',
     no: '안 먹었어요'
   };
+
+  // 특정 끼니의 마감 시간이 지났는지 판별하는 함수
+  function isDeadlinePassed(slot) {
+    const deadline = MEAL_DEADLINES[slot];
+    if (!deadline) return false;
+    const now = new Date();
+    const dTime = new Date();
+    dTime.setHours(deadline.hour, deadline.minute, 0, 0);
+    return now >= dTime;
+  }
+
+  // 마감 시간이 지난 경우 "먹을거예요" (plan) 버튼을 화면에서 숨김/표시 처리
+  function applyMealPlanVisibility() {
+    ['breakfast', 'lunch', 'dinner'].forEach(slot => {
+      const planBtn = document.querySelector(`.single-meal-btn[data-slot="${slot}"][data-choice="plan"]`);
+      if (planBtn) {
+        if (isDeadlinePassed(slot)) {
+          planBtn.style.display = 'none';
+          // 이미 마감된 끼니에 '먹을거예요'가 선택되어 있었다면 선택 해제
+          if (formData[slot] === 'plan') {
+            formData[slot] = null;
+          }
+        } else {
+          planBtn.style.display = 'flex';
+        }
+      }
+    });
+  }
 
   function speak(text, onEndCallback = null) {
     if (!('speechSynthesis' in window)) {
@@ -768,23 +724,19 @@
       return;
     }
     window.speechSynthesis.cancel();
-
-    const cleanText = text.replace(/[\n\r]+/g, ' ').replace(/[^\w\s가-힣0-9.,?!]/g, '').trim();
+    const cleanText = text.replace(/[\n\r]+/g, ' ').replace(/[^\w\sㄱ-ㅎㅏ-ㅣ가-힣0-9.,?!]/g, '').trim();
     if (!cleanText) {
       if (onEndCallback) onEndCallback();
       return;
     }
-
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.lang = 'ko-KR';
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
-
     if (onEndCallback) {
       utterance.onend = () => onEndCallback();
       utterance.onerror = () => onEndCallback();
     }
-
     window.speechSynthesis.speak(utterance);
   }
 
@@ -795,8 +747,8 @@
 
   function getDateText() {
     const d = new Date();
-    const days = ['일','월','화','수','목','금','토'];
-    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}요일`;
+    const days = ['일요일', '월요일', '화요일', '수요일', '목요일', '금요일', '토요일'];
+    return `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 ${days[d.getDay()]}`;
   }
 
   function getTimeText() {
@@ -818,11 +770,10 @@
   async function login() {
     const phone = document.getElementById('login-phone').value.trim();
     if (phone.replace(/\D/g, '').length < 9) {
-      showAlert('⚠️', '휴대폰 번호를\n정확히 입력해 주세요.');
-      speak('휴대폰 번호를 정확히 입력해 주세요.');
+      showAlert('⚠️', '전화번호를 올바르게 입력해주세요.');
+      speak('전화번호를 올바르게 입력해주세요.');
       return;
     }
-
     try {
       const res = await fetch('/api/user/login', {
         method: 'POST',
@@ -830,12 +781,10 @@
         body: JSON.stringify({ phone_number: phone })
       });
       const result = await res.json();
-
       if (result.success) {
         currentUserPhone = result.phone_number;
         currentUserName = result.user_name || '어르신';
-        document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
-
+        document.getElementById('user-greeting').innerHTML = `${currentUserName}님,<br>안녕하세요`;
         if (result.today_saved && result.today_data) {
           todaySaved = true;
           savedData = {
@@ -850,18 +799,17 @@
           savedData = null;
           savedTime = '';
         }
-
         setDates();
         updateMainStatus();
         goTo('screen-main');
-        speak(`${currentUserName} 어르신, 안녕하세요.`);
+        speak(`${currentUserName}님 안녕하세요.`);
       } else {
-        showAlert('⚠️', result.message || '로그인에 실패했습니다.');
-        speak(result.message || '로그인에 실패했습니다.');
+        showAlert('⚠️', result.message || '등록되지 않은 사용자입니다.');
+        speak(result.message || '등록되지 않은 사용자입니다.');
       }
     } catch (err) {
-      showAlert('⚠️', '서버와의 통신에\n실패했습니다.');
-      speak('서버와의 통신에 실패했습니다.');
+      showAlert('⚠️', '서버에 연결할 수 없습니다.');
+      speak('서버에 연결할 수 없습니다.');
     }
   }
 
@@ -875,45 +823,44 @@
     document.getElementById('reg-disease-other').value = '';
     checkDiseaseOther();
     goTo('screen-reg-privacy');
-    speak('개인정보 수집 동의 화면입니다.');
+    speak('개인정보 동의 화면입니다.');
   }
 
   function nextRegister(nextId, type) {
     if (type === 'privacy' && !document.getElementById('privacy-agree').checked) {
-      showAlert('⚠️', '개인정보 수집에\n동의해 주세요.');
-      speak('개인정보 수집에 동의해 주세요.');
+      showAlert('⚠️', '동의란에 체크해주세요.');
+      speak('동의란에 체크해주세요.');
       return;
     }
     if (type === 'name') {
       const nameVal = document.getElementById('reg-name').value.trim();
       if (!nameVal) {
-        showAlert('⚠️', '이름을 입력해 주세요.');
-        speak('이름을 입력해 주세요.');
+        showAlert('⚠️', '성함을 입력해주세요.');
+        speak('성함을 입력해주세요.');
         return;
       }
     }
     if (type === 'phone' && document.getElementById('reg-phone').value.replace(/\D/g,'').length < 9) {
-      showAlert('⚠️', '휴대폰 번호를\n입력해 주세요.');
-      speak('휴대폰 번호를 입력해 주세요.');
+      showAlert('⚠️', '전화번호를 입력해주세요.');
+      speak('전화번호를 입력해주세요.');
       return;
     }
     if (type === 'address' && !document.getElementById('reg-address').value.trim()) {
-      showAlert('⚠️', '주소를 입력해 주세요.');
-      speak('주소를 입력해 주세요.');
+      showAlert('⚠️', '주소를 입력해주세요.');
+      speak('주소를 입력해주세요.');
       return;
     }
     if (type === 'age' && !document.getElementById('reg-age').value.trim()) {
-      showAlert('⚠️', '나이를 입력해 주세요.');
-      speak('나이를 입력해 주세요.');
+      showAlert('⚠️', '연세를 입력해주세요.');
+      speak('연세를 입력해주세요.');
       return;
     }
     goTo(nextId);
-
-    if (nextId === 'screen-reg-name') speak('성함을 입력해 주세요.');
-    else if (nextId === 'screen-reg-phone') speak('휴대폰 번호를 입력해 주세요.');
-    else if (nextId === 'screen-reg-address') speak('거주하시는 주소를 입력해 주세요.');
-    else if (nextId === 'screen-reg-age') speak('연세를 입력해 주세요.');
-    else if (nextId === 'screen-reg-disease') speak('기저질환을 선택해 주세요.');
+    if (nextId === 'screen-reg-name') speak('성함을 입력해주세요.');
+    else if (nextId === 'screen-reg-phone') speak('전화번호를 입력해주세요.');
+    else if (nextId === 'screen-reg-address') speak('주소를 입력해주세요.');
+    else if (nextId === 'screen-reg-age') speak('연세를 입력해주세요.');
+    else if (nextId === 'screen-reg-disease') speak('기저질환을 선택해주세요.');
   }
 
   function checkDiseaseOther() {
@@ -938,8 +885,8 @@
     const diseaseOther = document.getElementById('reg-disease-other').value.trim();
 
     if (diseaseSelect === '기타' && !diseaseOther) {
-      showAlert('⚠️', '기타 질환명을\n입력해 주세요.');
-      speak('기타 질환명을 입력해 주세요.');
+      showAlert('⚠️', '질환명을 직접 입력해주세요.');
+      speak('질환명을 직접 입력해주세요.');
       return;
     }
 
@@ -960,23 +907,22 @@
         })
       });
       const result = await res.json();
-
       if (result.success) {
         document.getElementById('login-phone').value = phone;
-        showAlert('✅', '회원가입이\n완료되었습니다.');
-        speak('회원가입이 완료되었습니다.', () => {
+        showAlert('✅', '등록이 완료되었습니다. 로그인해주세요.');
+        speak('등록이 완료되었습니다.', () => {
           setTimeout(() => {
             closeModal();
             goTo('screen-login');
           }, 300);
         });
       } else {
-        showAlert('⚠️', result.message || '가입에 실패했습니다.');
-        speak(result.message || '가입에 실패했습니다.');
+        showAlert('⚠️', result.message || '등록에 실패했습니다.');
+        speak(result.message || '등록에 실패했습니다.');
       }
     } catch (err) {
-      showAlert('⚠️', '서버와의 통신에\n실패했습니다.');
-      speak('서버와의 통신에 실패했습니다.');
+      showAlert('⚠️', '서버에 연결할 수 없습니다.');
+      speak('서버에 연결할 수 없습니다.');
     }
   }
 
@@ -995,15 +941,15 @@
     if (todaySaved) {
       btn.classList.add('done');
       icon.textContent = '✅';
-      title.textContent = '오늘 입력 완료';
-      const healthSummary = savedData && savedData.health ? `건강 상태 : ${healthText[savedData.health]}\n` : '';
-      desc.textContent = `${healthSummary}${savedTime} 저장됨`;
+      title.textContent = '오늘 기록 완료';
+      const healthSummary = savedData && savedData.health ? `몸 상태: ${healthText[savedData.health]}\n` : '';
+      desc.textContent = `${healthSummary}${savedTime} 저장 완료`;
       modifyBtn.style.display = 'block';
     } else {
       btn.classList.remove('done');
-      icon.textContent = '💚';
+      icon.textContent = '📝';
       title.textContent = '오늘 상태 입력하기';
-      desc.textContent = '오늘 아직 입력하지 않았습니다.';
+      desc.textContent = '눌러서 오늘의 건강과 식사를 알려주세요.';
       modifyBtn.style.display = 'none';
     }
   }
@@ -1016,19 +962,20 @@
 
   function startHealth(modify) {
     isModifyMode = modify;
-    document.getElementById('health-top-title').textContent = modify ? '오늘 상태 수정' : '오늘 상태 입력';
-
+    document.getElementById('health-top-title').textContent = modify ? '상태 수정' : '건강 상태';
     if (modify && savedData) {
       formData = { ...savedData };
     } else {
       formData = { health: null, breakfast: null, lunch: null, dinner: null };
     }
 
+    // 마감 시간에 따른 버튼 가시성 처리 및 선택 상태 갱신
+    applyMealPlanVisibility();
     refreshAllSelections();
     checkHealthNext();
     checkMealButtons();
     goTo('screen-health');
-    speak('오늘 건강 상태는 어떠세요?');
+    speak('오늘 몸 상태는 어떠신가요?');
   }
 
   function selectHealth(score, btn) {
@@ -1037,10 +984,10 @@
     btn.classList.add('selected');
     checkHealthNext();
 
-    const selectedVoice = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][score] || '';
+    const selectedVoice = ['', '매우 안 좋음', '안 좋음', '보통', '좋음', '매우 좋음'][score] || '';
     speak(`${selectedVoice}`, () => {
       goTo('screen-meal-breakfast');
-      speak('아침 식사는 하셨나요?');
+      speak('오늘 아침 식사는 하셨나요?');
     });
   }
 
@@ -1052,15 +999,14 @@
     btn.classList.add('selected', choice);
     checkMealButtons();
 
-    const choiceVoice = { yes: '먹었어요', plan: '먹을 거예요', no: '안 먹었어요' }[choice];
-
+    const choiceVoice = { yes: '먹었어요', plan: '먹을거예요', no: '안 먹었어요' }[choice];
     speak(`${choiceVoice}`, () => {
       if (slot === 'breakfast') {
         goTo('screen-meal-lunch');
-        speak('점심 식사는 하셨나요?');
+        speak('오늘 점심 식사는 하셨나요?');
       } else if (slot === 'lunch') {
         goTo('screen-meal-dinner');
-        speak('저녁 식사는 하셨나요?');
+        speak('오늘 저녁 식사는 하셨나요?');
       }
     });
   }
@@ -1069,6 +1015,7 @@
     document.querySelectorAll('.health-btn').forEach(btn => {
       btn.classList.toggle('selected', Number(btn.dataset.score) === formData.health);
     });
+
     ['breakfast', 'lunch', 'dinner'].forEach(slot => {
       document.querySelectorAll(`.single-meal-btn[data-slot="${slot}"]`).forEach(btn => {
         btn.className = 'single-meal-btn';
@@ -1091,13 +1038,12 @@
 
   async function saveStatus() {
     if (!(formData.health && formData.breakfast && formData.lunch && formData.dinner)) {
-      showAlert('⚠️', '모든 식사 여부를\n선택해 주세요.');
-      speak('모든 식사 여부를 선택해 주세요.');
+      showAlert('⚠️', '모든 항목을 입력해주세요.');
+      speak('모든 항목을 입력해주세요.');
       return;
     }
 
     const mapAction = { yes: '완료', plan: '예정', no: '결식' };
-
     try {
       const res = await fetch('/api/user/health', {
         method: 'POST',
@@ -1111,28 +1057,25 @@
         })
       });
       const result = await res.json();
-
       if (result.success) {
         savedData = { ...formData };
         todaySaved = true;
         savedTime = getTimeText();
-
         buildSummary();
-        document.getElementById('done-title').textContent = isModifyMode ? '오늘 상태 수정 완료' : '오늘 입력 완료';
+        document.getElementById('done-title').textContent = isModifyMode ? '수정 완료' : '저장 완료';
         
         const doneSub = document.getElementById('done-sub');
         let voiceMessage = '';
-
         if (result.has_worker) {
-          if (doneSub) doneSub.innerHTML = '담당 사회복지사에게<br>전달되었습니다.';
+          if (doneSub) doneSub.innerHTML = '담당 복지사에게<br>기록이 전달되었습니다.';
           voiceMessage = isModifyMode 
-            ? '오늘 상태 수정이 완료되었습니다. 담당 사회복지사에게 전달되었습니다.' 
-            : '오늘 건강 상태 저장이 완료되었습니다. 담당 사회복지사에게 전달되었습니다.';
+            ? '수정되었습니다. 담당 복지사에게 내용이 전달되었습니다.' 
+            : '저장되었습니다. 담당 복지사에게 기록이 전달되었습니다.';
         } else {
-          if (doneSub) doneSub.innerHTML = '건강 상태가 등록되었습니다.<br>곧 관할 복지센터 담당자가 배정됩니다.';
-          voiceMessage = isModifyMode
-            ? '오늘 상태 수정이 완료되었습니다. 곧 관할 복지센터 담당자가 배정됩니다.'
-            : '건강 상태가 등록되었습니다. 곧 관할 복지센터 담당자가 배정됩니다.';
+          if (doneSub) doneSub.innerHTML = '오늘의 건강 상태가<br>성공적으로 기록되었습니다.';
+          voiceMessage = isModifyMode 
+            ? '수정되었습니다. 건강 상태가 정상 반영되었습니다.' 
+            : '저장되었습니다. 오늘의 건강 상태가 기록되었습니다.';
         }
 
         goTo('screen-done');
@@ -1142,8 +1085,8 @@
         speak(result.message || '저장에 실패했습니다.');
       }
     } catch (err) {
-      showAlert('⚠️', '서버 통신에\n실패했습니다.');
-      speak('서버 통신에 실패했습니다.');
+      showAlert('⚠️', '서버 통신에 문제가 발생했습니다.');
+      speak('서버 통신에 문제가 발생했습니다.');
     }
   }
 
@@ -1153,17 +1096,17 @@
       <div class="summary-row"><span>아침 식사</span><span>${mealText[savedData.breakfast]}</span></div>
       <div class="summary-row"><span>점심 식사</span><span>${mealText[savedData.lunch]}</span></div>
       <div class="summary-row"><span>저녁 식사</span><span>${mealText[savedData.dinner]}</span></div>
-      <div class="summary-row"><span>저장 시간</span><span>${savedTime}</span></div>
+      <div class="summary-row"><span>입력 시각</span><span>${savedTime}</span></div>
     `;
   }
 
   function confirmEmergency() {
-    speak('긴급 연락을 연결하시겠습니까?');
+    speak('긴급 전화를 연결할까요?');
     showConfirm(
-      '📞',
-      '긴급 연락을\n연결할까요?',
+      '🚨',
+      '긴급 안심콜(129)로\n전화 연결하시겠습니까?',
       '취소',
-      '연결',
+      '전화걸기',
       closeModal,
       () => {
         closeModal();
@@ -1207,17 +1150,14 @@
   document.getElementById('login-phone').addEventListener('input', formatPhone);
   document.getElementById('reg-phone').addEventListener('input', formatPhone);
 
-  // 자동 로그인 검사
   async function autoLoginOnLoad() {
     try {
       const res = await fetch('/api/user/check-session?_t=' + new Date().getTime());
       const result = await res.json();
-
       if (result.valid && result.user_info) {
         currentUserPhone = result.user_info.phone_number;
         currentUserName = result.user_info.user_name || '어르신';
-        document.getElementById('user-greeting').innerHTML = `${currentUserName} 어르신,<br>안녕하세요 👋`;
-
+        document.getElementById('user-greeting').innerHTML = `${currentUserName}님,<br>안녕하세요`;
         if (result.today_saved && result.today_data) {
           todaySaved = true;
           savedData = {
@@ -1232,7 +1172,6 @@
           savedData = null;
           savedTime = '';
         }
-
         setDates();
         updateMainStatus();
         goTo('screen-main');
@@ -1244,22 +1183,19 @@
 
   window.addEventListener('DOMContentLoaded', autoLoginOnLoad);
 
-  // 1.5초마다 원격 로그아웃 실시간 체크
   let isLoggingOut = false;
   setInterval(async () => {
     const loginScreen = document.getElementById('screen-login');
     if (isLoggingOut || (loginScreen && loginScreen.classList.contains('active'))) {
       return;
     }
-
     try {
       const res = await fetch('/api/user/check-session?_t=' + new Date().getTime());
       const data = await res.json();
-
       if (!data.valid) {
         isLoggingOut = true;
-        speak('사회복지사에 의해 원격으로 로그아웃되었습니다.');
-        showAlert('🔒', '사회복지사에 의해\n원격 로그아웃되었습니다.');
+        speak('로그아웃 되었습니다.');
+        showAlert('🔒', '로그아웃 되었습니다.');
         
         setTimeout(() => {
           closeModal();
