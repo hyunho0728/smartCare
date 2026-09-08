@@ -1,6 +1,7 @@
 from flask import Flask, render_template, request, jsonify, session, redirect
 from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument
 from services.ai_service import evaluate_and_record_risk
+from services.ai_service import analyze_checkup_document_with_gemini
 import os
 import urllib.parse
 import datetime
@@ -10,6 +11,9 @@ import subprocess
 import threading
 import time
 import uuid
+from dotenv import load_dotenv
+from google import genai
+load_dotenv()  # .env 파일의 환경 변수 로드
 
 app = Flask(__name__)
 app.secret_key = "smartcare-secret-key-replace-with-env"
@@ -873,6 +877,43 @@ def api_delete_checkup(doc_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"삭제 처리 실패: {str(e)}"}), 500
+
+@app.route('/api/admin/checkup/analyze/<int:doc_id>', methods=['POST'])
+def api_analyze_checkup(doc_id):
+    """업로드된 건강검진표/처방전 사진을 Gemini AI로 분석하여 이상 수치 및 소견을 반환합니다."""
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "사회복지사 로그인이 필요합니다."}), 401
+
+    doc = CheckupDocument.query.get(doc_id)
+    if not doc:
+        return jsonify({"success": False, "message": "해당 문서 정보를 찾을 수 없습니다."}), 404
+
+    try:
+        # 웹 경로를 실제 서버 로컬 파일 경로로 변환
+        filename = os.path.basename(doc.file_path)
+        local_file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+
+        if not os.path.exists(local_file_path):
+            return jsonify({"success": False, "message": "서버에 실제 이미지 파일이 존재하지 않습니다."}), 404
+
+        # Gemini AI 분석 수행
+        analysis_result = analyze_checkup_document_with_gemini(local_file_path)
+
+        return jsonify({
+            "success": True,
+            "analysis": analysis_result,
+            "document_name": doc.original_name or "건강검진표"
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": f"AI 분석 처리 실패: {str(e)}"}), 500
 
 def start_localtunnel():
     """Flask 서버 실행 시 localtunnel을 통해 자동으로 외부 접속 주소를 생성합니다."""

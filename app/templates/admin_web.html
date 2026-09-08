@@ -610,6 +610,7 @@
   </div>
 </div>
 
+
 <script>
 let users = [];
 let unassignedUsers = [];
@@ -1024,6 +1025,7 @@ function renderTable(){
       ? docs.map(d => `
           <div class="checkup-thumb-wrap" onclick="openImageViewer('${d.file_path}', '${u.name} 어르신 검진표 (${d.uploaded_at})')">
             <button class="checkup-del-btn" title="사진 삭제" onclick="event.stopPropagation(); deleteCheckupDoc(${d.doc_id})">×</button>
+            <button class="mini-btn" title="AI 분석" style="position:absolute;bottom:22px;left:4px;right:4px;background:rgba(37,99,235,0.9);color:#fff;border:none;padding:2px 0;font-size:11px;z-index:2;" onclick="event.stopPropagation(); analyzeCheckupDoc(${d.doc_id}, '${u.name}', ${u.id})">AI 분석</button>
             <img class="checkup-thumb" src="${d.file_path}" alt="검진표 썸네일">
             <div class="checkup-thumb-date">${d.uploaded_at.split(' ')[0]}</div>
           </div>
@@ -1169,8 +1171,8 @@ function renderTable(){
               </div>
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
-                <h4>🤖 AI 생활 패턴 진단</h4>
-                <p>${u.desc}</p>
+                <h4>🤖 AI 생활 패턴 및 건강검진표 분석</h4>
+                <p id="ai-desc-${u.id}">${u.desc}</p>
                 <div class="ai-actions-v2">
                   <button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 결과 작성</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
@@ -1477,6 +1479,34 @@ async function remoteLogoutElder(userId, name) {
     toast('서버와의 통신에 실패했습니다.');
   }
 }
+
+async function analyzeCheckupDoc(docId, elderName, userId) {
+  /* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 상세 대시보드 패널에 직접 출력합니다. */
+  const descEl = document.getElementById(`ai-desc-${userId}`);
+  if (descEl) {
+    descEl.innerHTML = `⏳ <b>${elderName} 어르신의 건강검진표를 Gemini AI가 정밀 분석 중입니다... (잠시만 기다려주세요)</b>`;
+  }
+
+  try {
+    const res = await fetch(`/api/admin/checkup/analyze/${docId}`, {
+      method: 'POST'
+    });
+    const result = await res.json();
+
+    if (descEl) {
+      if (result.success) {
+        descEl.innerText = result.analysis;
+      } else {
+        descEl.innerText = result.message || "AI 분석에 실패했습니다.";
+      }
+    }
+  } catch (err) {
+    if (descEl) {
+      descEl.innerText = "서버와의 통신에 실패했습니다.";
+    }
+  }
+}
+
 </script>
 </body>
 </html>

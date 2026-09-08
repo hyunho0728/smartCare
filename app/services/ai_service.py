@@ -1,5 +1,9 @@
 import numpy as np
 import datetime
+import os
+import mimetypes
+from google import genai
+from google.genai import types
 from sklearn.ensemble import IsolationForest
 
 def evaluate_and_record_risk(user, health_history, login_history, db_session, RiskAnalysisModel):
@@ -145,3 +149,44 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
         "ai_summary": ai_summary,
         "analysis_id": new_risk_analysis.analysis_id
     }
+
+def analyze_checkup_document_with_gemini(image_path):
+    """Gemini 멀티모달 모델을 사용하여 업로드된 건강검진표 이미지를 분석하고 이상 수치를 요약합니다."""
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."
+
+    if not os.path.exists(image_path):
+        return "분석할 이미지 파일이 존재하지 않습니다."
+
+    try:
+        client = genai.Client(api_key=api_key)
+        
+        # 파일 확장자에 맞는 MIME 타입 감지 (jpg, png, pdf 등)
+        mime_type, _ = mimetypes.guess_type(image_path)
+        if not mime_type:
+            mime_type = "image/jpeg"
+
+        with open(image_path, "rb") as f:
+            image_bytes = f.read()
+
+        # google-genai 규격에 맞는 Part 객체 생성
+        image_part = types.Part.from_bytes(
+            data=image_bytes,
+            mime_type=mime_type
+        )
+
+        prompt = (
+            "이 문서는 독거 어르신의 건강검진표 또는 처방전 이미지입니다. "
+            "이미지에 나타난 혈압, 혈당, 콜레스테롤 등 주요 건강 수치들을 파악하고, "
+            "정상 범위를 벗어나거나 사회복지사가 주의 깊게 살펴봐야 할 이상 수치나 특이사항이 있는지 "
+            "알기 쉽게 요약하고 권장 조치 사항을 정리해주세요."
+        )
+
+        response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=[prompt, image_part]
+        )
+        return response.text
+    except Exception as e:
+        return f"AI 이미지 분석 중 오류가 발생했습니다: {str(e)}"
