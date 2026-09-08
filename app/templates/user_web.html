@@ -572,8 +572,8 @@
       <span>건강검진표 / 처방전 사진 보내기</span>
     </button>
 
-    <!-- 숨겨진 모바일 카메라/갤러리 연동 파일 인풋 -->
-    <input type="file" id="checkup-file-input" accept="image/*,application/pdf" capture="camera" style="display:none;" onchange="handleCheckupFileSelected(event)">
+    <!-- 숨겨진 모바일 갤러리 및 파일 선택 인풋 (capture 속성 제거로 앨범/촬영 선택 가능) -->
+    <input type="file" id="checkup-file-input" accept="image/*,application/pdf" style="display:none;" onchange="handleCheckupFileSelected(event)">
   </main>
 </section>
 
