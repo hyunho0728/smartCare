@@ -73,7 +73,12 @@ def api_user_login():
 
     today_status_data = None
     if today_health:
-        map_reverse_action = {'식사완료': 'yes', '식사예정': 'plan', '식사안함': 'no'}
+        # DB의 ENUM('완료', '예정', '결식') -> 웹 프론트엔드 버튼('yes', 'plan', 'no') 역매핑
+        map_reverse_action = {
+            '완료': 'yes',
+            '예정': 'plan',
+            '결식': 'no'
+        }
         h_time = today_health.recorded_at
         time_str = f"{'오전' if h_time.hour < 12 else '오후'} {h_time.hour % 12 or 12}:{h_time.minute:02d}"
         
@@ -119,7 +124,11 @@ def api_user_check_session():
 
     today_status_data = None
     if today_health:
-        map_reverse_action = {'식사완료': 'yes', '식사예정': 'plan', '식사안함': 'no'}
+        map_reverse_action = {
+            '완료': 'yes',
+            '예정': 'plan',
+            '결식': 'no'
+        }
         h_time = today_health.recorded_at
         time_str = f"{'오전' if h_time.hour < 12 else '오후'} {h_time.hour % 12 or 12}:{h_time.minute:02d}"
         today_status_data = {
@@ -189,7 +198,7 @@ def api_user_register():
 # --- 일일 건강 및 식사 기록 등록 API ---
 @user_bp.route('/api/user/health', methods=['POST'])
 def api_record_health():
-    """기분/건강 상태 및 식사 여부 등록 (1시간 이내 수정 시 UPDATE)"""
+    """기분/건강 상태 및 식사 여부 등록 (DB ENUM 규격: '완료', '예정', '결식' 변환)"""
     data = request.get_json() or {}
     user_id = session.get('user_id')
     
@@ -202,17 +211,18 @@ def api_record_health():
 
     condition_level = data.get('condition_level')
 
+    # 프론트엔드 입력값을 DB ENUM 규격('완료', '예정', '결식')으로 정규화
     def normalize_meal_status(val):
         if not val:
-            return '미입력'
+            return '결식'
         val = str(val).strip()
-        if val in ['식사완료', '먹음', 'yes', '완료']:
-            return '식사완료'
-        elif val in ['식사예정', 'plan', '예정', '먹을예정']:
-            return '식사예정'
-        elif val in ['식사안함', 'no', '안먹음', '거름']:
-            return '식사안함'
-        return '미입력'
+        if val in ['yes', '완료', '식사완료', '먹음']:
+            return '완료'
+        elif val in ['plan', '예정', '식사예정', '먹을예정']:
+            return '예정'
+        elif val in ['no', '결식', '식사안함', '안먹음', '거름']:
+            return '결식'
+        return '결식'
 
     breakfast = normalize_meal_status(data.get('breakfast'))
     lunch = normalize_meal_status(data.get('lunch'))
