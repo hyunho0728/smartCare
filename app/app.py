@@ -26,7 +26,7 @@ DB_PASSWORD = os.getenv("DB_PASSWORD", "0728")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "elder_care_DB")
-#1
+#1mki;pnikn h;
 
 encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
