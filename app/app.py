@@ -22,11 +22,10 @@ app.secret_key = "smartcare-secret-key-replace-with-env"
 # MySQL 데이터베이스 및 업로드 폴더 설정
 # ==========================================
 DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "0728")
+DB_PASSWORD = os.getenv("DB_PASSWORD", "8888")
 DB_HOST = os.getenv("DB_HOST", "localhost")
 DB_PORT = os.getenv("DB_PORT", "3306")
 DB_NAME = os.getenv("DB_NAME", "elder_care_DB")
-#1mki;pnikn h;aaaaa
 
 encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
