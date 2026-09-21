@@ -95,6 +95,41 @@
 .mini-btn:hover{border-color:var(--blue);color:var(--blue);background:#eff6ff}
 .mini-btn.danger:hover{border-color:var(--red);color:var(--red);background:#fff1f2}
 .alert-list{padding:16px;display:flex;flex-direction:column;gap:12px}
+/* 알림 및 기록 관리 탭 >> 길동 추가 */
+.alert-tabs{
+  display:flex;
+  gap:8px;
+  padding:18px 20px 0;
+  border-bottom:1px solid var(--line);
+}
+
+.alert-tab{
+  border:0;
+  background:transparent;
+  padding:12px 20px;
+  font-size:14px;
+  font-weight:800;
+  color:var(--muted);
+  cursor:pointer;
+  border-bottom:3px solid transparent;
+}
+
+.alert-tab:hover{
+  color:var(--blue);
+}
+
+.alert-tab.active{
+  color:var(--blue);
+  border-bottom-color:var(--blue);
+}
+
+.alert-tab-content{
+  display:none;
+}
+
+.alert-tab-content.active{
+  display:block;
+}
 .alert{background:#fff;border:1px solid var(--line);border-left:5px solid var(--red);border-radius:18px;padding:16px;cursor:pointer}
 .alert.yellow{border-left-color:var(--yellow)}
 .alert.blue{border-left-color:var(--blue)}
@@ -155,6 +190,83 @@
 .ai-panel-v2{background:#fff;border:1px solid #dbe7f6;border-radius:26px;padding:20px 22px;box-shadow:0 14px 34px rgba(37,99,235,.10);border-left:8px solid var(--red);}
 .ai-panel-v2 h4{font-size:18px;margin-bottom:8px;}
 .ai-panel-v2 p{color:#475569;line-height:1.65;font-size:14px;word-break:keep-all;}
+
+/* 어르신 상세 - 최근 조치 기록 >> 길동 추가 */
+.action-history-v2{
+  background:#fff;
+  border:1px solid #dbe7f6;
+  border-radius:26px;
+  padding:20px 22px;
+  box-shadow:0 14px 34px rgba(37,99,235,.10);
+}
+
+.action-history-head-v2{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  margin-bottom:14px;
+}
+
+.action-history-head-v2 h4{
+  font-size:18px;
+  margin:0;
+}
+
+.action-history-head-v2 span{
+  font-size:12px;
+  color:var(--muted);
+}
+
+.action-history-list-v2{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.action-history-item-v2{
+  border:1px solid #e5eaf1;
+  border-radius:16px;
+  padding:14px 16px;
+  background:#f8fafc;
+}
+
+.action-history-item-top-v2{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+}
+
+.action-history-type-v2{
+  font-size:13px;
+  font-weight:900;
+  color:#2563eb;
+}
+
+.action-history-time-v2{
+  font-size:11px;
+  color:#64748b;
+}
+
+.action-history-feedback-v2{
+  font-size:13px;
+  color:#334155;
+  line-height:1.6;
+  margin-bottom:8px;
+}
+
+.action-history-worker-v2{
+  font-size:11px;
+  color:#64748b;
+}
+
+.action-history-empty-v2{
+  text-align:center;
+  padding:25px 10px;
+  color:var(--muted);
+  font-size:13px;
+}
 .ai-actions-v2{display:flex;gap:8px;margin-top:14px;}
 
 /* 건강검진표 사진 갤러리 */
@@ -477,14 +589,83 @@
         </div>
       </section>
 
-      <!-- 4. 위험 알림 및 조치 기록 -->
+      <!-- 4. 위험 알림 및 조치 기록 >> 길동 수정 -->
       <section class="page" id="alerts">
         <div class="panel">
-          <div class="panel-head"><h3>위험 알림 및 조치 기록</h3></div>
-          <table class="table">
-            <thead><tr><th>대상자</th><th>연락처</th><th>위험 단계</th><th>권장 조치</th><th>조치</th></tr></thead>
-            <tbody id="alerts-record-tbody"></tbody>
-          </table>
+
+          <div class="panel-head">
+            <div>
+              <h3>알림 및 기록 관리</h3>
+              <span>위험 알림을 확인하고 조치 내역을 관리합니다.</span>
+            </div>
+          </div>
+
+          <!-- 상단 탭 -->
+          <div class="alert-tabs">
+            <button
+              class="alert-tab active"
+              id="recent-alert-tab"
+              onclick="switchAlertTab('recent', this)">
+              최근 알림
+            </button>
+
+            <button
+              class="alert-tab"
+              id="history-alert-tab"
+              onclick="switchAlertTab('history', this)">
+              알림 기록
+            </button>
+          </div>
+
+          <!-- 최근 알림 -->
+          <div
+            class="alert-tab-content active"
+            id="recent-alert-content">
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>대상자</th>
+                  <th>연락처</th>
+                  <th>위험 단계</th>
+                  <th>권장 조치</th>
+                  <th>조치</th>
+                </tr>
+              </thead>
+
+              <tbody id="alerts-record-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- 알림 기록 -->
+          <div
+            class="alert-tab-content"
+            id="history-alert-content">
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>발생 일시</th>
+                  <th>대상자</th>
+                  <th>알림 유형</th>
+                  <th>처리 상태</th>
+                  <th>조치 유형</th>
+                  <th>조치 일시</th>
+                </tr>
+              </thead>
+
+              <tbody id="alerts-history-tbody">
+                <tr>
+                  <td
+                    colspan="6"
+                    style="text-align:center;padding:30px;color:var(--muted);">
+                    저장된 알림 기록이 없습니다.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
         </div>
       </section>
 
@@ -873,7 +1054,7 @@ function renderOtherSections() {
           <td>${u.created_at || '-'}</td>
           <td>
             <div class="actions">
-              <button class="mini-btn" onclick="openFeedback('${u.name}')">기록</button>
+              <button class="mini-btn" onclick="openFeedback(${u.id}, '${u.name}')">기록</button>
               <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">번호 복사</button>
               <button class="mini-btn" style="color:#d97706;border-color:#fde68a;" onclick="remoteLogoutElder(${u.id}, '${u.name}')">원격 로그아웃</button>
               <button class="mini-btn danger" onclick="deleteElder(${u.id}, '${u.name}')">삭제</button>
@@ -993,6 +1174,36 @@ function nav(id, btn) {
   }
 }
 
+// 위험 알림 및 기록 관리 javascript >> 길동 추가
+function switchAlertTab(tab, button) {
+
+  // 모든 탭 버튼 비활성화
+  document.querySelectorAll('.alert-tab').forEach(btn => {
+    btn.classList.remove('active');
+  });
+
+  // 모든 탭 내용 숨기기
+  document.querySelectorAll('.alert-tab-content').forEach(content => {
+    content.classList.remove('active');
+  });
+
+  // 클릭한 버튼 활성화
+  button.classList.add('active');
+
+  // 선택한 화면 표시
+  if (tab === 'recent') {
+    document
+      .getElementById('recent-alert-content')
+      .classList.add('active');
+  }
+
+  if (tab === 'history') {
+    document
+      .getElementById('history-alert-content')
+      .classList.add('active');
+  }
+}
+
 function renderTable(){
   const searchInput = document.getElementById('search');
   const q = searchInput ? searchInput.value.trim().toLowerCase() : '';
@@ -1062,6 +1273,39 @@ function renderTable(){
           </div>
         `).join('')
       : '<p style="color:var(--muted);font-size:12px;padding:6px 0;">등록된 검진표/처방전 사진이 없습니다.</p>';
+
+    // 사용자 상세 정보에 조치 기록 표시 >> 길동 추가
+    const actions = u.action_history || [];
+
+    const actionHistoryHtml = actions.length > 0
+      ? actions.map(action => `
+          <div class="action-history-item-v2">
+
+            <div class="action-history-item-top-v2">
+              <span class="action-history-type-v2">
+                ${action.action_type}
+              </span>
+
+              <span class="action-history-time-v2">
+                ${action.action_time}
+              </span>
+            </div>
+
+            <div class="action-history-feedback-v2">
+              ${action.feedback}
+            </div>
+
+            <div class="action-history-worker-v2">
+              담당자: ${action.worker_name}
+            </div>
+
+          </div>
+        `).join('')
+      : `
+          <div class="action-history-empty-v2">
+            아직 등록된 조치 기록이 없습니다.
+          </div>
+        `;
 
     return `
     <tr class="main-row" onclick="toggle(${i})">
@@ -1208,6 +1452,18 @@ function renderTable(){
                   <button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 결과 작성</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
+              </div>
+              <div class="action-history-v2">
+
+                <div class="action-history-head-v2">
+                  <h4>📋 최근 조치 기록</h4>
+                  <span>최근 5건</span>
+                </div>
+
+                <div class="action-history-list-v2">
+                  ${actionHistoryHtml}
+                </div>
+
               </div>
             </div>
           </div>
@@ -1487,10 +1743,14 @@ async function submitFeedback() {
       toast(result.message);
       document.getElementById('fbContent').value = '';
       closeModal('feedback');
+
+      await loadEldersData();
+
     } else {
       toast(result.message || '저장에 실패했습니다.');
     }
   } catch (err) {
+    console.error(err);
     toast('서버와의 통신에 실패했습니다.');
   }
 }

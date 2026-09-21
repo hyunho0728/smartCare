@@ -198,6 +198,33 @@ def api_get_elders():
             "uploaded_at": d.uploaded_at.strftime("%Y-%m-%d %H:%M")
         } for d in checkup_docs]
 
+        # 최근 조치 기록 조회 >> 길동 추가
+        recent_actions = PostManagement.query.filter_by(
+            user_id=u.user_id
+        ).order_by(
+            PostManagement.action_time.desc()
+        ).limit(5).all()
+
+        action_history = []
+
+        for action in recent_actions:
+            action_worker = Worker.query.get(action.worker_id)
+
+            action_history.append({
+                "management_id": action.management_id,
+                "action_type": action.action_type,
+                "feedback": action.action_feedback,
+                "worker_name": action_worker.name if action_worker else "-",
+                "alert_time": (
+                    action.alert_time.strftime("%Y-%m-%d %H:%M")
+                    if action.alert_time else "-"
+                ),
+                "action_time": (
+                    action.action_time.strftime("%Y-%m-%d %H:%M")
+                    if action.action_time else "-"
+                )
+            })
+
         return {
             "id": u.user_id,
             "name": u.name,
@@ -218,7 +245,8 @@ def api_get_elders():
             "chart": chart_points,
             "desc": ai_desc,
             "has_recorded": bool(latest_health is not None),
-            "checkup_docs": docs_list
+            "checkup_docs": docs_list,
+            "action_history": action_history #added by 길동
         }
 
     assigned_list = [process_elder_data(u) for u in assigned_users]
