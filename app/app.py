@@ -63,7 +63,7 @@ MEAL_DEADLINES = {
 }
 
 def check_and_update_missed_meals():
-    """식사 마감 시간이 지났는데 미입력 상태인 경우 '식사안함'으로 자동 변경."""
+    """마감 시각이 지난 식사 예정 상태를 HealthStatus ENUM의 '결식'으로 변경한다."""
     now = datetime.datetime.now()
     current_time = now.time()
     today = now.date()
@@ -76,19 +76,14 @@ def check_and_update_missed_meals():
             changed = False
             is_today = (r.target_date == today)
 
-            if r.breakfast_status == '식사예정':
-                if not is_today or current_time >= MEAL_DEADLINES['breakfast']:
-                    r.breakfast_status = '식사안함'
-                    changed = True
+            # HealthStatus의 허용 상태값은 '완료', '예정', '결식'이다.
+            for meal, deadline in MEAL_DEADLINES.items():
+                status_field = f'{meal}_status'
+                if getattr(r, status_field) != '예정':
+                    continue
 
-            if r.lunch_status == '식사예정':
-                if not is_today or current_time >= MEAL_DEADLINES['lunch']:
-                    r.lunch_status = '식사안함'
-                    changed = True
-
-            if r.dinner_status == '식사예정':
-                if not is_today or current_time >= MEAL_DEADLINES['dinner']:
-                    r.dinner_status = '식사안함'
+                if not is_today or current_time >= deadline:
+                    setattr(r, status_field, '결식')
                     changed = True
 
             if changed:
@@ -97,7 +92,7 @@ def check_and_update_missed_meals():
         if updated_users:
             db.session.commit()
             for uid in updated_users:
-                user = User.query.get(uid)
+                user = db.session.get(User, uid)
                 if user:
                     h_history = HealthStatus.query.filter_by(user_id=uid)\
                         .order_by(HealthStatus.recorded_at.desc()).all()
