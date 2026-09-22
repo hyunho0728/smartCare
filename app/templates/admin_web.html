@@ -795,6 +795,7 @@
 <script>
 let users = [];
 let unassignedUsers = [];
+let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
   watch: ['주의', 'b-yellow', '#f97316'],
@@ -966,6 +967,7 @@ async function loadEldersData() {
     if (result.success) {
       users = result.data || [];
       unassignedUsers = result.unassigned || [];
+      console.log('서버에서 받은 어르신 데이터: ', users); // 삭제
 
       updateKPIs();
       renderTable();
@@ -1102,7 +1104,7 @@ function renderOtherSections() {
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
           <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">안부 전화</span>'}</td>
-          <td><button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 작성</button></td>
+          <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
         </tr>
       `).join('');
     }
@@ -1449,7 +1451,7 @@ function renderTable(){
                 <h4>🤖 AI 생활 패턴 및 건강검진표 분석</h4>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
                 <div class="ai-actions-v2">
-                  <button class="mini-btn danger" onclick="openFeedback('${u.name}')">조치 결과 작성</button>
+                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}')">조치 결과 작성</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
               </div>
@@ -1641,7 +1643,12 @@ function toggle(i) {
 }
 function openEmergency(){document.getElementById('emergency').classList.add('show')}
 function openAdd(){document.getElementById('add').classList.add('show')}
-function openFeedback(name){document.getElementById('fbName').value=name;document.getElementById('feedback').classList.add('show')}
+function openFeedback(userId, name) {
+  selectedFeedbackUserId = userId;
+
+  document.getElementById('fbName').value = name;
+  document.getElementById('feedback').classList.add('show');
+}
 function closeModal(id){document.getElementById(id).classList.remove('show')}
 function toast(msg){alert(msg)}
 
@@ -1722,6 +1729,11 @@ async function submitFeedback() {
   const actionType = document.getElementById('fbActionType')?.value;
   const content = document.getElementById('fbContent')?.value.trim();
 
+  if (!selectedFeedbackUserId) {
+    toast('대상 어르신 정보가 없습니다.');
+    return;
+  }
+
   if (!content) {
     toast('확인 내용을 입력해주세요.');
     return;
@@ -1732,6 +1744,7 @@ async function submitFeedback() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
+        user_id: selectedFeedbackUserId,
         name: name,
         action_type: actionType,
         feedback: content
