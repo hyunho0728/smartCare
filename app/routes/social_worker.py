@@ -203,7 +203,7 @@ def api_get_elders():
             user_id=u.user_id
         ).order_by(
             PostManagement.action_time.desc()
-        ).limit(5).all()
+        ).limit(1).all()
 
         action_history = []
 
@@ -334,6 +334,62 @@ def api_save_post_management():
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"저장 실패: {str(e)}"}), 500
+
+# 조치 기록 조회
+@worker_bp.route('/api/admin/actions', methods=['GET'])
+def api_get_action_history():
+    """현재 사회복지사가 담당한 조치 기록 조회"""
+
+    current_worker_id = session.get('admin_worker_id')
+
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+
+        if admin_login_id:
+            worker = Worker.query.filter_by(
+                login_id=admin_login_id
+            ).first()
+
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({
+            "success": False,
+            "message": "로그인이 필요합니다."
+        }), 401
+
+    actions = PostManagement.query.filter_by(
+        worker_id=current_worker_id
+    ).order_by(
+        PostManagement.action_time.desc()
+    ).all()
+
+    result = []
+
+    for action in actions:
+        user = User.query.get(action.user_id)
+
+        result.append({
+            "management_id": action.management_id,
+            "user_id": action.user_id,
+            "user_name": user.name if user else "알 수 없음",
+            "action_type": action.action_type,
+            "feedback": action.action_feedback,
+            "alert_time": (
+                action.alert_time.strftime("%Y-%m-%d %H:%M")
+                if action.alert_time else "-"
+            ),
+            "action_time": (
+                action.action_time.strftime("%Y-%m-%d %H:%M")
+                if action.action_time else "-"
+            )
+        })
+
+    return jsonify({
+        "success": True,
+        "data": result
+    })
 
 @worker_bp.route('/api/admin/elders/register', methods=['POST'])
 def api_admin_register_elder():

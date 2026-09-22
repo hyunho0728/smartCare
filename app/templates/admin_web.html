@@ -600,6 +600,7 @@
             </div>
           </div>
 
+          <!-- 조치 기록 탭 추가 >> 길동 추가 -->
           <!-- 상단 탭 -->
           <div class="alert-tabs">
             <button
@@ -614,6 +615,13 @@
               id="history-alert-tab"
               onclick="switchAlertTab('history', this)">
               알림 기록
+            </button>
+
+            <button
+              class="alert-tab"
+              id="action-history-tab"
+              onclick="switchAlertTab('action', this)">
+              조치 기록
             </button>
           </div>
 
@@ -666,7 +674,33 @@
             </table>
           </div>
 
-        </div>
+          <!-- 조치 기록 -->
+          <div
+            class="alert-tab-content"
+            id="action-history-content">
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>조치 일시</th>
+                  <th>대상자</th>
+                  <th>조치 유형</th>
+                  <th>조치 내용</th>
+                  <th>알림 발생 일시</th>
+                </tr>
+              </thead>
+
+              <tbody id="action-history-tbody">
+                <tr>
+                  <td
+                    colspan="5"
+                    style="text-align:center;padding:30px;color:var(--muted);">
+                    저장된 조치 기록이 없습니다.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
       </section>
 
       <!-- 5. 담당자 배정 -->
@@ -1204,6 +1238,88 @@ function switchAlertTab(tab, button) {
       .getElementById('history-alert-content')
       .classList.add('active');
   }
+
+  if (tab === 'action') {
+    document
+      .getElementById('action-history-content')
+      .classList.add('active');
+
+    loadActionHistory();
+  }
+}
+
+// 알림 및 기록 관리에 조치 기록 표시 >> 길동 추가
+async function loadActionHistory() {
+  const tbody = document.getElementById('action-history-tbody');
+
+  if (!tbody) return;
+
+  try {
+    const res = await fetch('/api/admin/actions');
+    const result = await res.json();
+
+    if (!result.success) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5"
+              style="text-align:center;padding:30px;color:var(--muted);">
+            조치 기록을 불러오지 못했습니다.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    const actions = result.data || [];
+
+    if (actions.length === 0) {
+      tbody.innerHTML = `
+        <tr>
+          <td colspan="5"
+              style="text-align:center;padding:30px;color:var(--muted);">
+            저장된 조치 기록이 없습니다.
+          </td>
+        </tr>
+      `;
+      return;
+    }
+
+    tbody.innerHTML = actions.map(action => `
+      <tr>
+        <td>${action.action_time}</td>
+
+        <td>
+          <b>${action.user_name}</b>
+        </td>
+
+        <td>
+          <span class="badge b-blue">
+            ${action.action_type}
+          </span>
+        </td>
+
+        <td>
+          ${action.feedback || '-'}
+        </td>
+
+        <td>
+          ${action.alert_time}
+        </td>
+      </tr>
+    `).join('');
+
+  } catch (err) {
+    console.error('조치 기록 조회 실패:', err);
+
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="5"
+            style="text-align:center;padding:30px;color:var(--muted);">
+          서버와의 통신에 실패했습니다.
+        </td>
+      </tr>
+    `;
+  }
 }
 
 function renderTable(){
@@ -1459,7 +1575,6 @@ function renderTable(){
 
                 <div class="action-history-head-v2">
                   <h4>📋 최근 조치 기록</h4>
-                  <span>최근 5건</span>
                 </div>
 
                 <div class="action-history-list-v2">
@@ -1754,10 +1869,12 @@ async function submitFeedback() {
 
     if (result.success) {
       toast(result.message);
+      
       document.getElementById('fbContent').value = '';
       closeModal('feedback');
 
       await loadEldersData();
+      await loadActionHistory();
 
     } else {
       toast(result.message || '저장에 실패했습니다.');
