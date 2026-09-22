@@ -14,7 +14,6 @@ from routes.social_worker import worker_bp
 from routes.user import user_bp
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-load_dotenv(os.path.join(BASE_DIR, ".env"))
 load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 
 app = Flask(__name__)
@@ -40,7 +39,7 @@ missing_db_settings = [
 ]
 if missing_db_settings:
     raise RuntimeError(
-        "Missing database settings in app/.env: "
+        "Missing database settings in .env: "
         + ", ".join(missing_db_settings)
     )
 
