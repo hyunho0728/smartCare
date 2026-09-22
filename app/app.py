@@ -13,7 +13,9 @@ from services.ai_service import evaluate_and_record_risk
 from routes.social_worker import worker_bp
 from routes.user import user_bp
 
-load_dotenv()
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(BASE_DIR, ".env"))
+load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 
 app = Flask(__name__)
 app.secret_key = "smartcare-secret-key-replace-with-env"
@@ -21,18 +23,32 @@ app.secret_key = "smartcare-secret-key-replace-with-env"
 # ==========================================
 # MySQL 데이터베이스 설정
 # ==========================================
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "0728")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "elder_care_DB")
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+
+missing_db_settings = [
+    name for name, value in {
+        "DB_USER": DB_USER,
+        "DB_PASSWORD": DB_PASSWORD,
+        "DB_HOST": DB_HOST,
+        "DB_PORT": DB_PORT,
+        "DB_NAME": DB_NAME,
+    }.items() if not value
+]
+if missing_db_settings:
+    raise RuntimeError(
+        "Missing database settings in app/.env: "
+        + ", ".join(missing_db_settings)
+    )
 
 encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 건강검진표 업로드 경로 설정
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads', 'checkups')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
