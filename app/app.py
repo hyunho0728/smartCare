@@ -11,9 +11,10 @@ from services.ai_service import evaluate_and_record_risk
 
 # 작업자별 Blueprint 임포트
 from routes.social_worker import worker_bp
-#from routes.user import user_bp
+from routes.user import user_bp
 
-load_dotenv()
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 
 app = Flask(__name__)
 app.secret_key = "smartcare-secret-key-replace-with-env"
@@ -21,19 +22,32 @@ app.secret_key = "smartcare-secret-key-replace-with-env"
 # ==========================================
 # MySQL 데이터베이스 설정
 # ==========================================
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "8888") # root 비밀번호는 다시 0728로
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_NAME = os.getenv("DB_NAME", "elder_care_DB")
-#1mki;pnikn h;aaaaa
+DB_USER = os.getenv("DB_USER")
+DB_PASSWORD = os.getenv("DB_PASSWORD")
+DB_HOST = os.getenv("DB_HOST")
+DB_PORT = os.getenv("DB_PORT")
+DB_NAME = os.getenv("DB_NAME")
+
+missing_db_settings = [
+    name for name, value in {
+        "DB_USER": DB_USER,
+        "DB_PASSWORD": DB_PASSWORD,
+        "DB_HOST": DB_HOST,
+        "DB_PORT": DB_PORT,
+        "DB_NAME": DB_NAME,
+    }.items() if not value
+]
+if missing_db_settings:
+    raise RuntimeError(
+        "Missing database settings in .env: "
+        + ", ".join(missing_db_settings)
+    )
 
 encoded_password = urllib.parse.quote_plus(DB_PASSWORD)
 app.config['SQLALCHEMY_DATABASE_URI'] = f"mysql+pymysql://{DB_USER}:{encoded_password}@{DB_HOST}:{DB_PORT}/{DB_NAME}?charset=utf8mb4"
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # 건강검진표 업로드 경로 설정
-BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 UPLOAD_FOLDER = os.path.join(BASE_DIR, 'static', 'uploads', 'checkups')
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -52,7 +66,7 @@ with app.app_context():
 
 # Blueprint 등록
 app.register_blueprint(worker_bp)
-# app.register_blueprint(user_bp)
+app.register_blueprint(user_bp)
 
 # ==========================================
 # 공통 스케줄러 & 유틸리티
@@ -64,7 +78,7 @@ MEAL_DEADLINES = {
 }
 
 def check_and_update_missed_meals():
-    """식사 마감 시간이 지났는데 미입력 상태인 경우 '식사안함'으로 자동 변경."""
+    """마감 시각이 지난 식사 예정 상태를 HealthStatus ENUM의 '결식'으로 변경한다."""
     now = datetime.datetime.now()
     current_time = now.time()
     today = now.date()
@@ -77,19 +91,14 @@ def check_and_update_missed_meals():
             changed = False
             is_today = (r.target_date == today)
 
-            if r.breakfast_status == '식사예정':
-                if not is_today or current_time >= MEAL_DEADLINES['breakfast']:
-                    r.breakfast_status = '식사안함'
-                    changed = True
+            # HealthStatus의 허용 상태값은 '완료', '예정', '결식'이다.
+            for meal, deadline in MEAL_DEADLINES.items():
+                status_field = f'{meal}_status'
+                if getattr(r, status_field) != '예정':
+                    continue
 
-            if r.lunch_status == '식사예정':
-                if not is_today or current_time >= MEAL_DEADLINES['lunch']:
-                    r.lunch_status = '식사안함'
-                    changed = True
-
-            if r.dinner_status == '식사예정':
-                if not is_today or current_time >= MEAL_DEADLINES['dinner']:
-                    r.dinner_status = '식사안함'
+                if not is_today or current_time >= deadline:
+                    setattr(r, status_field, '결식')
                     changed = True
 
             if changed:
@@ -98,7 +107,7 @@ def check_and_update_missed_meals():
         if updated_users:
             db.session.commit()
             for uid in updated_users:
-                user = User.query.get(uid)
+                user = db.session.get(User, uid)
                 if user:
                     h_history = HealthStatus.query.filter_by(user_id=uid)\
                         .order_by(HealthStatus.recorded_at.desc()).all()
