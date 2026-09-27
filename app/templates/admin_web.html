@@ -314,18 +314,22 @@
 
 /* 미디어 쿼리: 창 너비 축소 시 자동 접힘 및 아이콘 중앙 정렬 */
 @media(max-width:1200px){
-  .layout{grid-template-columns:78px 1fr;}
-  .sidebar{padding:20px 8px;align-items:center;}
-  .brand-text, .nav-text, .worker p, .worker b, .worker-btn-text{display:none;}
-  .brand{width:100%;padding:4px 0 16px;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
-  .sidebar-toggle{position:static;margin:0 auto;}
-  .nav{width:100%;align-items:center;}
-  .nav button{justify-content:center;padding:0;width:48px;height:48px;gap:0;}
-  .nav button .nav-icon{width:auto;margin:0 auto;}
-  .nav button.active{box-shadow:none;border:2px solid #38bdf8;}
-  .worker{width:100%;padding:8px 0;background:transparent;border:none;display:flex;justify-content:center;}
-  .worker button{width:48px;height:48px;padding:0;display:flex;align-items:center;justify-content:center;margin:0 auto;border-radius:14px;}
-  .worker button .nav-icon{width:auto;margin:0;}
+  .layout:not(.sidebar-expanded){grid-template-columns:78px 1fr;}
+  .layout:not(.sidebar-expanded) .sidebar{padding:20px 8px;align-items:center;}
+  .layout:not(.sidebar-expanded) .brand-text,
+  .layout:not(.sidebar-expanded) .nav-text,
+  .layout:not(.sidebar-expanded) .worker p,
+  .layout:not(.sidebar-expanded) .worker b,
+  .layout:not(.sidebar-expanded) .worker-btn-text{display:none;}
+  .layout:not(.sidebar-expanded) .brand{width:100%;padding:4px 0 16px;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+  .layout:not(.sidebar-expanded) .sidebar-toggle{position:static;margin:0 auto;}
+  .layout:not(.sidebar-expanded) .nav{width:100%;align-items:center;}
+  .layout:not(.sidebar-expanded) .nav button{justify-content:center;padding:0;width:48px;height:48px;gap:0;}
+  .layout:not(.sidebar-expanded) .nav button .nav-icon{width:auto;margin:0 auto;}
+  .layout:not(.sidebar-expanded) .nav button.active{box-shadow:none;border:2px solid #38bdf8;}
+  .layout:not(.sidebar-expanded) .worker{width:100%;padding:8px 0;background:transparent;border:none;display:flex;justify-content:center;}
+  .layout:not(.sidebar-expanded) .worker button{width:48px;height:48px;padding:0;display:flex;align-items:center;justify-content:center;margin:0 auto;border-radius:14px;}
+  .layout:not(.sidebar-expanded) .worker button .nav-icon{width:auto;margin:0;}
   .kpis{grid-template-columns:repeat(2,1fr);}
   .grid,.analysis{grid-template-columns:1fr;}
   .detail-dashboard-v2{grid-template-columns:1fr;}
@@ -865,6 +869,41 @@ window.addEventListener('resize', () => {
     if (btn) btn.innerText = '◀';
   }
 });
+
+function toggleSidebar() {
+  const layout = document.getElementById('dashboardLayout');
+  const btn = document.querySelector('.sidebar-toggle');
+  if (!layout) return;
+
+  const isAutoCollapsed = window.innerWidth <= 1200 && !layout.classList.contains('sidebar-expanded');
+  const isCollapsed = layout.classList.contains('collapsed') || isAutoCollapsed;
+
+  if (isCollapsed) {
+    layout.classList.remove('collapsed');
+    layout.classList.add('sidebar-expanded');
+  } else {
+    layout.classList.remove('sidebar-expanded');
+    layout.classList.add('collapsed');
+  }
+
+  if (btn) btn.innerText = isCollapsed ? '◀' : '▶';
+}
+
+function syncSidebarToggle() {
+  const layout = document.getElementById('dashboardLayout');
+  const btn = document.querySelector('.sidebar-toggle');
+  if (!layout || !btn) return;
+
+  if (window.innerWidth > 1200) {
+    layout.classList.remove('sidebar-expanded');
+  }
+
+  const isAutoCollapsed = window.innerWidth <= 1200 && !layout.classList.contains('sidebar-expanded');
+  btn.innerText = layout.classList.contains('collapsed') || isAutoCollapsed ? '▶' : '◀';
+}
+
+window.addEventListener('resize', syncSidebarToggle);
+window.addEventListener('DOMContentLoaded', syncSidebarToggle);
 
 function setFilter(f, btn) {
   filter = f;
