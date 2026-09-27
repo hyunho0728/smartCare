@@ -1128,6 +1128,7 @@ function renderOtherSections() {
   }
 
   const alertsTbody = document.getElementById('alerts-record-tbody');
+  const alertsHistoryTbody = document.getElementById('alerts-history-tbody');
   if (alertsTbody) {
     const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
     if (dangerList.length === 0) {
@@ -1142,6 +1143,29 @@ function renderOtherSections() {
           <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
         </tr>
       `).join('');
+    }
+
+    if (alertsHistoryTbody) {
+      if (dangerList.length === 0) {
+        alertsHistoryTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">확인이 필요한 알림 기록이 없습니다.</td></tr>';
+      } else {
+        alertsHistoryTbody.innerHTML = dangerList.map(u => {
+          const r = risk[u.risk] || risk.safe;
+          const latestAction = (u.action_history || [])[0];
+          const isHandled = Boolean(latestAction);
+
+          return `
+            <tr>
+              <td>${u.alert_time || '-'}</td>
+              <td><b>${u.name}</b></td>
+              <td><span class="badge ${r[1]}">${r[0]} (${u.score}점)</span></td>
+              <td><span class="badge ${isHandled ? 'b-green' : 'b-yellow'}">${isHandled ? '처리 완료' : '확인 필요'}</span></td>
+              <td>${latestAction ? latestAction.action_type : '-'}</td>
+              <td>${latestAction ? latestAction.action_time : '-'}</td>
+            </tr>
+          `;
+        }).join('');
+      }
     }
   }
 
