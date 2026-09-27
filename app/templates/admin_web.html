@@ -136,8 +136,10 @@
 .alert.blue{border-left-color:var(--blue)}
 .alert h4{display:flex;justify-content:space-between;font-size:14px;margin-bottom:7px}
 .alert p{font-size:13px;color:var(--muted);line-height:1.55}
-.chart{padding:20px 24px}
+.chart{padding:20px 24px;position:relative}
 .chart svg{width:100%;height:190px}
+.main-chart-labels{position:absolute;left:24px;right:24px;bottom:24px;height:14px;pointer-events:none;color:#8a95a6;font-size:12px}
+.main-chart-labels span{position:absolute;left:var(--x);white-space:nowrap}
 .analysis{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .analysis-box{border-left:5px solid var(--blue);background:#f8fbff;border-radius:0 18px 18px 0;padding:18px;margin-bottom:14px}
 .analysis-box.danger{border-left-color:var(--red);background:#fff6f6}
@@ -532,14 +534,16 @@
                   <polyline id="mainChartLine" points="0,150 700,150" fill="none" stroke="#2563eb" stroke-width="4" stroke-linejoin="round"/>
                   <polyline id="mainChartFill" points="0,150 700,150 700,210 0,210" fill="url(#mainChartGrad)"/>
                   <line id="mainChartTrend" x1="0" y1="150" x2="700" y2="150" stroke="#2563eb" stroke-width="2" stroke-dasharray="7 6"/>
-                  <text x="0" y="202" font-size="12" fill="#8a95a6">6일 전</text>
-                  <text x="112" y="202" font-size="12" fill="#8a95a6">5일 전</text>
-                  <text x="224" y="202" font-size="12" fill="#8a95a6">4일 전</text>
-                  <text x="336" y="202" font-size="12" fill="#8a95a6">3일 전</text>
-                  <text x="448" y="202" font-size="12" fill="#8a95a6">2일 전</text>
-                  <text x="560" y="202" font-size="12" fill="#8a95a6">어제</text>
-                  <text x="650" y="202" font-size="12" fill="#8a95a6">오늘</text>
                 </svg>
+                <div class="main-chart-labels" aria-hidden="true">
+                  <span style="--x:0%">6일 전</span>
+                  <span style="--x:16%">5일 전</span>
+                  <span style="--x:32%">4일 전</span>
+                  <span style="--x:48%">3일 전</span>
+                  <span style="--x:64%">2일 전</span>
+                  <span style="--x:80%">어제</span>
+                  <span style="--x:92.86%">오늘</span>
+                </div>
               </div>
             </div>
           </div>
