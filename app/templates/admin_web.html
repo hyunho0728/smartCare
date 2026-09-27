@@ -1210,6 +1210,8 @@ function nav(id, btn) {
   document.getElementById('pageTitle').innerText = btn.innerText.replace(/[^가-힣\s]/g, '').trim();
   const desc = document.getElementById('pageDesc');
   if (desc) desc.innerText = descriptions[id] || '';
+  const search = document.getElementById('search');
+  if (search) search.style.display = id === 'live' ? '' : 'none';
 
   sessionStorage.setItem('activeTab', id);
 
