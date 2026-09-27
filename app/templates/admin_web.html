@@ -68,6 +68,7 @@
 .b-blue{background:#dbeafe;color:#1d4ed8}
 .b-green{background:#dcfce7;color:#15803d}
 .b-yellow{background:#fef3c7;color:#92400e}
+.b-orange{background:#ffedd5;color:#c2410c}
 .b-red{background:#fee2e2;color:#b91c1c}
 .grid{display:grid;grid-template-columns:1.45fr .85fr;gap:20px}
 .panel{background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.92);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
@@ -576,11 +577,11 @@
       <section class="page" id="analysis">
         <div class="analysis">
           <div class="panel" style="padding:24px">
-            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>AI 생활 패턴 분석</h3></div>
+            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>생활 패턴 분석</h3></div>
             <div id="ai-analysis-list"><p style="color:var(--muted);font-size:14px;">등록된 분석 기록이 없습니다.</p></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>AI 예측 위험도</h3></div>
+            <div class="panel-head"><h3>예측 위험도</h3></div>
             <table class="table">
               <thead><tr><th>어르신</th><th>상태 레벨</th><th>식사 상태</th><th>예측 위험도</th></tr></thead>
               <tbody id="ai-risk-tbody"></tbody>
@@ -832,8 +833,8 @@ let unassignedUsers = [];
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
-  watch: ['주의', 'b-yellow', '#f97316'],
-  warn: ['경고', 'b-yellow', '#eab308'],
+  watch: ['주의', 'b-yellow', '#eab308'],
+  warn: ['경고', 'b-orange', '#f97316'],
   danger: ['위험', 'b-red', '#ef4444']
 };
 const emoji = ['', '😫', '😟', '😐', '😊', '😄'];
@@ -1189,7 +1190,7 @@ function nav(id, btn) {
   const descriptions = {
     live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
     elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
-    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 AI 분석 결과와 예측 위험도를 확인합니다.',
+    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 분석 결과와 예측 위험도를 확인합니다.',
     alerts: '이상 징후 알림 발생 내역과 사회복지사의 조치 결과를 기록하고 관리합니다.',
     match: '미배정된 어르신을 선택하여 담당으로 배정합니다.'
   };
