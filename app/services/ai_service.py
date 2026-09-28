@@ -189,7 +189,7 @@ def analyze_checkup_document_with_gemini(image_path):
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-3.8-flash',
                 contents=[prompt, image_part]
             )
             return response.text
