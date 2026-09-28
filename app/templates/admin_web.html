@@ -847,6 +847,7 @@
 <script>
 let users = [];
 let unassignedUsers = [];
+let alertHistory = [];
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
@@ -1054,6 +1055,7 @@ async function loadEldersData() {
     if (result.success) {
       users = result.data || [];
       unassignedUsers = result.unassigned || [];
+      alertHistory = result.alert_history || [];
       console.log('서버에서 받은 어르신 데이터: ', users); // 삭제
 
       updateKPIs();
@@ -1182,13 +1184,12 @@ function renderOtherSections() {
   const alertsTbody = document.getElementById('alerts-record-tbody');
   const alertsHistoryTbody = document.getElementById('alerts-history-tbody');
   if (alertsTbody) {
-    const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
-    if (dangerList.length === 0) {
+    const recentAlertList = users.filter(u => ['safe', 'watch', 'warn', 'danger'].includes(u.risk));
+    if (recentAlertList.length === 0) {
       const emptyAlertHtml = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">확인이 필요한 위험 알림이 없습니다.</td></tr>';
       alertsTbody.innerHTML = emptyAlertHtml;
-      if (alertsHistoryTbody) alertsHistoryTbody.innerHTML = emptyAlertHtml;
     } else {
-      const alertRowsHtml = dangerList.map(u => `
+      const alertRowsHtml = recentAlertList.map(u => `
         <tr>
           <td>${u.alert_time || '-'}</td>
           <td><b>${u.name}</b></td>
@@ -1199,7 +1200,23 @@ function renderOtherSections() {
         </tr>
       `).join('');
       alertsTbody.innerHTML = alertRowsHtml;
-      if (alertsHistoryTbody) alertsHistoryTbody.innerHTML = alertRowsHtml;
+    }
+
+    if (alertsHistoryTbody) {
+      if (!alertHistory || alertHistory.length === 0) {
+        alertsHistoryTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">저장된 알림 기록이 없습니다.</td></tr>';
+      } else {
+        alertsHistoryTbody.innerHTML = alertHistory.map(u => `
+          <tr>
+            <td>${u.alert_time || '-'}</td>
+            <td><b>${u.name}</b></td>
+            <td>${u.phone}</td>
+            <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
+            <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">상태 확인</span>'}</td>
+            <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
+          </tr>
+        `).join('');
+      }
     }
   }
 

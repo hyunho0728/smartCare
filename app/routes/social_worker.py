@@ -254,10 +254,37 @@ def api_get_elders():
     assigned_list = [process_elder_data(u) for u in assigned_users]
     unassigned_list = [process_elder_data(u) for u in unassigned_users]
 
+    alert_history = []
+    if current_worker_id:
+        alert_records = RiskAnalysis.query.join(
+            User, RiskAnalysis.user_id == User.user_id
+        ).filter(
+            User.worker_id == current_worker_id,
+            User.is_active.is_(True),
+            RiskAnalysis.risk_level.in_(("SAFE", "WATCH", "WARN", "DANGER"))
+        ).order_by(
+            RiskAnalysis.analyzed_at.desc()
+        ).limit(100).all()
+
+        for record in alert_records:
+            user = User.query.get(record.user_id)
+            alert_history.append({
+                "id": record.user_id,
+                "name": user.name if user else "-",
+                "phone": format_phone_display(user.phone_number) if user else "-",
+                "risk": record.risk_level.lower(),
+                "score": float(record.risk_score),
+                "alert_time": (
+                    record.analyzed_at.strftime("%Y-%m-%d %H:%M")
+                    if record.analyzed_at else "-"
+                )
+            })
+
     return jsonify({
         "success": True, 
         "data": assigned_list,
-        "unassigned": unassigned_list
+        "unassigned": unassigned_list,
+        "alert_history": alert_history
     })
 
 @worker_bp.route('/api/admin/elders/assign', methods=['POST'])
