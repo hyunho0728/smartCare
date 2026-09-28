@@ -5,7 +5,7 @@ import secrets
 import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
 from models.models import db, User, HealthStatus, LoginHistory, RiskAnalysis, CheckupDocument
-from services.ai_service import evaluate_and_record_risk
+from app.services.social_worker_ai_service import evaluate_and_record_risk
 
 user_bp = Blueprint('user', __name__)
 
