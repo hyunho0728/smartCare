@@ -430,21 +430,27 @@
     <aside class="sidebar" id="mainSidebar">
       <div class="brand">
         <div class="brand-mark">❤</div>
-        <div class="brand-text"><h2>CareLink<br>Pro</h2><span>사회복지사 관제센터</span></div>
+        <div class="brand-text"><h2>CareLink<br></h2><span>사회복지사 관제센터</span></div>
         <button class="sidebar-toggle" onclick="toggleSidebar()" title="사이드바 접기/펼치기">◀</button>
       </div>
       <nav class="nav">
-        <button class="active" onclick="nav('live',this)"><span class="nav-icon">📊</span><span class="nav-text">실시간 현황판</span></button>
-        <button onclick="nav('elder',this)"><span class="nav-icon">👵</span><span class="nav-text">담당 어르신 계정</span></button>
-        <button onclick="nav('analysis',this)"><span class="nav-icon">📈</span><span class="nav-text">건강 분석 리포트</span></button>
-        <button onclick="nav('alerts',this)"><span class="nav-icon">🔔</span><span class="nav-text">알림 및 기록 관리</span></button>
-        <button onclick="nav('match',this)"><span class="nav-icon">🔗</span><span class="nav-text">담당자 배정</span></button>
+        <button class="active" onclick="nav('live',this)"><span class="nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.67 4.67 4 5.5 4h13c.83 0 1.5.67 1.5 1.5v8c0 .83-.67 1.5-1.5 1.5h-13c-.83 0-1.5-.67-1.5-1.5v-8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 20h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 15v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11l2.4-2.4 2.1 2.1L16 7.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nav-text">실시간 현황판</span></button>
+        <button onclick="nav('elder',this)"><span class="nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c.72-3.6 3.45-5.5 7.5-5.5s6.78 1.9 7.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8.8 8.2h6.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 6.4c.75-1.1 1.75-1.65 3-1.65s2.25.55 3 1.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="nav-text">담당 어르신 계정</span></button>
+        <button onclick="nav('analysis',this)"><span class="nav-icon" aria-hidden="true"><img src="https://img.icons8.com/?size=100&amp;id=7964&amp;format=png&amp;color=FFFFFF" alt="" style="width:20px;height:20px;display:block;"></span><span class="nav-text">건강 분석 리포트</span></button>
+        <button onclick="nav('alerts',this)"><span class="nav-icon" aria-hidden="true"><img src="https://img.icons8.com/?size=100&amp;id=nJRLlq8KqcX5&amp;format=png&amp;color=FFFFFF" alt="" style="width:20px;height:20px;display:block;"></span><span class="nav-text">알림 및 기록 관리</span></button>
+        <button onclick="nav('match',this)"><span class="nav-icon" aria-hidden="true"><img src="https://img.icons8.com/?size=100&amp;id=7867&amp;format=png&amp;color=FFFFFF" alt="" style="width:20px;height:20px;display:block;"></span><span class="nav-text">담당자 배정</span></button>
       </nav>
       <div class="worker">
         <b>사회복지사</b>
         <p>담당 구역<br>실시간 모니터링</p>
         <button class="btn soft" style="width:100%;margin-top:10px" onclick="logout()">
-          <span class="nav-icon" style="display:inline-block;">🚪</span><span class="worker-btn-text">로그아웃</span>
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M9 5H6.5C5.67 5 5 5.67 5 6.5v11c0 .83.67 1.5 1.5 1.5H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M15 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M19 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span><span class="worker-btn-text">로그아웃</span>
         </button>
       </div>
     </aside>
