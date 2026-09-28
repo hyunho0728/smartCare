@@ -1136,6 +1136,11 @@ function recommendedActionHtml(riskCode) {
   return '<span class="badge b-green">상태 유지</span>';
 }
 
+function alertActionButtonHtml(u) {
+  if (u.risk === 'safe') return '-';
+  return `<button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button>`;
+}
+
 function renderOtherSections() {
   const elderTbody = document.getElementById('elder-manage-tbody');
   if (elderTbody) {
@@ -1203,7 +1208,7 @@ function renderOtherSections() {
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
           <td>${recommendedActionHtml(u.risk)}</td>
-          <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
+          <td>${alertActionButtonHtml(u)}</td>
         </tr>
       `).join('');
       alertsTbody.innerHTML = alertRowsHtml;
@@ -1220,7 +1225,7 @@ function renderOtherSections() {
             <td>${u.phone}</td>
             <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
             <td>${recommendedActionHtml(u.risk)}</td>
-            <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
+            <td>${alertActionButtonHtml(u)}</td>
           </tr>
         `).join('');
       }
