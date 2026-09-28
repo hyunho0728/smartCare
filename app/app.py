@@ -2,6 +2,7 @@ import os
 import urllib.parse
 import datetime
 import subprocess
+import shutil
 import threading
 import time
 from flask import Flask, render_template, request, session, redirect
@@ -145,17 +146,28 @@ def start_localtunnel():
     if os.environ.get("WERKZEUG_RUN_MAIN") == "true":
         time.sleep(2.0)
         try:
-            cmd = ["lt", "--port", "5000", "--print-uri"]
+            lt_path = shutil.which("lt")
+            if not lt_path:
+                print("\n" + "=" * 65)
+                print("[Localtunnel 실행 불가]")
+                print("lt 명령을 찾을 수 없습니다.")
+                print("Node.js 설치 후 다음 명령으로 localtunnel을 설치하세요:")
+                print("npm install -g localtunnel")
+                print("=" * 65 + "\n")
+                return
+
+            cmd = [lt_path, "--port", "5000", "--print-uri"]
             env = os.environ.copy()
             env["PYTHONUNBUFFERED"] = "1"
             
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env, shell=True)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, env=env)
             
             print("\n" + "=" * 65)
             print("[Localtunnel 시작 중...]")
             print("=" * 65)
             
             for line in process.stdout:
+                print(line.rstrip())
                 if "https://" in line:
                     url = line.strip()
                     print(f"\n외부 접속 주소 생성 성공!")

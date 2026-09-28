@@ -57,17 +57,19 @@
 .icon-alert:after{content:'';position:absolute;top:9px;right:10px;width:9px;height:9px;background:var(--red);border-radius:50%}
 .page{display:none}
 .page.active{display:block}
-.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:18px;margin-bottom:22px}
-.kpi{background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.85);border-radius:24px;padding:22px;box-shadow:var(--soft);position:relative;overflow:hidden}
-.kpi:after{content:'';position:absolute;right:-28px;top:-28px;width:90px;height:90px;border-radius:50%;background:rgba(37,99,235,.08)}
-.kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:18px}
-.kpi-icon{width:50px;height:50px;border-radius:18px;display:flex;align-items:center;justify-content:center;font-size:25px}
-.kpi strong{font-size:32px}
-.kpi p{color:var(--muted);font-size:13px;margin-top:4px}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
+.kpi{background:rgba(255,255,255,.88);border:1px solid rgba(255,255,255,.85);border-radius:18px;padding:14px 16px;box-shadow:var(--soft);position:relative;overflow:hidden}
+.kpi:after{content:'';position:absolute;right:-22px;top:-22px;width:68px;height:68px;border-radius:50%;background:rgba(37,99,235,.08)}
+.kpi-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:9px}
+.kpi-icon{width:38px;height:38px;border-radius:13px;display:flex;align-items:center;justify-content:center;font-size:19px}
+.kpi strong{font-size:25px;line-height:1}
+.kpi p{color:var(--muted);font-size:12px;margin-top:3px}
+.kpi .badge{padding:5px 8px;font-size:11px}
 .badge{display:inline-flex;align-items:center;gap:5px;padding:7px 11px;border-radius:999px;font-size:12px;font-weight:900;white-space:nowrap;}
 .b-blue{background:#dbeafe;color:#1d4ed8}
 .b-green{background:#dcfce7;color:#15803d}
 .b-yellow{background:#fef3c7;color:#92400e}
+.b-orange{background:#ffedd5;color:#c2410c}
 .b-red{background:#fee2e2;color:#b91c1c}
 .grid{display:grid;grid-template-columns:1.45fr .85fr;gap:20px}
 .panel{background:rgba(255,255,255,.92);border:1px solid rgba(255,255,255,.92);border-radius:24px;box-shadow:var(--shadow);overflow:hidden;margin-bottom:20px}
@@ -135,8 +137,10 @@
 .alert.blue{border-left-color:var(--blue)}
 .alert h4{display:flex;justify-content:space-between;font-size:14px;margin-bottom:7px}
 .alert p{font-size:13px;color:var(--muted);line-height:1.55}
-.chart{padding:20px 24px}
+.chart{padding:20px 24px;position:relative}
 .chart svg{width:100%;height:190px}
+.main-chart-labels{position:absolute;left:24px;right:24px;bottom:24px;height:14px;pointer-events:none;color:#8a95a6;font-size:12px}
+.main-chart-labels span{position:absolute;left:var(--x);white-space:nowrap}
 .analysis{display:grid;grid-template-columns:1fr 1fr;gap:20px}
 .analysis-box{border-left:5px solid var(--blue);background:#f8fbff;border-radius:0 18px 18px 0;padding:18px;margin-bottom:14px}
 .analysis-box.danger{border-left-color:var(--red);background:#fff6f6}
@@ -311,19 +315,30 @@
 
 /* 미디어 쿼리: 창 너비 축소 시 자동 접힘 및 아이콘 중앙 정렬 */
 @media(max-width:1200px){
-  .layout{grid-template-columns:78px 1fr;}
-  .sidebar{padding:20px 8px;align-items:center;}
-  .brand-text, .nav-text, .worker p, .worker b, .worker-btn-text{display:none;}
-  .brand{width:100%;padding:4px 0 16px;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
-  .sidebar-toggle{position:static;margin:0 auto;}
-  .nav{width:100%;align-items:center;}
-  .nav button{justify-content:center;padding:0;width:48px;height:48px;gap:0;}
-  .nav button .nav-icon{width:auto;margin:0 auto;}
-  .nav button.active{box-shadow:none;border:2px solid #38bdf8;}
-  .worker{width:100%;padding:8px 0;background:transparent;border:none;display:flex;justify-content:center;}
-  .worker button{width:48px;height:48px;padding:0;display:flex;align-items:center;justify-content:center;margin:0 auto;border-radius:14px;}
-  .worker button .nav-icon{width:auto;margin:0;}
-  .kpis{grid-template-columns:repeat(2,1fr);}
+  .layout:not(.sidebar-expanded){grid-template-columns:78px 1fr;}
+  .layout:not(.sidebar-expanded) .sidebar{padding:20px 8px;align-items:center;}
+  .layout:not(.sidebar-expanded) .brand-text,
+  .layout:not(.sidebar-expanded) .nav-text,
+  .layout:not(.sidebar-expanded) .worker p,
+  .layout:not(.sidebar-expanded) .worker b,
+  .layout:not(.sidebar-expanded) .worker-btn-text{display:none;}
+  .layout:not(.sidebar-expanded) .brand{width:100%;padding:4px 0 16px;flex-direction:column;align-items:center;justify-content:center;gap:10px;}
+  .layout:not(.sidebar-expanded) .sidebar-toggle{position:static;margin:0 auto;}
+  .layout:not(.sidebar-expanded) .nav{width:100%;align-items:center;}
+  .layout:not(.sidebar-expanded) .nav button{justify-content:center;padding:0;width:48px;height:48px;gap:0;}
+  .layout:not(.sidebar-expanded) .nav button .nav-icon{width:auto;margin:0 auto;}
+  .layout:not(.sidebar-expanded) .nav button.active{box-shadow:none;border:2px solid #38bdf8;}
+  .layout:not(.sidebar-expanded) .worker{width:100%;padding:8px 0;background:transparent;border:none;display:flex;justify-content:center;}
+  .layout:not(.sidebar-expanded) .worker button{width:48px;height:48px;padding:0;display:flex;align-items:center;justify-content:center;margin:0 auto;border-radius:14px;}
+  .layout:not(.sidebar-expanded) .worker button .nav-icon{width:auto;margin:0;}
+  .kpis{grid-template-columns:repeat(4,minmax(0,1fr));gap:8px;margin-bottom:12px;}
+  .kpi{border-radius:14px;padding:10px 11px;}
+  .kpi:after{right:-18px;top:-18px;width:54px;height:54px;}
+  .kpi-top{margin-bottom:7px;}
+  .kpi-icon{width:30px;height:30px;border-radius:10px;font-size:15px;}
+  .kpi strong{font-size:21px;}
+  .kpi p{font-size:11px;margin-top:2px;white-space:nowrap;}
+  .kpi .badge{padding:4px 6px;font-size:10px;}
   .grid,.analysis{grid-template-columns:1fr;}
   .detail-dashboard-v2{grid-template-columns:1fr;}
   .quick-grid-v2{grid-template-columns:1fr;}
@@ -531,14 +546,16 @@
                   <polyline id="mainChartLine" points="0,150 700,150" fill="none" stroke="#2563eb" stroke-width="4" stroke-linejoin="round"/>
                   <polyline id="mainChartFill" points="0,150 700,150 700,210 0,210" fill="url(#mainChartGrad)"/>
                   <line id="mainChartTrend" x1="0" y1="150" x2="700" y2="150" stroke="#2563eb" stroke-width="2" stroke-dasharray="7 6"/>
-                  <text x="0" y="202" font-size="12" fill="#8a95a6">6일 전</text>
-                  <text x="112" y="202" font-size="12" fill="#8a95a6">5일 전</text>
-                  <text x="224" y="202" font-size="12" fill="#8a95a6">4일 전</text>
-                  <text x="336" y="202" font-size="12" fill="#8a95a6">3일 전</text>
-                  <text x="448" y="202" font-size="12" fill="#8a95a6">2일 전</text>
-                  <text x="560" y="202" font-size="12" fill="#8a95a6">어제</text>
-                  <text x="650" y="202" font-size="12" fill="#8a95a6">오늘</text>
                 </svg>
+                <div class="main-chart-labels" aria-hidden="true">
+                  <span style="--x:0%">6일 전</span>
+                  <span style="--x:16%">5일 전</span>
+                  <span style="--x:32%">4일 전</span>
+                  <span style="--x:48%">3일 전</span>
+                  <span style="--x:64%">2일 전</span>
+                  <span style="--x:80%">어제</span>
+                  <span style="--x:92.86%">오늘</span>
+                </div>
               </div>
             </div>
           </div>
@@ -576,11 +593,11 @@
       <section class="page" id="analysis">
         <div class="analysis">
           <div class="panel" style="padding:24px">
-            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>AI 생활 패턴 분석</h3></div>
+            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>생활 패턴 분석</h3></div>
             <div id="ai-analysis-list"><p style="color:var(--muted);font-size:14px;">등록된 분석 기록이 없습니다.</p></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>AI 예측 위험도</h3></div>
+            <div class="panel-head"><h3>예측 위험도</h3></div>
             <table class="table">
               <thead><tr><th>어르신</th><th>상태 레벨</th><th>식사 상태</th><th>예측 위험도</th></tr></thead>
               <tbody id="ai-risk-tbody"></tbody>
@@ -633,6 +650,7 @@
             <table class="table">
               <thead>
                 <tr>
+                  <th>발생 일시</th>
                   <th>대상자</th>
                   <th>연락처</th>
                   <th>위험 단계</th>
@@ -655,10 +673,10 @@
                 <tr>
                   <th>발생 일시</th>
                   <th>대상자</th>
-                  <th>알림 유형</th>
-                  <th>처리 상태</th>
-                  <th>조치 유형</th>
-                  <th>조치 일시</th>
+                  <th>연락처</th>
+                  <th>위험 단계</th>
+                  <th>권장 조치</th>
+                  <th>조치</th>
                 </tr>
               </thead>
 
@@ -832,8 +850,8 @@ let unassignedUsers = [];
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
-  watch: ['주의', 'b-yellow', '#f97316'],
-  warn: ['경고', 'b-yellow', '#eab308'],
+  watch: ['주의', 'b-yellow', '#eab308'],
+  warn: ['경고', 'b-orange', '#f97316'],
   danger: ['위험', 'b-red', '#ef4444']
 };
 const emoji = ['', '😫', '😟', '😐', '😊', '😄'];
@@ -859,6 +877,41 @@ window.addEventListener('resize', () => {
     if (btn) btn.innerText = '◀';
   }
 });
+
+function toggleSidebar() {
+  const layout = document.getElementById('dashboardLayout');
+  const btn = document.querySelector('.sidebar-toggle');
+  if (!layout) return;
+
+  const isAutoCollapsed = window.innerWidth <= 1200 && !layout.classList.contains('sidebar-expanded');
+  const isCollapsed = layout.classList.contains('collapsed') || isAutoCollapsed;
+
+  if (isCollapsed) {
+    layout.classList.remove('collapsed');
+    layout.classList.add('sidebar-expanded');
+  } else {
+    layout.classList.remove('sidebar-expanded');
+    layout.classList.add('collapsed');
+  }
+
+  if (btn) btn.innerText = isCollapsed ? '◀' : '▶';
+}
+
+function syncSidebarToggle() {
+  const layout = document.getElementById('dashboardLayout');
+  const btn = document.querySelector('.sidebar-toggle');
+  if (!layout || !btn) return;
+
+  if (window.innerWidth > 1200) {
+    layout.classList.remove('sidebar-expanded');
+  }
+
+  const isAutoCollapsed = window.innerWidth <= 1200 && !layout.classList.contains('sidebar-expanded');
+  btn.innerText = layout.classList.contains('collapsed') || isAutoCollapsed ? '▶' : '◀';
+}
+
+window.addEventListener('resize', syncSidebarToggle);
+window.addEventListener('DOMContentLoaded', syncSidebarToggle);
 
 function setFilter(f, btn) {
   filter = f;
@@ -1127,13 +1180,17 @@ function renderOtherSections() {
   }
 
   const alertsTbody = document.getElementById('alerts-record-tbody');
+  const alertsHistoryTbody = document.getElementById('alerts-history-tbody');
   if (alertsTbody) {
     const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
     if (dangerList.length === 0) {
-      alertsTbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:20px;color:var(--muted)">확인이 필요한 위험 알림이 없습니다.</td></tr>';
+      const emptyAlertHtml = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">확인이 필요한 위험 알림이 없습니다.</td></tr>';
+      alertsTbody.innerHTML = emptyAlertHtml;
+      if (alertsHistoryTbody) alertsHistoryTbody.innerHTML = emptyAlertHtml;
     } else {
-      alertsTbody.innerHTML = dangerList.map(u => `
+      const alertRowsHtml = dangerList.map(u => `
         <tr>
+          <td>${u.alert_time || '-'}</td>
           <td><b>${u.name}</b></td>
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
@@ -1141,6 +1198,8 @@ function renderOtherSections() {
           <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
         </tr>
       `).join('');
+      alertsTbody.innerHTML = alertRowsHtml;
+      if (alertsHistoryTbody) alertsHistoryTbody.innerHTML = alertRowsHtml;
     }
   }
 
@@ -1189,7 +1248,7 @@ function nav(id, btn) {
   const descriptions = {
     live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
     elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
-    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 AI 분석 결과와 예측 위험도를 확인합니다.',
+    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 분석 결과와 예측 위험도를 확인합니다.',
     alerts: '이상 징후 알림 발생 내역과 사회복지사의 조치 결과를 기록하고 관리합니다.',
     match: '미배정된 어르신을 선택하여 담당으로 배정합니다.'
   };
@@ -1202,6 +1261,8 @@ function nav(id, btn) {
   document.getElementById('pageTitle').innerText = btn.innerText.replace(/[^가-힣\s]/g, '').trim();
   const desc = document.getElementById('pageDesc');
   if (desc) desc.innerText = descriptions[id] || '';
+  const search = document.getElementById('search');
+  if (search) search.style.display = id === 'live' ? '' : 'none';
 
   sessionStorage.setItem('activeTab', id);
 
@@ -1564,10 +1625,9 @@ function renderTable(){
               </div>
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
-                <h4>🤖 AI 생활 패턴 및 건강검진표 분석</h4>
+                <h4>🤖 AI 건강검진표 분석</h4>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
                 <div class="ai-actions-v2">
-                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}')">조치 결과 작성</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
               </div>
@@ -1575,6 +1635,7 @@ function renderTable(){
 
                 <div class="action-history-head-v2">
                   <h4>📋 최근 조치 기록</h4>
+                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}')">조치 결과 작성</button>
                 </div>
 
                 <div class="action-history-list-v2">

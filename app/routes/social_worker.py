@@ -186,6 +186,7 @@ def api_get_elders():
 
         recent_risks = RiskAnalysis.query.filter_by(user_id=u.user_id)\
             .order_by(RiskAnalysis.analyzed_at.asc()).all()
+        latest_risk = recent_risks[-1] if recent_risks else None
         chart_points = generate_svg_chart_points([float(r.risk_score) for r in recent_risks])
 
         checkup_docs = CheckupDocument.query.filter_by(user_id=u.user_id)\
@@ -239,6 +240,7 @@ def api_get_elders():
             "score": risk_score,
             "score_breakdown": score_breakdown,
             "risk": risk_level,
+            "alert_time": latest_risk.analyzed_at.strftime("%Y-%m-%d %H:%M") if latest_risk and latest_risk.analyzed_at else "-",
             "last": display_last_time,
             "lastInput": last_input_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
