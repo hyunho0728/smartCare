@@ -1129,6 +1129,13 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
+function recommendedActionHtml(riskCode) {
+  if (riskCode === 'danger') return '<span class="badge b-red">즉시 방문/전화</span>';
+  if (riskCode === 'warn') return '<span class="badge b-orange">안부 전화</span>';
+  if (riskCode === 'watch') return '<span class="badge b-yellow">상태 확인</span>';
+  return '<span class="badge b-green">상태 유지</span>';
+}
+
 function renderOtherSections() {
   const elderTbody = document.getElementById('elder-manage-tbody');
   if (elderTbody) {
@@ -1195,7 +1202,7 @@ function renderOtherSections() {
           <td><b>${u.name}</b></td>
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-          <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">안부 전화</span>'}</td>
+          <td>${recommendedActionHtml(u.risk)}</td>
           <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
         </tr>
       `).join('');
@@ -1212,7 +1219,7 @@ function renderOtherSections() {
             <td><b>${u.name}</b></td>
             <td>${u.phone}</td>
             <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-            <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">상태 확인</span>'}</td>
+            <td>${recommendedActionHtml(u.risk)}</td>
             <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
           </tr>
         `).join('');
