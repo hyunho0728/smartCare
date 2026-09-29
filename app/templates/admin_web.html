@@ -27,6 +27,10 @@
 .worker{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.08);border-radius:18px;padding:16px;margin-top:auto;}
 .worker b{display:block;margin-bottom:4px;font-size:14px;white-space:nowrap;}
 .worker p{font-size:12px;color:#b8c4d8;line-height:1.5;white-space:nowrap;}
+.worker button{display:flex;align-items:center;justify-content:center;gap:8px;}
+.worker button .nav-icon{width:24px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.worker button .nav-icon svg{display:block;}
+.worker-btn-text{line-height:1;}
 
 /* 사이드바 접힘(Collapsed) 상태 스타일 */
 .layout.collapsed{grid-template-columns:78px 1fr;}
@@ -430,21 +434,27 @@
     <aside class="sidebar" id="mainSidebar">
       <div class="brand">
         <div class="brand-mark">❤</div>
-        <div class="brand-text"><h2>CareLink<br>Pro</h2><span>사회복지사 관제센터</span></div>
+        <div class="brand-text"><h2>CareLink<br></h2><span>사회복지사 관제센터</span></div>
         <button class="sidebar-toggle" onclick="toggleSidebar()" title="사이드바 접기/펼치기">◀</button>
       </div>
       <nav class="nav">
-        <button class="active" onclick="nav('live',this)"><span class="nav-icon">📊</span><span class="nav-text">실시간 현황판</span></button>
-        <button onclick="nav('elder',this)"><span class="nav-icon">👵</span><span class="nav-text">담당 어르신 계정</span></button>
-        <button onclick="nav('analysis',this)"><span class="nav-icon">📈</span><span class="nav-text">건강 분석 리포트</span></button>
-        <button onclick="nav('alerts',this)"><span class="nav-icon">🔔</span><span class="nav-text">알림 및 기록 관리</span></button>
-        <button onclick="nav('match',this)"><span class="nav-icon">🔗</span><span class="nav-text">담당자 배정</span></button>
+        <button class="active" onclick="nav('live',this)"><span class="nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M4 5.5C4 4.67 4.67 4 5.5 4h13c.83 0 1.5.67 1.5 1.5v8c0 .83-.67 1.5-1.5 1.5h-13c-.83 0-1.5-.67-1.5-1.5v-8Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 20h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M12 15v5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8 11l2.4-2.4 2.1 2.1L16 7.2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="nav-text">실시간 현황판</span></button>
+        <button onclick="nav('elder',this)"><span class="nav-icon" aria-hidden="true"><svg width="20" height="20" viewBox="0 0 24 24" fill="none"><path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z" stroke="currentColor" stroke-width="2"/><path d="M4.5 20c.72-3.6 3.45-5.5 7.5-5.5s6.78 1.9 7.5 5.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M8.8 8.2h6.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 6.4c.75-1.1 1.75-1.65 3-1.65s2.25.55 3 1.65" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg></span><span class="nav-text">담당 어르신 계정</span></button>
+        <button onclick="nav('analysis',this)"><span class="nav-icon" aria-hidden="true"><img src="https://img.icons8.com/?size=100&amp;id=7964&amp;format=png&amp;color=FFFFFF" alt="" style="width:20px;height:20px;display:block;"></span><span class="nav-text">건강 분석 리포트</span></button>
+        <button onclick="nav('alerts',this)"><span class="nav-icon" aria-hidden="true"><img src="https://img.icons8.com/?size=100&amp;id=nJRLlq8KqcX5&amp;format=png&amp;color=FFFFFF" alt="" style="width:20px;height:20px;display:block;"></span><span class="nav-text">알림 및 기록 관리</span></button>
+        <button onclick="nav('match',this)"><span class="nav-icon" aria-hidden="true"><img src="https://img.icons8.com/?size=100&amp;id=7867&amp;format=png&amp;color=FFFFFF" alt="" style="width:20px;height:20px;display:block;"></span><span class="nav-text">담당자 배정</span></button>
       </nav>
       <div class="worker">
         <b>사회복지사</b>
         <p>담당 구역<br>실시간 모니터링</p>
         <button class="btn soft" style="width:100%;margin-top:10px" onclick="logout()">
-          <span class="nav-icon" style="display:inline-block;">🚪</span><span class="worker-btn-text">로그아웃</span>
+          <span class="nav-icon" aria-hidden="true">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+              <path d="M9 5H6.5C5.67 5 5 5.67 5 6.5v11c0 .83.67 1.5 1.5 1.5H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              <path d="M15 8l4 4-4 4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M19 12H9" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+            </svg>
+          </span><span class="worker-btn-text">로그아웃</span>
         </button>
       </div>
     </aside>
@@ -516,7 +526,7 @@
               </div>
               <table class="table">
                 <thead>
-                  <tr><th>이름</th><th>나이</th><th>건강 위험도</th><th>오늘 상태</th><th>마지막 접속</th><th>관리</th></tr>
+                  <tr><th>이름</th><th>나이</th><th>건강 위험도</th><th>최근 상태</th><th>마지막 접속</th><th>관리</th></tr>
                 </thead>
                 <tbody id="tbody"></tbody>
               </table>
@@ -599,7 +609,7 @@
           <div class="panel">
             <div class="panel-head"><h3>예측 위험도</h3></div>
             <table class="table">
-              <thead><tr><th>어르신</th><th>상태 레벨</th><th>식사 상태</th><th>예측 위험도</th></tr></thead>
+              <thead><tr><th>어르신</th><th>최근 상태</th><th>식사 상태</th><th>예측 위험도</th></tr></thead>
               <tbody id="ai-risk-tbody"></tbody>
             </table>
           </div>
@@ -847,6 +857,7 @@
 <script>
 let users = [];
 let unassignedUsers = [];
+let alertHistory = [];
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
@@ -1054,6 +1065,7 @@ async function loadEldersData() {
     if (result.success) {
       users = result.data || [];
       unassignedUsers = result.unassigned || [];
+      alertHistory = result.alert_history || [];
       console.log('서버에서 받은 어르신 데이터: ', users); // 삭제
 
       updateKPIs();
@@ -1127,6 +1139,18 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
+function recommendedActionHtml(riskCode) {
+  if (riskCode === 'danger') return '<span class="badge b-red">즉시 방문/전화</span>';
+  if (riskCode === 'warn') return '<span class="badge b-orange">안부 전화</span>';
+  if (riskCode === 'watch') return '<span class="badge b-yellow">상태 확인</span>';
+  return '<span class="badge b-green">상태 유지</span>';
+}
+
+function alertActionButtonHtml(u) {
+  if (u.risk === 'safe') return '-';
+  return `<button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button>`;
+}
+
 function renderOtherSections() {
   const elderTbody = document.getElementById('elder-manage-tbody');
   if (elderTbody) {
@@ -1168,10 +1192,11 @@ function renderOtherSections() {
         </div>
       `).join('');
 
+      const healthLabels = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'];
       aiRiskTbody.innerHTML = users.map(u => `
         <tr>
           <td><b>${u.name}</b></td>
-          <td>${u.health ? u.health + '단계' : '미입력'}</td>
+          <td>${healthLabels[u.health] || '미입력'}</td>
           <td>${u.meal || '미입력'}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'} (${u.score}점)</span></td>
         </tr>
@@ -1182,24 +1207,39 @@ function renderOtherSections() {
   const alertsTbody = document.getElementById('alerts-record-tbody');
   const alertsHistoryTbody = document.getElementById('alerts-history-tbody');
   if (alertsTbody) {
-    const dangerList = users.filter(u => u.risk === 'danger' || u.risk === 'warn');
-    if (dangerList.length === 0) {
+    const recentAlertList = users.filter(u => ['safe', 'watch', 'warn', 'danger'].includes(u.risk));
+    if (recentAlertList.length === 0) {
       const emptyAlertHtml = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">확인이 필요한 위험 알림이 없습니다.</td></tr>';
       alertsTbody.innerHTML = emptyAlertHtml;
-      if (alertsHistoryTbody) alertsHistoryTbody.innerHTML = emptyAlertHtml;
     } else {
-      const alertRowsHtml = dangerList.map(u => `
+      const alertRowsHtml = recentAlertList.map(u => `
         <tr>
           <td>${u.alert_time || '-'}</td>
           <td><b>${u.name}</b></td>
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-          <td>${u.risk === 'danger' ? '<span class="badge b-red">즉시 방문/전화</span>' : '<span class="badge b-yellow">안부 전화</span>'}</td>
-          <td><button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button></td>
+          <td>${recommendedActionHtml(u.risk)}</td>
+          <td>${alertActionButtonHtml(u)}</td>
         </tr>
       `).join('');
       alertsTbody.innerHTML = alertRowsHtml;
-      if (alertsHistoryTbody) alertsHistoryTbody.innerHTML = alertRowsHtml;
+    }
+
+    if (alertsHistoryTbody) {
+      if (!alertHistory || alertHistory.length === 0) {
+        alertsHistoryTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--muted)">저장된 알림 기록이 없습니다.</td></tr>';
+      } else {
+        alertsHistoryTbody.innerHTML = alertHistory.map(u => `
+          <tr>
+            <td>${u.alert_time || '-'}</td>
+            <td><b>${u.name}</b></td>
+            <td>${u.phone}</td>
+            <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
+            <td>${recommendedActionHtml(u.risk)}</td>
+            <td>${alertActionButtonHtml(u)}</td>
+          </tr>
+        `).join('');
+      }
     }
   }
 

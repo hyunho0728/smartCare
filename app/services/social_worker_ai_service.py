@@ -7,12 +7,50 @@ from google import genai
 from google.genai import types
 from sklearn.ensemble import IsolationForest
 
+
+def _build_ai_summary(latest_health, elapsed_days, recent_7d_count, risk_score, trend_desc):
+    """분석 데이터의 충분성, 입력 지연, 위험 점수를 함께 반영해 생활 패턴 문구를 생성합니다."""
+    if not latest_health:
+        return "건강 상태 입력 기록이 없어 생활 패턴을 분석할 수 없습니다. 첫 건강 상태 입력 및 안부 확인이 필요합니다."
+
+    if elapsed_days is not None and elapsed_days >= 7:
+        return f"최근 {elapsed_days}일간 건강 상태 입력이 없습니다. 현재 생활 패턴을 정상으로 판단하기 어려우며 사회복지사의 안부 확인이 필요합니다."
+
+    if elapsed_days is not None and elapsed_days >= 3:
+        return f"마지막 건강 상태 입력 후 {elapsed_days}일이 경과했습니다. 최근 생활 상태 확인이 필요합니다."
+
+    if recent_7d_count < 3:
+        return "최근 7일간 생활 패턴을 판단하기 위한 데이터가 부족합니다. 지속적인 건강 상태 입력이 필요합니다."
+
+    if trend_desc:
+        return " ".join(trend_desc) + " 사회복지사의 확인 및 관찰이 권장됩니다."
+
+    if risk_score < 40:
+        return "현재 위험 점수가 낮은 상태입니다. 최근 건강 상태와 생활 기록을 확인할 필요가 있습니다."
+
+    if risk_score < 60:
+        return "최근 건강 및 생활 기록에서 주의가 필요한 상태가 확인되었습니다. 지속적인 관찰이 권장됩니다."
+
+    if risk_score < 80:
+        return "현재 큰 이상 징후는 확인되지 않았으나 일부 위험 요인이 있어 지속적인 관찰이 필요합니다."
+
+    return "최근 건강 상태와 입력 패턴에서 특별한 이상 징후가 확인되지 않았습니다."
+
+
 def evaluate_and_record_risk(user, health_history, login_history, db_session, RiskAnalysisModel):
     """
     어르신의 최신 상태 및 시계열 기록을 기반으로 위험 점수를 계산하고,
     RISK_ANALYSIS 테이블에 새 레코드를 생성하여 저장합니다.
     """
+    now = datetime.datetime.now()
     latest_health = health_history[0] if health_history else None
+    latest_recorded_at = latest_health.recorded_at if latest_health and latest_health.recorded_at else None
+    elapsed_days = None
+    seven_days_ago = now - datetime.timedelta(days=7)
+    recent_7d = [
+        r for r in health_history
+        if r.recorded_at and r.recorded_at >= seven_days_ago
+    ]
 
     # ==========================================================
     # 1단계: 규칙 기반 기본 점수 산출 (시간 비례 선형 감점 모델)
@@ -34,11 +72,14 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
             risk_score -= 20
             score_breakdown.append({"item": "식사 결식 페널티", "score": "-20점", "type": "minus"})
 
-        elapsed_hours = int((datetime.datetime.now() - latest_health.recorded_at).total_seconds() // 3600)
-        if elapsed_hours > 0:
+        if latest_recorded_at:
+            elapsed = now - latest_recorded_at
+            elapsed_days = int(elapsed.total_seconds() // 86400)
+            elapsed_hours = int(elapsed.total_seconds() // 3600)
             time_penalty = elapsed_hours * 2
-            risk_score -= time_penalty
-            score_breakdown.append({"item": f"미입력 경과 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
+            if elapsed_hours > 0:
+                risk_score -= time_penalty
+                score_breakdown.append({"item": f"미입력 경과 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
     else:
         risk_score -= 40
         score_breakdown.append({"item": "건강 상태 미등록", "score": "-40점", "type": "minus"})
@@ -77,33 +118,33 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
                     })
                     trend_desc.append(f"평소 입력 시간대(평균 {int(mean_hour)}시)와 {diff:.1f}시간의 큰 시차가 발생했습니다.")
 
-        # 2. 7일 건강 점수 연속 하락 추세 감지
-        recent_conds = [r.condition_level for r in health_history[:7]]
-        if len(recent_conds) >= 3:
-            is_declining = all(recent_conds[i] <= recent_conds[i+1] for i in range(len(recent_conds)-1)) and (recent_conds[0] < recent_conds[-1])
-            if is_declining:
-                ai_penalty += 15
-                is_anomaly = True
-                anomaly_types.append("건강 연속 악화")
-                anomalies.append({
-                    "item": "AI 건강 척도 하락세 감지 (최근 연속 악화)",
-                    "score": "-15점",
-                    "type": "minus"
-                })
-                trend_desc.append("최근 건강 상태가 지속 하락하는 악화 흐름이 나타났습니다.")
-
-        # 3. 7일 내 결식 빈도 급증 분석
-        skip_count = sum(1 for r in health_history[:7] if '결식' in [r.breakfast_status, r.lunch_status, r.dinner_status])
-        if skip_count >= 3:
-            ai_penalty += 10
+    # 2. 7일 건강 점수 연속 하락 추세 감지
+    recent_conds = [r.condition_level for r in recent_7d]
+    if len(recent_conds) >= 3:
+        is_declining = all(recent_conds[i] <= recent_conds[i+1] for i in range(len(recent_conds)-1)) and (recent_conds[0] < recent_conds[-1])
+        if is_declining:
+            ai_penalty += 15
             is_anomaly = True
-            anomaly_types.append("잦은 결식")
+            anomaly_types.append("건강 연속 악화")
             anomalies.append({
-                "item": f"AI 영양 불균형 경고 (최근 {skip_count}회 결식)",
-                "score": "-10점",
+                "item": "AI 건강 척도 하락세 감지 (최근 연속 악화)",
+                "score": "-15점",
                 "type": "minus"
             })
-            trend_desc.append(f"최근 7일 중 {skip_count}회의 결식 패턴이 감지되었습니다.")
+            trend_desc.append("최근 건강 상태가 지속 하락하는 악화 흐름이 나타났습니다.")
+
+    # 3. 7일 내 결식 빈도 급증 분석
+    skip_count = sum(1 for r in recent_7d if '결식' in [r.breakfast_status, r.lunch_status, r.dinner_status])
+    if skip_count >= 3:
+        ai_penalty += 10
+        is_anomaly = True
+        anomaly_types.append("잦은 결식")
+        anomalies.append({
+            "item": f"AI 영양 불균형 경고 (최근 {skip_count}회 결식)",
+            "score": "-10점",
+            "type": "minus"
+        })
+        trend_desc.append(f"최근 7일 중 {skip_count}회의 결식 패턴이 감지되었습니다.")
 
     # AI 감점 합산
     risk_score = max(0, min(100, risk_score - ai_penalty))
@@ -124,7 +165,13 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
         risk_level_code = 'danger'
         is_anomaly = True # 40점 미만 시 자동으로 이상 징후 확정
 
-    ai_summary = " ".join(trend_desc) + " 사회복지사의 확인 및 관찰이 권장됩니다." if trend_desc else "최근 건강 상태와 입력 패턴이 안정적인 정상 생활을 유지하고 있습니다."
+    ai_summary = _build_ai_summary(
+        latest_health=latest_health,
+        elapsed_days=elapsed_days,
+        recent_7d_count=len(recent_7d),
+        risk_score=risk_score,
+        trend_desc=trend_desc
+    )
 
     # ==========================================================
     # 3단계: RISK_ANALYSIS 테이블에 분석 결과 적재 (Insert)
@@ -190,7 +237,7 @@ def analyze_checkup_document_with_gemini(image_path):
     for attempt in range(max_retries):
         try:
             response = client.models.generate_content(
-                model='gemini-2.5-flash',
+                model='gemini-3.6-flash',
                 contents=[prompt, image_part]
             )
             return response.text

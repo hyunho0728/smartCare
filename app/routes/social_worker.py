@@ -35,6 +35,30 @@ def generate_svg_chart_points(scores_7days):
         points.append(f"{x},{y}")
     return " ".join(points)
 
+def build_daily_risk_scores(risk_records, today=None):
+    """최근 7개 분석 레코드가 아니라 최근 7일의 날짜별 최신 위험 점수를 만듭니다."""
+    today = today or datetime.datetime.now().date()
+    target_dates = [today - datetime.timedelta(days=offset) for offset in range(6, -1, -1)]
+    target_date_set = set(target_dates)
+    latest_by_date = {}
+
+    for record in risk_records:
+        if not record.analyzed_at:
+            continue
+
+        record_date = record.analyzed_at.date()
+        if record_date not in target_date_set:
+            continue
+
+        previous = latest_by_date.get(record_date)
+        if not previous or record.analyzed_at > previous.analyzed_at:
+            latest_by_date[record_date] = record
+
+    return [
+        float(latest_by_date[date].risk_score) if date in latest_by_date else 0
+        for date in target_dates
+    ]
+
 # --- 화면 뷰 ---
 @worker_bp.route('/admin')
 def admin_view():
@@ -187,7 +211,7 @@ def api_get_elders():
         recent_risks = RiskAnalysis.query.filter_by(user_id=u.user_id)\
             .order_by(RiskAnalysis.analyzed_at.asc()).all()
         latest_risk = recent_risks[-1] if recent_risks else None
-        chart_points = generate_svg_chart_points([float(r.risk_score) for r in recent_risks])
+        chart_points = generate_svg_chart_points(build_daily_risk_scores(recent_risks))
 
         checkup_docs = CheckupDocument.query.filter_by(user_id=u.user_id)\
             .order_by(CheckupDocument.uploaded_at.desc()).all()
@@ -254,10 +278,37 @@ def api_get_elders():
     assigned_list = [process_elder_data(u) for u in assigned_users]
     unassigned_list = [process_elder_data(u) for u in unassigned_users]
 
+    alert_history = []
+    if current_worker_id:
+        alert_records = RiskAnalysis.query.join(
+            User, RiskAnalysis.user_id == User.user_id
+        ).filter(
+            User.worker_id == current_worker_id,
+            User.is_active.is_(True),
+            RiskAnalysis.risk_level.in_(("SAFE", "WATCH", "WARN", "DANGER"))
+        ).order_by(
+            RiskAnalysis.analyzed_at.desc()
+        ).limit(100).all()
+
+        for record in alert_records:
+            user = User.query.get(record.user_id)
+            alert_history.append({
+                "id": record.user_id,
+                "name": user.name if user else "-",
+                "phone": format_phone_display(user.phone_number) if user else "-",
+                "risk": record.risk_level.lower(),
+                "score": float(record.risk_score),
+                "alert_time": (
+                    record.analyzed_at.strftime("%Y-%m-%d %H:%M")
+                    if record.analyzed_at else "-"
+                )
+            })
+
     return jsonify({
         "success": True, 
         "data": assigned_list,
-        "unassigned": unassigned_list
+        "unassigned": unassigned_list,
+        "alert_history": alert_history
     })
 
 @worker_bp.route('/api/admin/elders/assign', methods=['POST'])
