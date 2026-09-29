@@ -1123,7 +1123,7 @@ function renderUnassignedList() {
 
 function updateKPIs(){
   const total = users.length;
-  const done = users.filter(u => u.meal && u.meal !== '미입력' && !u.meal.includes('입력이 필요')).length;
+  const done = users.filter(u => u.has_recorded_today === true).length;
   const watch = users.filter(u => u.risk === 'watch' || u.risk === 'warn').length;
   const danger = users.filter(u => u.risk === 'danger').length;
 

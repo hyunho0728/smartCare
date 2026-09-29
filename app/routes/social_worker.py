@@ -171,6 +171,7 @@ def api_get_elders():
 
     assigned_users = User.query.filter_by(worker_id=current_worker_id, is_active=True).all() if current_worker_id else []
     unassigned_users = User.query.filter(User.worker_id.is_(None), User.is_active.is_(True)).all()
+    today = datetime.datetime.now().date()
 
     def process_elder_data(u):
         health_history = HealthStatus.query.filter_by(user_id=u.user_id)\
@@ -180,6 +181,7 @@ def api_get_elders():
             .order_by(LoginHistory.auth_time.desc()).all()
 
         latest_health = health_history[0] if health_history else None
+        today_health = next((h for h in health_history if h.target_date == today), None)
         if latest_health:
             condition = latest_health.condition_level
             meal = f"아침 : {latest_health.breakfast_status}  점심 : {latest_health.lunch_status}  저녁 : {latest_health.dinner_status}"
@@ -271,6 +273,7 @@ def api_get_elders():
             "chart": chart_points,
             "desc": ai_desc,
             "has_recorded": bool(latest_health is not None),
+            "has_recorded_today": bool(today_health is not None),
             "checkup_docs": docs_list,
             "action_history": action_history #added by 길동
         }
