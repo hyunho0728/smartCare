@@ -1139,16 +1139,83 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
-function recommendedActionHtml(riskCode) {
-  if (riskCode === 'danger') return '<span class="badge b-red">즉시 방문/전화</span>';
-  if (riskCode === 'warn') return '<span class="badge b-orange">안부 전화</span>';
-  if (riskCode === 'watch') return '<span class="badge b-yellow">상태 확인</span>';
-  return '<span class="badge b-green">상태 유지</span>';
+function isHealthUnrecorded(u) {
+  return u?.has_recorded === false ||
+    u?.lastInput === '기록 없음' ||
+    u?.lastInput === '미입력' ||
+    !u?.lastInput;
+}
+
+function scoreBreakdownContains(u, keywords) {
+  return (u?.score_breakdown || []).some(b =>
+    keywords.some(keyword => String(b.item || '').includes(keyword))
+  );
+}
+
+function hasRecommendationDetailContext(u) {
+  return ['meal', 'meal_short', 'lastInput', 'has_recorded', 'score_breakdown', 'health', 'disease']
+    .some(key => Object.prototype.hasOwnProperty.call(u || {}, key));
+}
+
+function getRecommendedAction(u) {
+  const data = typeof u === 'string' ? { risk: u } : (u || {});
+  const riskCode = data.risk;
+  const score = Number(data.score);
+  const hasScore = Number.isFinite(score);
+
+  if (!hasRecommendationDetailContext(data)) {
+    if (riskCode === 'danger') return { label: '즉시 방문/전화', badge: 'b-red', actionType: '방문확인' };
+    if (riskCode === 'warn') return { label: '안부 전화', badge: 'b-orange', actionType: '전화확인' };
+    if (riskCode === 'watch') return { label: '상태 확인', badge: 'b-yellow', actionType: '전화확인' };
+    return { label: '상태 유지', badge: 'b-green', actionType: '전화확인' };
+  }
+
+  const unrecorded = isHealthUnrecorded(data);
+  const mealText = `${data.meal || ''} ${data.meal_short || ''}`;
+  const hasSkippedMeal = mealText.includes('결식') || scoreBreakdownContains(data, ['결식']);
+  const healthLevel = Number(data.health);
+  const poorHealth = Number.isFinite(healthLevel) && healthLevel <= 2;
+  const hasDisease = data.disease && data.disease !== '없음';
+  const hasDecline = scoreBreakdownContains(data, ['연속 악화', '악화']);
+  const isDelayed = unrecorded || scoreBreakdownContains(data, ['미입력 경과', '건강 상태 미등록']);
+  const isDanger = riskCode === 'danger' || (hasScore && score < 40);
+  const isWarn = riskCode === 'warn' || (hasScore && score < 60);
+  const isWatch = riskCode === 'watch' || (hasScore && score < 80);
+
+  if (isDanger) {
+    if (hasSkippedMeal || poorHealth || hasDecline || (unrecorded && hasDisease)) {
+      return { label: '즉시 방문 확인', badge: 'b-red', actionType: '방문확인' };
+    }
+    return { label: '긴급 안부 전화', badge: 'b-red', actionType: '전화확인' };
+  }
+
+  if (isWarn) {
+    if (hasSkippedMeal || poorHealth || hasDecline) {
+      return { label: '방문 검토', badge: 'b-orange', actionType: '방문확인' };
+    }
+    return { label: '안부 전화', badge: 'b-orange', actionType: '전화확인' };
+  }
+
+  if (unrecorded) {
+    return { label: '첫 건강 상태 입력 안내', badge: 'b-yellow', actionType: '전화확인' };
+  }
+
+  if (isWatch || isDelayed) {
+    return { label: '상태 확인', badge: 'b-yellow', actionType: '전화확인' };
+  }
+
+  return { label: '정기 관찰', badge: 'b-green', actionType: '전화확인' };
+}
+
+function recommendedActionHtml(u) {
+  const action = getRecommendedAction(u);
+  return `<span class="badge ${action.badge}">${action.label}</span>`;
 }
 
 function alertActionButtonHtml(u) {
   if (u.risk === 'safe') return '-';
-  return `<button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button>`;
+  const action = getRecommendedAction(u);
+  return `<button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}','${action.actionType}')">조치 작성</button>`;
 }
 
 function renderOtherSections() {
@@ -1218,7 +1285,7 @@ function renderOtherSections() {
           <td><b>${u.name}</b></td>
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-          <td>${recommendedActionHtml(u.risk)}</td>
+          <td>${recommendedActionHtml(u)}</td>
           <td>${alertActionButtonHtml(u)}</td>
         </tr>
       `).join('');
@@ -1235,7 +1302,7 @@ function renderOtherSections() {
             <td><b>${u.name}</b></td>
             <td>${u.phone}</td>
             <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-            <td>${recommendedActionHtml(u.risk)}</td>
+            <td>${recommendedActionHtml(u)}</td>
             <td>${alertActionButtonHtml(u)}</td>
           </tr>
         `).join('');
@@ -1455,9 +1522,10 @@ function renderTable(){
 
   body.innerHTML = data.map((u, i) => {
     const r = risk[u.risk] || risk.safe;
-    const isUnrecorded = (u.lastInput === '기록 없음' || u.lastInput === '미입력' || !u.lastInput);
+    const isUnrecorded = isHealthUnrecorded(u);
     const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
     const chartFillId = 'riskFillV2' + i;
+    const recommendedAction = getRecommendedAction(u);
 
     let breakfastDisplay = '-';
     let lunchDisplay = '-';
@@ -1659,7 +1727,7 @@ function renderTable(){
                   </div>
                   <div class="quick-card-v2">
                     <span>권장 조치</span>
-                    <b style="font-size:14px;color:var(--primary-dark);white-space:nowrap;">${isUnrecorded ? '첫 건강 상태 입력 안내' : '정기 관찰'}</b>
+                    <b style="font-size:14px;color:var(--primary-dark);white-space:nowrap;">${recommendedAction.label}</b>
                   </div>
                 </div>
               </div>
@@ -1675,7 +1743,7 @@ function renderTable(){
 
                 <div class="action-history-head-v2">
                   <h4>📋 최근 조치 기록</h4>
-                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}')">조치 결과 작성</button>
+                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${recommendedAction.actionType}')">조치 결과 작성</button>
                 </div>
 
                 <div class="action-history-list-v2">
@@ -1859,10 +1927,14 @@ function toggle(i) {
 }
 function openEmergency(){document.getElementById('emergency').classList.add('show')}
 function openAdd(){document.getElementById('add').classList.add('show')}
-function openFeedback(userId, name) {
+function openFeedback(userId, name, actionType) {
   selectedFeedbackUserId = userId;
 
   document.getElementById('fbName').value = name;
+  const actionTypeSelect = document.getElementById('fbActionType');
+  if (actionTypeSelect && actionType) {
+    actionTypeSelect.value = actionType;
+  }
   document.getElementById('feedback').classList.add('show');
 }
 function closeModal(id){document.getElementById(id).classList.remove('show')}
