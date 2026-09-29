@@ -8,7 +8,7 @@ import time
 from flask import Flask, render_template, request, session, redirect
 from dotenv import load_dotenv
 from models.models import db, User, HealthStatus, LoginHistory, RiskAnalysis
-from services.ai_service import evaluate_and_record_risk
+from services.social_worker_ai_service import evaluate_and_record_risk
 
 # 작업자별 Blueprint 임포트
 from routes.social_worker import worker_bp

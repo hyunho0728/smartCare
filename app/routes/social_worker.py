@@ -2,7 +2,7 @@ import os
 import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
 from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument
-from services.ai_service import evaluate_and_record_risk, analyze_checkup_document_with_gemini
+from services.social_worker_ai_service import evaluate_and_record_risk, analyze_checkup_document_with_gemini
 
 worker_bp = Blueprint('worker', __name__)
 
