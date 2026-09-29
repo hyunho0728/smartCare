@@ -1881,7 +1881,7 @@
         let isLoggingOut = false;
         setInterval(async () => {
             const loginScreen = document.getElementById('screen-login');
-            if (isLoggingOut || (loginScreen && loginScreen.classList.contains('active'))) {
+            if (isLoggingOut || !currentUserPhone || (loginScreen && loginScreen.classList.contains('active'))) {
                 return;
             }
             try {
