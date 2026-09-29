@@ -8,6 +8,60 @@ from google.genai import types
 from sklearn.ensemble import IsolationForest
 
 
+DISEASE_PENALTY_RULES = [
+    {"standard_name": "치매 / 인지장애", "penalty": 20, "keywords": ["치매", "인지장애", "알츠하이머"]},
+    {"standard_name": "뇌졸중", "penalty": 18, "keywords": ["뇌졸중", "중풍", "뇌경색", "뇌출혈"]},
+    {"standard_name": "심혈관질환", "penalty": 15, "keywords": ["심혈관", "심장", "협심증", "심근경색", "부정맥"]},
+    {"standard_name": "파킨슨병", "penalty": 15, "keywords": ["파킨슨"]},
+    {"standard_name": "암", "penalty": 15, "keywords": ["암", "악성종양"]},
+    {"standard_name": "당뇨병", "penalty": 12, "keywords": ["당뇨", "혈당"]},
+    {"standard_name": "고혈압", "penalty": 10, "keywords": ["고혈압", "혈압"]},
+    {"standard_name": "관절염", "penalty": 5, "keywords": ["관절염", "관절", "류마티스"]},
+]
+DEFAULT_DISEASE_PENALTY = 10
+
+
+def _normalize_disease_text(value):
+    return "".join(ch for ch in str(value or "").lower() if ch not in " /-_")
+
+
+def _to_int(value, default):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def calculate_underlying_disease_penalty(user):
+    """기저질환 종류에 따라 위험 점수 감점 폭을 산정합니다."""
+    if not getattr(user, "has_underlying_disease", False):
+        return 0, None
+
+    disease_name = (getattr(user, "note", None) or "기저질환").strip()
+    normalized_disease_name = _normalize_disease_text(disease_name)
+    matched_rules = []
+
+    for rule in DISEASE_PENALTY_RULES:
+        keywords = rule.get("keywords") or []
+        normalized_keywords = [_normalize_disease_text(keyword) for keyword in keywords]
+        if any(keyword and keyword in normalized_disease_name for keyword in normalized_keywords):
+            matched_rules.append(rule)
+
+    if not matched_rules:
+        return DEFAULT_DISEASE_PENALTY, disease_name
+
+    matched_rule = max(matched_rules, key=lambda rule: _to_int(rule.get("penalty"), 0))
+    penalty = _to_int(matched_rule.get("penalty"), DEFAULT_DISEASE_PENALTY)
+    standard_name = matched_rule.get("standard_name") or disease_name
+    normalized_standard_name = _normalize_disease_text(standard_name)
+    is_same_category = (
+        normalized_standard_name in normalized_disease_name or
+        normalized_disease_name in normalized_standard_name
+    )
+    display_name = disease_name if is_same_category else f"{disease_name} / {standard_name}"
+    return penalty, display_name
+
+
 def _build_ai_summary(latest_health, elapsed_days, recent_7d_count, risk_score, trend_desc):
     """분석 데이터의 충분성, 입력 지연, 위험 점수를 함께 반영해 생활 패턴 문구를 생성합니다."""
     if not latest_health:
@@ -62,10 +116,14 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
         risk_score -= 10
         score_breakdown.append({"item": f"고령 페널티 ({user.age}세)", "score": "-10점", "type": "minus"})
 
-    if user.has_underlying_disease:
-        risk_score -= 10
-        disease_name = user.note if user.note else "기저질환"
-        score_breakdown.append({"item": f"기저질환 ({disease_name})", "score": "-10점", "type": "minus"})
+    disease_penalty, disease_name = calculate_underlying_disease_penalty(user)
+    if disease_penalty > 0:
+        risk_score -= disease_penalty
+        score_breakdown.append({
+            "item": f"기저질환 ({disease_name})",
+            "score": f"-{disease_penalty}점",
+            "type": "minus"
+        })
 
     if latest_health:
         if '결식' in [latest_health.breakfast_status, latest_health.lunch_status, latest_health.dinner_status]:
