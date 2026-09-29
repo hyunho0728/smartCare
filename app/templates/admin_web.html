@@ -1817,7 +1817,50 @@ function toggle(i) {
     }
   }
 }
-function openEmergency(){document.getElementById('emergency').classList.add('show')}
+    async function openEmergency() {
+        const desc = document.getElementById('emergency-desc');
+
+        if (!desc) return;
+
+        try {
+            const res = await fetch('/api/admin/emergency-alerts');
+            const result = await res.json();
+
+            if (!result.success || !result.data || result.data.length === 0) {
+                desc.innerText = '현재 긴급 알림 대상자가 없습니다.';
+                document.getElementById('emergency').classList.add('show');
+                return;
+            }
+
+            const latest = result.data[0];
+
+            desc.innerHTML = `
+      <b style="font-size:18px;color:#ef4444;">
+        🚨 ${latest.user_name} 어르신 긴급호출
+      </b>
+      <br><br>
+      <b>어르신 연락처:</b> ${latest.user_phone}
+      <br>
+      <b>보호자 연락처:</b>
+      ${latest.emergency_contact
+                    ? latest.emergency_contact
+                    : '보호자 미등록'
+                }
+      <br><br>
+      <span style="font-size:13px;color:#64748b;">
+        ${latest.created_at}
+      </span>
+    `;
+
+            document.getElementById('emergency').classList.add('show');
+
+        } catch (err) {
+            console.error('긴급알림 조회 실패:', err);
+
+            desc.innerText = '긴급알림을 불러오지 못했습니다.';
+            document.getElementById('emergency').classList.add('show');
+        }
+    }
 function openAdd(){document.getElementById('add').classList.add('show')}
 function openFeedback(userId, name) {
   selectedFeedbackUserId = userId;

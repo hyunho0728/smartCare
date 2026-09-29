@@ -1,8 +1,18 @@
 import os
 import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
-from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument
 from services.social_worker_ai_service import evaluate_and_record_risk, analyze_checkup_document_with_gemini
+from models.models import (
+    db,
+    Worker,
+    User,
+    HealthStatus,
+    LoginHistory,
+    RiskAnalysis,
+    PostManagement,
+    CheckupDocument,
+    EmergencyAlert
+)
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -557,3 +567,57 @@ def api_analyze_checkup(doc_id):
         })
     except Exception as e:
         return jsonify({"success": False, "message": f"AI 분석 실패: {str(e)}"}), 500
+
+# --- 긴급알림 조회 API ---
+@worker_bp.route('/api/admin/emergency-alerts', methods=['GET'])
+def api_get_emergency_alerts():
+    """현재 로그인한 복지사에게 들어온 긴급알림 조회"""
+
+    current_worker_id = session.get('admin_worker_id')
+
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+
+        if admin_login_id:
+            worker = Worker.query.filter_by(
+                login_id=admin_login_id
+            ).first()
+
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({
+            "success": False,
+            "message": "로그인이 필요합니다."
+        }), 401
+
+    alerts = EmergencyAlert.query.filter_by(
+        worker_id=current_worker_id,
+        is_read=False
+    ).order_by(
+        EmergencyAlert.created_at.desc()
+    ).all()
+
+    result = []
+
+    for alert in alerts:
+        result.append({
+            "alert_id": alert.alert_id,
+            "user_id": alert.user_id,
+            "user_name": alert.user_name,
+            "user_phone": format_phone_display(alert.user_phone),
+            "emergency_contact": format_phone_display(
+                alert.emergency_contact
+            ),
+            "message": alert.message,
+            "created_at": (
+                alert.created_at.strftime("%Y-%m-%d %H:%M:%S")
+                if alert.created_at else "-"
+            )
+        })
+
+    return jsonify({
+        "success": True,
+        "data": result
+    })

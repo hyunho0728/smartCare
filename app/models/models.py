@@ -100,3 +100,41 @@ class CheckupDocument(db.Model):
     file_path = db.Column(db.String(255), nullable=False)        # 웹 접근 경로 (예: /static/uploads/checkups/xxx.jpg)
     original_name = db.Column(db.String(255), nullable=True)    # 원본 파일명
     uploaded_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
+
+# 8. 긴급 호출 알림 모델
+class EmergencyAlert(db.Model):
+    __tablename__ = 'EMERGENCY_ALERT'
+
+    alert_id = db.Column(db.BigInteger, primary_key=True, autoincrement=True)
+
+    user_id = db.Column(
+        db.Integer,
+        db.ForeignKey('USER.user_id', ondelete='CASCADE'),
+        nullable=False,
+        index=True
+    )
+
+    worker_id = db.Column(
+        db.Integer,
+        db.ForeignKey('SOCIAL_WORKER.worker_id', ondelete='SET NULL'),
+        nullable=True,
+        index=True
+    )
+
+    user_name = db.Column(db.String(50), nullable=False)
+    user_phone = db.Column(db.String(20), nullable=False)
+    emergency_contact = db.Column(db.String(20), nullable=True)
+
+    message = db.Column(db.String(255), nullable=False)
+    created_at = db.Column(
+        db.DateTime,
+        default=datetime.now,
+        nullable=False,
+        index=True
+    )
+
+    is_read = db.Column(
+        db.Boolean,
+        default=False,
+        nullable=False
+    )
