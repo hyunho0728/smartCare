@@ -627,9 +627,9 @@
             <div id="ai-analysis-list"><p style="color:var(--muted);font-size:14px;">등록된 분석 기록이 없습니다.</p></div>
           </div>
           <div class="panel">
-            <div class="panel-head"><h3>예측 위험도</h3></div>
+            <div class="panel-head"><h3>우선 확인 목록</h3></div>
             <table class="table">
-              <thead><tr><th>어르신</th><th>최근 상태</th><th>식사 상태</th><th>예측 위험도</th><th>권장 조치</th></tr></thead>
+              <thead><tr><th>우선도</th><th>어르신</th><th>최근 입력</th><th>권장 조치</th></tr></thead>
               <tbody id="ai-risk-tbody"></tbody>
             </table>
           </div>
@@ -1334,24 +1334,36 @@ function renderOtherSections() {
   if (aiList && aiRiskTbody) {
     if (!users || users.length === 0) {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
-      aiRiskTbody.innerHTML = '<tr><td colspan="5" style="text-align:color:var(--muted)">데이터가 없습니다.</td></tr>';
+      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">데이터가 없습니다.</td></tr>';
     } else {
       populateLifePatternSelect();
       updateLifePatternAnalysis(0);
 
-      const healthLabels = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'];
-      aiRiskTbody.innerHTML = users.map(u => {
+      const priority = { danger: 0, warn: 1, watch: 2, safe: 3 };
+      const priorityList = users
+        .filter(u => u.risk !== 'safe')
+        .sort((a, b) => {
+          const riskDiff = (priority[a.risk] ?? 4) - (priority[b.risk] ?? 4);
+          if (riskDiff !== 0) return riskDiff;
+          return Number(a.score ?? 100) - Number(b.score ?? 100);
+        });
+
+      if (priorityList.length === 0) {
+        aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">우선 확인이 필요한 어르신이 없습니다.</td></tr>';
+      } else {
+        aiRiskTbody.innerHTML = priorityList.map(u => {
         const action = getRecommendedAction(u);
+        const r = risk[u.risk] || risk.safe;
         return `
           <tr>
+            <td><span class="badge ${r[1]}">${r[0]}</span></td>
             <td><b>${u.name}</b></td>
-            <td>${healthLabels[u.health] || '미입력'}</td>
-            <td>${u.meal || '미입력'}</td>
-            <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'} (${u.score}점)</span></td>
+            <td>${u.lastInput || u.last || '-'}</td>
             <td><span class="badge ${action.badge}">${action.label}</span></td>
           </tr>
         `;
-      }).join('');
+        }).join('');
+      }
     }
   }
 
@@ -1439,7 +1451,7 @@ function nav(id, btn) {
   const descriptions = {
     live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
     elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
-    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 분석 결과와 예측 위험도를 확인합니다.',
+    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 분석 결과와 우선 확인 대상을 확인합니다.',
     alerts: '이상 징후 알림 발생 내역과 사회복지사의 조치 결과를 기록하고 관리합니다.',
     match: '미배정된 어르신을 선택하여 담당으로 배정합니다.'
   };
