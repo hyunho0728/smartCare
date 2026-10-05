@@ -150,6 +150,8 @@
 .analysis-box.danger{border-left-color:var(--red);background:#fff6f6}
 .analysis-box h4{font-size:15px;margin-bottom:8px}
 .analysis-box p{font-size:13px;color:#475569;line-height:1.65}
+.analysis-actions-v2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.ai-notice-v2{margin-top:10px;color:#64748b;font-size:12px;line-height:1.55;word-break:keep-all;}
 .modal-bg{position:fixed;inset:0;background:rgba(8,15,30,.58);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal-bg.show{display:flex}
 .modal{width:560px;background:#fff;border-radius:26px;box-shadow:0 30px 90px rgba(0,0,0,.28);overflow:hidden}
@@ -618,7 +620,7 @@
           <div class="panel">
             <div class="panel-head"><h3>예측 위험도</h3></div>
             <table class="table">
-              <thead><tr><th>어르신</th><th>최근 상태</th><th>식사 상태</th><th>예측 위험도</th></tr></thead>
+              <thead><tr><th>어르신</th><th>최근 상태</th><th>식사 상태</th><th>예측 위험도</th><th>권장 조치</th></tr></thead>
               <tbody id="ai-risk-tbody"></tbody>
             </table>
           </div>
@@ -1263,31 +1265,43 @@ function renderOtherSections() {
   if (aiList && aiRiskTbody) {
     if (!users || users.length === 0) {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
-      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:color:var(--muted)">데이터가 없습니다.</td></tr>';
+      aiRiskTbody.innerHTML = '<tr><td colspan="5" style="text-align:color:var(--muted)">데이터가 없습니다.</td></tr>';
     } else {
-      aiList.innerHTML = users.map(u => `
-        <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
-          <h4>${u.name} 어르신 패턴 분석</h4>
-          <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
-          <div class="life-ai-result" data-life-ai-user-id="${u.id}">
-            <b>Gemini 생활 패턴 분석</b>
-            Gemini 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+      aiList.innerHTML = users.map(u => {
+        const action = getRecommendedAction(u);
+        return `
+          <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
+            <h4>${u.name} 어르신 패턴 분석</h4>
+            <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
+            <div class="analysis-actions-v2">
+              <span class="badge ${action.badge}">권장 조치: ${action.label}</span>
+              <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${action.actionType}')">조치 결과 작성</button>
+            </div>
+            <div class="life-ai-result" data-life-ai-user-id="${u.id}">
+              <b>AI 생활 패턴 분석</b>
+              AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+            </div>
+            <p class="ai-notice-v2">AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+            <div class="ai-actions-v2" style="margin-top:10px;">
+              <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
+            </div>
           </div>
-          <div class="ai-actions-v2" style="margin-top:10px;">
-            <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">Gemini 분석</button>
-          </div>
-        </div>
-      `).join('');
+        `;
+      }).join('');
 
       const healthLabels = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'];
-      aiRiskTbody.innerHTML = users.map(u => `
-        <tr>
-          <td><b>${u.name}</b></td>
-          <td>${healthLabels[u.health] || '미입력'}</td>
-          <td>${u.meal || '미입력'}</td>
-          <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'} (${u.score}점)</span></td>
-        </tr>
-      `).join('');
+      aiRiskTbody.innerHTML = users.map(u => {
+        const action = getRecommendedAction(u);
+        return `
+          <tr>
+            <td><b>${u.name}</b></td>
+            <td>${healthLabels[u.health] || '미입력'}</td>
+            <td>${u.meal || '미입력'}</td>
+            <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'} (${u.score}점)</span></td>
+            <td><span class="badge ${action.badge}">${action.label}</span></td>
+          </tr>
+        `;
+      }).join('');
     }
   }
 
@@ -1763,11 +1777,12 @@ function renderTable(){
                 </div>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
                 <div class="life-ai-result" data-life-ai-user-id="${u.id}">
-                  <b>Gemini 생활 패턴 분석</b>
-                  Gemini 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+                  <b>AI 생활 패턴 분석</b>
+                  AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
                 </div>
+                <p class="ai-notice-v2">AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송되며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
                 <div class="ai-actions-v2">
-                  <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">Gemini 분석</button>
+                  <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
               </div>
@@ -2142,7 +2157,7 @@ function setCheckupAnalysisText(targetEl, text) {
 
 function setLifePatternAnalysisText(userId, text) {
   document.querySelectorAll(`[data-life-ai-user-id="${userId}"]`).forEach(targetEl => {
-    targetEl.innerHTML = '<b>Gemini 생활 패턴 분석</b><span></span>';
+    targetEl.innerHTML = '<b>AI 생활 패턴 분석</b><span></span>';
     targetEl.querySelector('span').textContent = text;
   });
 }

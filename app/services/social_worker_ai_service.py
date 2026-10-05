@@ -459,6 +459,27 @@ def _status_counts(records):
     return total, skipped
 
 
+def _recommended_action_from_risk(risk_result):
+    risk_level = risk_result.get("risk_level")
+    score = risk_result.get("score", 100)
+    evidence_text = " ".join(risk_result.get("evidence", []))
+
+    if risk_level == "danger" or score < 40:
+        if any(keyword in evidence_text for keyword in ["결식", "연속 악화", "건강 상태 입력 기록 없음"]):
+            return "즉시 방문 확인 검토"
+        return "긴급 안부 전화"
+
+    if risk_level == "warn" or score < 60:
+        if any(keyword in evidence_text for keyword in ["결식", "연속 악화"]):
+            return "방문 검토"
+        return "안부 전화"
+
+    if risk_level == "watch" or score < 80:
+        return "상태 확인"
+
+    return "정기 관찰"
+
+
 def analyze_life_pattern_with_gemini(user, health_history, login_history):
     """
     Gemini로 생활 패턴을 자연어 분석합니다.
@@ -495,6 +516,7 @@ def analyze_life_pattern_with_gemini(user, health_history, login_history):
         f"- 기저질환 여부: {'있음' if getattr(user, 'has_underlying_disease', False) else '없음'}",
         f"- 현재 위험점수: {risk_result['score']}점",
         f"- 현재 위험등급: {risk_result['risk_level_db']}",
+        f"- 시스템 권장 조치: {_recommended_action_from_risk(risk_result)}",
         f"- 최근 7일 건강 기록 수: {recent_count}건",
         f"- 최근 7일 결식 감지 횟수: {skip_count}회",
         f"- 최근 건강 상태 점수 흐름: {health_levels if health_levels else '데이터 부족'}",
