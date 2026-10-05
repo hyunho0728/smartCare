@@ -1548,6 +1548,10 @@ function renderTable(){
         <b>${b.score}</b>
       </span>
     `).join('');
+    const confidence = u.confidence || { label: '보통', score: 60 };
+    const evidenceHtml = (u.evidence || []).length > 0
+      ? (u.evidence || []).slice(0, 4).map(item => `<span class="score-tag base"><span>${item}</span></span>`).join('')
+      : '<span class="score-tag base"><span>표시할 근거 데이터가 부족합니다.</span></span>';
 
     const docs = u.checkup_docs || [];
     const checkupDocsHtml = docs.length > 0 
@@ -1733,8 +1737,17 @@ function renderTable(){
               </div>
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
-                <h4>🤖 AI 건강검진표 분석</h4>
+                <h4>🤖 AI 위험 분석</h4>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
+                <div class="score-reason-box" style="margin-top:12px;">
+                  <div class="score-reason-title">
+                    <span>분석 신뢰도</span>
+                    <b>${confidence.label} (${confidence.score}%)</b>
+                  </div>
+                  <div class="score-reason-list">
+                    ${evidenceHtml}
+                  </div>
+                </div>
                 <div class="ai-actions-v2">
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>

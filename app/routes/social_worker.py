@@ -196,16 +196,20 @@ def api_get_elders():
             display_last_time = "미입력"
 
         try:
-            eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
+            eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis, force=False)
             risk_score = eval_res["score"]
             risk_level = eval_res["risk_level"].lower()
             score_breakdown = eval_res["score_breakdown"]
             ai_desc = eval_res["ai_summary"]
+            confidence = eval_res.get("confidence", {"label": "보통", "score": 60})
+            evidence = eval_res.get("evidence", [])
         except Exception:
             risk_score = 50
             risk_level = "watch"
             score_breakdown = [{"item": "기본 점수 (데이터 부족)", "score": "-50점", "type": "minus"}]
             ai_desc = "상태 데이터 분석 중입니다."
+            confidence = {"label": "낮음", "score": 35}
+            evidence = ["분석 데이터 확인 필요"]
 
         if not latest_health:
             ai_desc = "아직 입력된 건강/식사 기록이 없습니다."
@@ -265,6 +269,8 @@ def api_get_elders():
             "meal_short": meal_short,
             "score": risk_score,
             "score_breakdown": score_breakdown,
+            "confidence": confidence,
+            "evidence": evidence,
             "risk": risk_level,
             "alert_time": latest_risk.analyzed_at.strftime("%Y-%m-%d %H:%M") if latest_risk and latest_risk.analyzed_at else "-",
             "last": display_last_time,

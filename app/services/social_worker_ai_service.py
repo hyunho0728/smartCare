@@ -91,11 +91,71 @@ def _build_ai_summary(latest_health, elapsed_days, recent_7d_count, risk_score, 
     return "최근 건강 상태와 입력 패턴에서 특별한 이상 징후가 확인되지 않았습니다."
 
 
-def evaluate_and_record_risk(user, health_history, login_history, db_session, RiskAnalysisModel):
-    """
-    어르신의 최신 상태 및 시계열 기록을 기반으로 위험 점수를 계산하고,
-    RISK_ANALYSIS 테이블에 새 레코드를 생성하여 저장합니다.
-    """
+def _risk_level_from_score(risk_score):
+    if risk_score >= 80:
+        return 'SAFE', 'safe'
+    if risk_score >= 60:
+        return 'WATCH', 'watch'
+    if risk_score >= 40:
+        return 'WARN', 'warn'
+    return 'DANGER', 'danger'
+
+
+def _latest_time(records, attr_name):
+    values = [getattr(record, attr_name, None) for record in records or []]
+    values = [value for value in values if value]
+    return max(values) if values else None
+
+
+def _latest_analysis_covers_inputs(latest_analysis, health_history, login_history, max_age_minutes=60):
+    if not latest_analysis or not latest_analysis.analyzed_at:
+        return False
+
+    if datetime.datetime.now() - latest_analysis.analyzed_at > datetime.timedelta(minutes=max_age_minutes):
+        return False
+
+    latest_health_at = _latest_time(health_history, "recorded_at")
+    latest_login_at = _latest_time(login_history, "auth_time")
+
+    if latest_health_at and latest_analysis.analyzed_at < latest_health_at:
+        return False
+    if latest_login_at and latest_analysis.analyzed_at < latest_login_at:
+        return False
+
+    return True
+
+
+def _confidence_from_data(health_history, login_history, latest_health):
+    health_count = len(health_history or [])
+    login_count = len(login_history or [])
+
+    if not latest_health:
+        return {"label": "낮음", "score": 35}
+    if health_count >= 5 and login_count >= 3:
+        return {"label": "높음", "score": 85}
+    if health_count >= 2 or login_count >= 2:
+        return {"label": "보통", "score": 65}
+    return {"label": "낮음", "score": 45}
+
+
+def _result_from_analysis(record, score_breakdown=None, confidence=None, evidence=None):
+    risk_score = float(record.risk_score)
+    _, risk_level_code = _risk_level_from_score(risk_score)
+
+    return {
+        "score": risk_score,
+        "risk_level": risk_level_code,
+        "score_breakdown": score_breakdown or [],
+        "ai_summary": record.ai_summary,
+        "analysis_id": record.analysis_id,
+        "confidence": confidence or {"label": "보통", "score": 60},
+        "evidence": evidence or [],
+        "reused": True
+    }
+
+
+def calculate_risk(user, health_history, login_history):
+    """위험 점수, 분석 근거, 신뢰도를 계산합니다. DB 저장은 하지 않습니다."""
     now = datetime.datetime.now()
     latest_health = health_history[0] if health_history else None
     latest_recorded_at = latest_health.recorded_at if latest_health and latest_health.recorded_at else None
@@ -111,10 +171,12 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
     # ==========================================================
     risk_score = 100
     score_breakdown = [{"item": "기본 만점", "score": "100점", "type": "base"}]
+    evidence = []
 
     if user.age >= 80:
         risk_score -= 10
         score_breakdown.append({"item": f"고령 페널티 ({user.age}세)", "score": "-10점", "type": "minus"})
+        evidence.append(f"나이 {user.age}세")
 
     disease_penalty, disease_name = calculate_underlying_disease_penalty(user)
     if disease_penalty > 0:
@@ -124,11 +186,13 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
             "score": f"-{disease_penalty}점",
             "type": "minus"
         })
+        evidence.append(f"기저질환: {disease_name}")
 
     if latest_health:
         if '결식' in [latest_health.breakfast_status, latest_health.lunch_status, latest_health.dinner_status]:
             risk_score -= 20
             score_breakdown.append({"item": "식사 결식 페널티", "score": "-20점", "type": "minus"})
+            evidence.append("최신 식사 기록에 결식 포함")
 
         if latest_recorded_at:
             elapsed = now - latest_recorded_at
@@ -138,9 +202,29 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
             if elapsed_hours > 0:
                 risk_score -= time_penalty
                 score_breakdown.append({"item": f"미입력 경과 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
+                evidence.append(f"마지막 건강 입력 후 {elapsed_hours}시간 경과")
     else:
         risk_score -= 40
         score_breakdown.append({"item": "건강 상태 미등록", "score": "-40점", "type": "minus"})
+        evidence.append("건강 상태 입력 기록 없음")
+
+    latest_login_at = _latest_time(login_history, "auth_time")
+    if latest_login_at:
+        login_elapsed = now - latest_login_at
+        login_elapsed_hours = int(login_elapsed.total_seconds() // 3600)
+        if login_elapsed_hours >= 48:
+            login_penalty = min(20, (login_elapsed_hours // 24) * 5)
+            risk_score -= login_penalty
+            score_breakdown.append({
+                "item": f"앱 미접속 경과 ({login_elapsed_hours}시간)",
+                "score": f"-{login_penalty}점",
+                "type": "minus"
+            })
+            evidence.append(f"마지막 접속 후 {login_elapsed_hours}시간 경과")
+    else:
+        risk_score -= 10
+        score_breakdown.append({"item": "로그인 기록 없음", "score": "-10점", "type": "minus"})
+        evidence.append("로그인 기록 없음")
 
     # ==========================================================
     # 2단계: 머신러닝 기반 시계열 이상 탐지 (Isolation Forest & Trend)
@@ -174,6 +258,7 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
                         "score": "-15점",
                         "type": "minus"
                     })
+                    evidence.append(f"평소 입력 시간 대비 {diff:.1f}시간 편차")
                     trend_desc.append(f"평소 입력 시간대(평균 {int(mean_hour)}시)와 {diff:.1f}시간의 큰 시차가 발생했습니다.")
 
     # 2. 7일 건강 점수 연속 하락 추세 감지
@@ -189,6 +274,7 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
                 "score": "-15점",
                 "type": "minus"
             })
+            evidence.append("최근 건강 상태가 연속 악화")
             trend_desc.append("최근 건강 상태가 지속 하락하는 악화 흐름이 나타났습니다.")
 
     # 3. 7일 내 결식 빈도 급증 분석
@@ -202,6 +288,7 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
             "score": "-10점",
             "type": "minus"
         })
+        evidence.append(f"최근 7일 결식 {skip_count}회")
         trend_desc.append(f"최근 7일 중 {skip_count}회의 결식 패턴이 감지되었습니다.")
 
     # AI 감점 합산
@@ -209,18 +296,8 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
     score_breakdown.extend(anomalies)
 
     # 4단계 위험도 분류
-    if risk_score >= 80:
-        risk_level_str = 'SAFE'
-        risk_level_code = 'safe'
-    elif risk_score >= 60:
-        risk_level_str = 'WATCH'
-        risk_level_code = 'watch'
-    elif risk_score >= 40:
-        risk_level_str = 'WARN'
-        risk_level_code = 'warn'
-    else:
-        risk_level_str = 'DANGER'
-        risk_level_code = 'danger'
+    risk_level_str, risk_level_code = _risk_level_from_score(risk_score)
+    if risk_level_str == 'DANGER':
         is_anomaly = True # 40점 미만 시 자동으로 이상 징후 확정
 
     ai_summary = _build_ai_summary(
@@ -231,29 +308,70 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
         trend_desc=trend_desc
     )
 
-    # ==========================================================
-    # 3단계: RISK_ANALYSIS 테이블에 분석 결과 적재 (Insert)
-    # ==========================================================
+    return {
+        "score": risk_score,
+        "risk_level": risk_level_code,
+        "risk_level_db": risk_level_str,
+        "score_breakdown": score_breakdown,
+        "ai_summary": ai_summary,
+        "is_anomaly": is_anomaly,
+        "anomaly_types": anomaly_types,
+        "time_deviation": time_dev_minutes,
+        "predicted_risk_prob": round(100.0 - risk_score, 2),
+        "confidence": _confidence_from_data(health_history, login_history, latest_health),
+        "evidence": evidence
+    }
+
+
+def record_risk_analysis(user, risk_result, db_session, RiskAnalysisModel):
+    """계산된 위험 분석 결과를 DB에 저장합니다."""
     new_risk_analysis = RiskAnalysisModel(
         user_id=user.user_id,
-        risk_score=risk_score,
-        risk_level=risk_level_str,
-        is_anomaly=is_anomaly,
-        anomaly_type=", ".join(anomaly_types) if anomaly_types else "정상",
-        time_deviation=time_dev_minutes,
-        predicted_risk_prob=round(100.0 - risk_score, 2),
-        ai_summary=ai_summary,
+        risk_score=risk_result["score"],
+        risk_level=risk_result["risk_level_db"],
+        is_anomaly=risk_result["is_anomaly"],
+        anomaly_type=", ".join(risk_result["anomaly_types"]) if risk_result["anomaly_types"] else "정상",
+        time_deviation=risk_result["time_deviation"],
+        predicted_risk_prob=risk_result["predicted_risk_prob"],
+        ai_summary=risk_result["ai_summary"],
         analyzed_at=datetime.datetime.now()
     )
     db_session.add(new_risk_analysis)
     db_session.commit()
+    return new_risk_analysis
+
+
+def evaluate_and_record_risk(user, health_history, login_history, db_session, RiskAnalysisModel, force=True):
+    """
+    위험 분석을 계산하고 저장합니다.
+    force=False이면 최신 건강/로그인 기록을 이미 반영한 최근 분석 결과를 재사용합니다.
+    """
+    risk_result = calculate_risk(user, health_history, login_history)
+    latest_analysis = RiskAnalysisModel.query.filter_by(user_id=user.user_id)\
+        .order_by(RiskAnalysisModel.analyzed_at.desc()).first()
+
+    if not force and _latest_analysis_covers_inputs(latest_analysis, health_history, login_history):
+        return _result_from_analysis(
+            latest_analysis,
+            score_breakdown=risk_result["score_breakdown"],
+            confidence=risk_result["confidence"],
+            evidence=risk_result["evidence"]
+        )
+
+    # ==========================================================
+    # 3단계: RISK_ANALYSIS 테이블에 분석 결과 적재 (Insert)
+    # ==========================================================
+    new_risk_analysis = record_risk_analysis(user, risk_result, db_session, RiskAnalysisModel)
 
     return {
-        "score": risk_score,
-        "risk_level": risk_level_code,
-        "score_breakdown": score_breakdown,
-        "ai_summary": ai_summary,
-        "analysis_id": new_risk_analysis.analysis_id
+        "score": risk_result["score"],
+        "risk_level": risk_result["risk_level"],
+        "score_breakdown": risk_result["score_breakdown"],
+        "ai_summary": risk_result["ai_summary"],
+        "analysis_id": new_risk_analysis.analysis_id,
+        "confidence": risk_result["confidence"],
+        "evidence": risk_result["evidence"],
+        "reused": False
     }
 
 def analyze_checkup_document_with_gemini(image_path):
