@@ -1104,10 +1104,7 @@ async function loadEldersData() {
         }
         const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
         if (savedLifeAiDesc) {
-          const descEl = document.getElementById(`life-ai-desc-${u.id}`);
-          if (descEl) {
-            setLifePatternAnalysisText(descEl, savedLifeAiDesc);
-          }
+          setLifePatternAnalysisText(u.id, savedLifeAiDesc);
         }
       });
     }
@@ -1272,6 +1269,13 @@ function renderOtherSections() {
         <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
           <h4>${u.name} 어르신 패턴 분석</h4>
           <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
+          <div class="life-ai-result" data-life-ai-user-id="${u.id}">
+            <b>Gemini 생활 패턴 분석</b>
+            Gemini 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+          </div>
+          <div class="ai-actions-v2" style="margin-top:10px;">
+            <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">Gemini 분석</button>
+          </div>
         </div>
       `).join('');
 
@@ -1758,7 +1762,7 @@ function renderTable(){
                   <span class="ai-type-badge">개인 패턴 기반</span>
                 </div>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
-                <div class="life-ai-result" id="life-ai-desc-${u.id}">
+                <div class="life-ai-result" data-life-ai-user-id="${u.id}">
                   <b>Gemini 생활 패턴 분석</b>
                   Gemini 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
                 </div>
@@ -2136,17 +2140,16 @@ function setCheckupAnalysisText(targetEl, text) {
   targetEl.querySelector('span').textContent = text;
 }
 
-function setLifePatternAnalysisText(targetEl, text) {
-  targetEl.innerHTML = '<b>Gemini 생활 패턴 분석</b><span></span>';
-  targetEl.querySelector('span').textContent = text;
+function setLifePatternAnalysisText(userId, text) {
+  document.querySelectorAll(`[data-life-ai-user-id="${userId}"]`).forEach(targetEl => {
+    targetEl.innerHTML = '<b>Gemini 생활 패턴 분석</b><span></span>';
+    targetEl.querySelector('span').textContent = text;
+  });
 }
 
 /* 개인정보를 제외한 생활 패턴 요약 데이터를 Gemini AI로 분석 요청합니다. */
 async function analyzeLifePatternAI(userId, elderName) {
-  const descEl = document.getElementById(`life-ai-desc-${userId}`);
-  if (descEl) {
-    setLifePatternAnalysisText(descEl, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
-  }
+  setLifePatternAnalysisText(userId, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
 
   try {
     const res = await fetch(`/api/admin/elders/${userId}/life-pattern-ai`, {
@@ -2154,18 +2157,14 @@ async function analyzeLifePatternAI(userId, elderName) {
     });
     const result = await res.json();
 
-    if (descEl) {
-      if (result.success) {
-        setLifePatternAnalysisText(descEl, result.analysis);
-        sessionStorage.setItem(`life_ai_desc_${userId}`, result.analysis);
-      } else {
-        setLifePatternAnalysisText(descEl, result.message || 'AI 생활 패턴 분석에 실패했습니다.');
-      }
+    if (result.success) {
+      setLifePatternAnalysisText(userId, result.analysis);
+      sessionStorage.setItem(`life_ai_desc_${userId}`, result.analysis);
+    } else {
+      setLifePatternAnalysisText(userId, result.message || 'AI 생활 패턴 분석에 실패했습니다.');
     }
   } catch (err) {
-    if (descEl) {
-      setLifePatternAnalysisText(descEl, '서버와의 통신에 실패했습니다.');
-    }
+    setLifePatternAnalysisText(userId, '서버와의 통신에 실패했습니다.');
   }
 }
 
