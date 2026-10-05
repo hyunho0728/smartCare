@@ -449,6 +449,93 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
         "reused": False
     }
 
+
+def _status_counts(records):
+    total = len(records or [])
+    skipped = sum(
+        1 for record in records or []
+        if '결식' in [record.breakfast_status, record.lunch_status, record.dinner_status]
+    )
+    return total, skipped
+
+
+def analyze_life_pattern_with_gemini(user, health_history, login_history):
+    """
+    Gemini로 생활 패턴을 자연어 분석합니다.
+    이름, 전화번호, 주소 등 직접 식별 정보는 전송하지 않습니다.
+    """
+    api_key = os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        return "Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."
+
+    risk_result = calculate_risk(user, health_history, login_history)
+    latest_health = health_history[0] if health_history else None
+    latest_login_at = _latest_time(login_history, "auth_time")
+    now = datetime.datetime.now()
+    recent_7d = [
+        record for record in health_history or []
+        if record.recorded_at and record.recorded_at >= now - datetime.timedelta(days=7)
+    ]
+    recent_count, skip_count = _status_counts(recent_7d)
+
+    latest_health_elapsed = None
+    if latest_health and latest_health.recorded_at:
+        latest_health_elapsed = int((now - latest_health.recorded_at).total_seconds() // 3600)
+
+    latest_login_elapsed = None
+    if latest_login_at:
+        latest_login_elapsed = int((now - latest_login_at).total_seconds() // 3600)
+
+    health_levels = [
+        record.condition_level for record in recent_7d
+        if record.condition_level is not None
+    ][:7]
+    pattern_lines = [
+        f"- 나이대: {int(user.age // 10) * 10}대",
+        f"- 기저질환 여부: {'있음' if getattr(user, 'has_underlying_disease', False) else '없음'}",
+        f"- 현재 위험점수: {risk_result['score']}점",
+        f"- 현재 위험등급: {risk_result['risk_level_db']}",
+        f"- 최근 7일 건강 기록 수: {recent_count}건",
+        f"- 최근 7일 결식 감지 횟수: {skip_count}회",
+        f"- 최근 건강 상태 점수 흐름: {health_levels if health_levels else '데이터 부족'}",
+        f"- 마지막 건강 입력 후 경과: {latest_health_elapsed if latest_health_elapsed is not None else '기록 없음'}시간",
+        f"- 마지막 앱 접속 후 경과: {latest_login_elapsed if latest_login_elapsed is not None else '기록 없음'}시간",
+        "- 시스템 감지 패턴:",
+    ]
+    pattern_lines.extend(
+        f"  · {item['title']}: {item['detail']}"
+        for item in risk_result.get("pattern_insights", [])
+    )
+
+    prompt = (
+        "당신은 사회복지사의 독거 어르신 생활 패턴 모니터링을 보조하는 AI입니다.\n"
+        "아래 데이터에는 이름, 전화번호, 주소가 제거되어 있습니다.\n"
+        "의학적 진단을 하지 말고, 생활 패턴 이상 징후와 복지사가 확인할 행동만 제안하세요.\n"
+        "긴급 방문 여부는 AI가 확정하지 말고, 복지사 최종 확인이 필요하다고 표현하세요.\n"
+        "마크다운 표나 볼드 기호는 사용하지 말고, 아래 형식으로 짧게 작성하세요.\n\n"
+        "1. 생활 패턴 요약: 2문장 이내\n"
+        "2. AI가 주목한 이상 신호: 2~3개\n"
+        "3. 복지사 확인 권장 조치: 2개 이내\n"
+        "4. 판단 한계: 데이터 부족 또는 확인 필요한 점\n\n"
+        "분석 데이터:\n" + "\n".join(pattern_lines)
+    )
+
+    client = genai.Client(api_key=api_key)
+    max_retries = 3
+    for attempt in range(max_retries):
+        try:
+            response = client.models.generate_content(
+                model='gemini-3.6-flash',
+                contents=[prompt]
+            )
+            return response.text
+        except Exception as e:
+            if "503" in str(e) and attempt < max_retries - 1:
+                time.sleep(2)
+                continue
+            return f"AI 생활 패턴 분석 중 오류가 발생했습니다: {str(e)}"
+
+
 def analyze_checkup_document_with_gemini(image_path):
     """Gemini 멀티모달 모델을 사용하여 업로드된 건강검진표 이미지를 분석하고 이상 수치를 요약합니다."""
     api_key = os.getenv("GEMINI_API_KEY")

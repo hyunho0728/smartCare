@@ -209,6 +209,9 @@
 .pattern-item-v2.watch{border-color:#fde68a;background:#fffbeb;}
 .pattern-item-v2.warn{border-color:#fed7aa;background:#fff7ed;}
 .pattern-item-v2.danger{border-color:#fecaca;background:#fff1f2;}
+.life-ai-result{margin-top:12px;border:1px solid #dbe7f6;border-radius:14px;background:#f8fafc;padding:12px;color:#475569;font-size:13px;line-height:1.6;word-break:keep-all;}
+.life-ai-result b{display:block;color:#1e293b;font-size:13px;margin-bottom:4px;}
+.life-ai-result span{display:block;white-space:pre-wrap;}
 
 /* 어르신 상세 - 최근 조치 기록 >> 길동 추가 */
 .action-history-v2{
@@ -1107,6 +1110,13 @@ async function loadEldersData() {
             setCheckupAnalysisText(descEl, savedCheckupAiDesc);
           }
         }
+        const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
+        if (savedLifeAiDesc) {
+          const descEl = document.getElementById(`life-ai-desc-${u.id}`);
+          if (descEl) {
+            setLifePatternAnalysisText(descEl, savedLifeAiDesc);
+          }
+        }
       });
     }
   } catch (err) {
@@ -1786,7 +1796,12 @@ function renderTable(){
                     ${evidenceHtml}
                   </div>
                 </div>
+                <div class="life-ai-result" id="life-ai-desc-${u.id}">
+                  <b>Gemini 생활 패턴 분석</b>
+                  Gemini 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+                </div>
                 <div class="ai-actions-v2">
+                  <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">Gemini 분석</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
               </div>
@@ -2157,6 +2172,39 @@ async function remoteLogoutElder(userId, name) {
 function setCheckupAnalysisText(targetEl, text) {
   targetEl.innerHTML = '<b>검진표 AI 분석 결과</b><span></span>';
   targetEl.querySelector('span').textContent = text;
+}
+
+function setLifePatternAnalysisText(targetEl, text) {
+  targetEl.innerHTML = '<b>Gemini 생활 패턴 분석</b><span></span>';
+  targetEl.querySelector('span').textContent = text;
+}
+
+/* 개인정보를 제외한 생활 패턴 요약 데이터를 Gemini AI로 분석 요청합니다. */
+async function analyzeLifePatternAI(userId, elderName) {
+  const descEl = document.getElementById(`life-ai-desc-${userId}`);
+  if (descEl) {
+    setLifePatternAnalysisText(descEl, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
+  }
+
+  try {
+    const res = await fetch(`/api/admin/elders/${userId}/life-pattern-ai`, {
+      method: 'POST'
+    });
+    const result = await res.json();
+
+    if (descEl) {
+      if (result.success) {
+        setLifePatternAnalysisText(descEl, result.analysis);
+        sessionStorage.setItem(`life_ai_desc_${userId}`, result.analysis);
+      } else {
+        setLifePatternAnalysisText(descEl, result.message || 'AI 생활 패턴 분석에 실패했습니다.');
+      }
+    }
+  } catch (err) {
+    if (descEl) {
+      setLifePatternAnalysisText(descEl, '서버와의 통신에 실패했습니다.');
+    }
+  }
 }
 
 /* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 결과를 검진표 섹션에 출력하며 새로고침 대비로 sessionStorage에 저장합니다. */
