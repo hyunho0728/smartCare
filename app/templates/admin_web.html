@@ -201,14 +201,6 @@
 .ai-panel-head-v2 h4{margin-bottom:0;}
 .ai-type-badge{display:inline-flex;align-items:center;justify-content:center;min-height:26px;padding:4px 9px;border-radius:999px;background:#eef6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-size:11px;font-weight:900;white-space:nowrap;}
 .ai-panel-v2 p{color:#475569;line-height:1.65;font-size:14px;word-break:keep-all;}
-.pattern-list-v2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin:12px 0;}
-.pattern-item-v2{border:1px solid #e2e8f0;border-radius:14px;background:#f8fafc;padding:11px 12px;}
-.pattern-item-v2 b{display:block;font-size:13px;color:#1e293b;margin-bottom:4px;}
-.pattern-item-v2 span{display:block;font-size:12px;line-height:1.55;color:#64748b;word-break:keep-all;}
-.pattern-item-v2.safe{border-color:#bbf7d0;background:#f0fdf4;}
-.pattern-item-v2.watch{border-color:#fde68a;background:#fffbeb;}
-.pattern-item-v2.warn{border-color:#fed7aa;background:#fff7ed;}
-.pattern-item-v2.danger{border-color:#fecaca;background:#fff1f2;}
 .life-ai-result{margin-top:12px;border:1px solid #dbe7f6;border-radius:14px;background:#f8fafc;padding:12px;color:#475569;font-size:13px;line-height:1.6;word-break:keep-all;}
 .life-ai-result b{display:block;color:#1e293b;font-size:13px;margin-bottom:4px;}
 .life-ai-result span{display:block;white-space:pre-wrap;}
@@ -1572,24 +1564,6 @@ function renderTable(){
         <b>${b.score}</b>
       </span>
     `).join('');
-    const confidence = u.confidence || { label: '보통', score: 60 };
-    const evidenceHtml = (u.evidence || []).length > 0
-      ? (u.evidence || []).slice(0, 4).map(item => `<span class="score-tag base"><span>${item}</span></span>`).join('')
-      : '<span class="score-tag base"><span>표시할 근거 데이터가 부족합니다.</span></span>';
-    const patternInsights = u.pattern_insights || [];
-    const patternInsightsHtml = patternInsights.length > 0
-      ? patternInsights.slice(0, 4).map(item => `
-          <div class="pattern-item-v2 ${item.level || 'watch'}">
-            <b>${item.title || '생활 패턴'}</b>
-            <span>${item.detail || '추가 확인이 필요합니다.'}</span>
-          </div>
-        `).join('')
-      : `
-          <div class="pattern-item-v2 watch">
-            <b>생활 패턴</b>
-            <span>분석할 생활 패턴 데이터가 부족합니다.</span>
-          </div>
-        `;
 
     const docs = u.checkup_docs || [];
     const checkupDocsHtml = docs.length > 0 
@@ -1783,19 +1757,7 @@ function renderTable(){
                   <h4>🤖 AI 생활 패턴 분석</h4>
                   <span class="ai-type-badge">개인 패턴 기반</span>
                 </div>
-                <div class="pattern-list-v2">
-                  ${patternInsightsHtml}
-                </div>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
-                <div class="score-reason-box" style="margin-top:12px;">
-                  <div class="score-reason-title">
-                    <span>분석 신뢰도 및 근거</span>
-                    <b>${confidence.label} (${confidence.score}%)</b>
-                  </div>
-                  <div class="score-reason-list">
-                    ${evidenceHtml}
-                  </div>
-                </div>
                 <div class="life-ai-result" id="life-ai-desc-${u.id}">
                   <b>Gemini 생활 패턴 분석</b>
                   Gemini 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
