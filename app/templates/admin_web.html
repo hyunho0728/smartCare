@@ -145,7 +145,7 @@
 .chart svg{width:100%;height:190px}
 .main-chart-labels{position:absolute;left:24px;right:24px;bottom:24px;height:14px;pointer-events:none;color:#8a95a6;font-size:12px}
 .main-chart-labels span{position:absolute;left:var(--x);white-space:nowrap}
-.analysis{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.analysis{display:grid;grid-template-columns:1fr;gap:20px}
 .analysis-box{border-left:5px solid var(--blue);background:#f8fbff;border-radius:0 18px 18px 0;padding:18px;margin-bottom:14px}
 .analysis-box.danger{border-left-color:var(--red);background:#fff6f6}
 .analysis-box h4{font-size:15px;margin-bottom:8px}
@@ -625,13 +625,6 @@
               </div>
             </div>
             <div id="ai-analysis-list"><p style="color:var(--muted);font-size:14px;">등록된 분석 기록이 없습니다.</p></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>우선 확인 목록</h3></div>
-            <table class="table">
-              <thead><tr><th>우선도</th><th>어르신</th><th>최근 입력</th><th>권장 조치</th></tr></thead>
-              <tbody id="ai-risk-tbody"></tbody>
-            </table>
           </div>
         </div>
       </section>
@@ -1330,40 +1323,12 @@ function renderOtherSections() {
   }
 
   const aiList = document.getElementById('ai-analysis-list');
-  const aiRiskTbody = document.getElementById('ai-risk-tbody');
-  if (aiList && aiRiskTbody) {
+  if (aiList) {
     if (!users || users.length === 0) {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
-      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted)">데이터가 없습니다.</td></tr>';
     } else {
       populateLifePatternSelect();
       updateLifePatternAnalysis(0);
-
-      const priority = { danger: 0, warn: 1, watch: 2, safe: 3 };
-      const priorityList = users
-        .filter(u => u.risk !== 'safe')
-        .sort((a, b) => {
-          const riskDiff = (priority[a.risk] ?? 4) - (priority[b.risk] ?? 4);
-          if (riskDiff !== 0) return riskDiff;
-          return Number(a.score ?? 100) - Number(b.score ?? 100);
-        });
-
-      if (priorityList.length === 0) {
-        aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px;">우선 확인이 필요한 어르신이 없습니다.</td></tr>';
-      } else {
-        aiRiskTbody.innerHTML = priorityList.map(u => {
-        const action = getRecommendedAction(u);
-        const r = risk[u.risk] || risk.safe;
-        return `
-          <tr>
-            <td><span class="badge ${r[1]}">${r[0]}</span></td>
-            <td><b>${u.name}</b></td>
-            <td>${u.lastInput || u.last || '-'}</td>
-            <td><span class="badge ${action.badge}">${action.label}</span></td>
-          </tr>
-        `;
-        }).join('');
-      }
     }
   }
 
