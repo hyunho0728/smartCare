@@ -2173,6 +2173,11 @@ function setLifePatternAIButtons(userId, isLoading, hasResult = false) {
 
 /* 개인정보를 제외한 생활 패턴 요약 데이터를 Gemini AI로 분석 요청합니다. */
 async function analyzeLifePatternAI(userId, elderName) {
+  const confirmed = confirm(
+    `${elderName} 어르신의 이름, 전화번호, 주소를 제외한 생활 패턴 요약 데이터를 Gemini로 전송해 분석합니다.\n\n계속 진행하시겠습니까?`
+  );
+  if (!confirmed) return;
+
   setLifePatternAIButtons(userId, true);
   setLifePatternAnalysisText(userId, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
 
