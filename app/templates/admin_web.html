@@ -615,7 +615,15 @@
       <section class="page" id="analysis">
         <div class="analysis">
           <div class="panel" style="padding:24px">
-            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>생활 패턴 분석</h3></div>
+            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px">
+              <div class="chart-title-row">
+                <div>
+                  <h3>생활 패턴 분석</h3>
+                  <span id="aiAnalysisSubText">어르신을 선택하면 AI 생활 패턴 분석을 확인합니다.</span>
+                </div>
+                <select class="chart-person-select" id="aiAnalysisUserSelect" onchange="updateLifePatternAnalysis(this.value)"></select>
+              </div>
+            </div>
             <div id="ai-analysis-list"><p style="color:var(--muted);font-size:14px;">등록된 분석 기록이 없습니다.</p></div>
           </div>
           <div class="panel">
@@ -1156,6 +1164,48 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
+function populateLifePatternSelect(){
+  const select = document.getElementById('aiAnalysisUserSelect');
+  if(!select) return;
+  select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
+}
+
+function updateLifePatternAnalysis(index){
+  const aiList = document.getElementById('ai-analysis-list');
+  const sub = document.getElementById('aiAnalysisSubText');
+  const u = users[Number(index)];
+
+  if (!aiList || !u) return;
+
+  const action = getRecommendedAction(u);
+  if (sub) sub.innerText = `${u.name} 어르신의 생활 패턴 분석입니다.`;
+
+  aiList.innerHTML = `
+    <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
+      <h4>${u.name} 어르신 패턴 분석</h4>
+      <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
+      <div class="analysis-actions-v2">
+        <span class="badge ${action.badge}">권장 조치: ${action.label}</span>
+        <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${action.actionType}')">조치 결과 작성</button>
+      </div>
+      <div class="life-ai-result" data-life-ai-user-id="${u.id}">
+        <b>AI 생활 패턴 분석</b>
+        AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+      </div>
+      <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송됩니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+      <div class="ai-actions-v2" style="margin-top:10px;">
+        <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
+      </div>
+    </div>
+  `;
+
+  const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
+  if (savedLifeAiDesc) {
+    setLifePatternAnalysisText(u.id, savedLifeAiDesc);
+    setLifePatternAIButtons(u.id, false, true);
+  }
+}
+
 function isHealthUnrecorded(u) {
   return u?.has_recorded === false ||
     u?.lastInput === '기록 없음' ||
@@ -1269,27 +1319,8 @@ function renderOtherSections() {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
       aiRiskTbody.innerHTML = '<tr><td colspan="5" style="text-align:color:var(--muted)">데이터가 없습니다.</td></tr>';
     } else {
-      aiList.innerHTML = users.map(u => {
-        const action = getRecommendedAction(u);
-        return `
-          <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
-            <h4>${u.name} 어르신 패턴 분석</h4>
-            <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
-            <div class="analysis-actions-v2">
-              <span class="badge ${action.badge}">권장 조치: ${action.label}</span>
-              <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${action.actionType}')">조치 결과 작성</button>
-            </div>
-            <div class="life-ai-result" data-life-ai-user-id="${u.id}">
-              <b>AI 생활 패턴 분석</b>
-              AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
-            </div>
-            <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송됩니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
-            <div class="ai-actions-v2" style="margin-top:10px;">
-              <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
-            </div>
-          </div>
-        `;
-      }).join('');
+      populateLifePatternSelect();
+      updateLifePatternAnalysis(0);
 
       const healthLabels = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'];
       aiRiskTbody.innerHTML = users.map(u => {
