@@ -1167,7 +1167,20 @@ function populateChartSelect(){
 function populateLifePatternSelect(){
   const select = document.getElementById('aiAnalysisUserSelect');
   if(!select) return;
-  select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
+  const priority = { danger: 0, warn: 1, watch: 2, safe: 3 };
+  const sortedUsers = users
+    .map((u, i) => ({ ...u, originalIndex: i }))
+    .sort((a, b) => {
+      const riskDiff = (priority[a.risk] ?? 4) - (priority[b.risk] ?? 4);
+      if (riskDiff !== 0) return riskDiff;
+      return Number(a.score ?? 100) - Number(b.score ?? 100);
+    });
+
+  select.innerHTML = sortedUsers.map(u => {
+    const r = risk[u.risk] || risk.safe;
+    const mark = u.risk === 'danger' ? '🔴' : (u.risk === 'warn' ? '🟠' : (u.risk === 'watch' ? '🟡' : '🟢'));
+    return `<option value="${u.originalIndex}">${mark} ${r[0]} · ${u.name} (${u.age}세)</option>`;
+  }).join('');
 }
 
 function updateLifePatternAnalysis(index){
@@ -1178,11 +1191,15 @@ function updateLifePatternAnalysis(index){
   if (!aiList || !u) return;
 
   const action = getRecommendedAction(u);
-  if (sub) sub.innerText = `${u.name} 어르신의 생활 패턴 분석입니다.`;
+  const r = risk[u.risk] || risk.safe;
+  if (sub) sub.innerText = `${u.name} 어르신의 생활 패턴 분석입니다. 위험도가 높은 순서로 정렬됩니다.`;
 
   aiList.innerHTML = `
     <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
       <h4>${u.name} 어르신 패턴 분석</h4>
+      <div class="analysis-actions-v2">
+        <span class="badge ${r[1]}">우선도: ${r[0]}</span>
+      </div>
       <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
       <div class="analysis-actions-v2">
         <span class="badge ${action.badge}">권장 조치: ${action.label}</span>
