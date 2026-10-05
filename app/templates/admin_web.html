@@ -152,6 +152,7 @@
 .analysis-box p{font-size:13px;color:#475569;line-height:1.65}
 .analysis-actions-v2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;}
 .ai-notice-v2{margin-top:10px;color:#64748b;font-size:12px;line-height:1.55;word-break:keep-all;}
+.mini-btn:disabled{opacity:.55;cursor:not-allowed;background:#f1f5f9;color:#94a3b8;}
 .modal-bg{position:fixed;inset:0;background:rgba(8,15,30,.58);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal-bg.show{display:flex}
 .modal{width:560px;background:#fff;border-radius:26px;box-shadow:0 30px 90px rgba(0,0,0,.28);overflow:hidden}
@@ -1107,6 +1108,7 @@ async function loadEldersData() {
         const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
         if (savedLifeAiDesc) {
           setLifePatternAnalysisText(u.id, savedLifeAiDesc);
+          setLifePatternAIButtons(u.id, false, true);
         }
       });
     }
@@ -1281,9 +1283,9 @@ function renderOtherSections() {
               <b>AI 생활 패턴 분석</b>
               AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
             </div>
-            <p class="ai-notice-v2">AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+            <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송됩니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
             <div class="ai-actions-v2" style="margin-top:10px;">
-              <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
+              <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
             </div>
           </div>
         `;
@@ -1780,9 +1782,9 @@ function renderTable(){
                   <b>AI 생활 패턴 분석</b>
                   AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
                 </div>
-                <p class="ai-notice-v2">AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송되며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+                <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송되며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
                 <div class="ai-actions-v2">
-                  <button class="mini-btn" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
+                  <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
               </div>
@@ -2162,8 +2164,16 @@ function setLifePatternAnalysisText(userId, text) {
   });
 }
 
+function setLifePatternAIButtons(userId, isLoading, hasResult = false) {
+  document.querySelectorAll(`[data-life-ai-button-id="${userId}"]`).forEach(button => {
+    button.disabled = isLoading;
+    button.innerText = isLoading ? '분석 중...' : (hasResult ? '재분석' : 'AI 분석');
+  });
+}
+
 /* 개인정보를 제외한 생활 패턴 요약 데이터를 Gemini AI로 분석 요청합니다. */
 async function analyzeLifePatternAI(userId, elderName) {
+  setLifePatternAIButtons(userId, true);
   setLifePatternAnalysisText(userId, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
 
   try {
@@ -2175,11 +2185,14 @@ async function analyzeLifePatternAI(userId, elderName) {
     if (result.success) {
       setLifePatternAnalysisText(userId, result.analysis);
       sessionStorage.setItem(`life_ai_desc_${userId}`, result.analysis);
+      setLifePatternAIButtons(userId, false, true);
     } else {
       setLifePatternAnalysisText(userId, result.message || 'AI 생활 패턴 분석에 실패했습니다.');
+      setLifePatternAIButtons(userId, false);
     }
   } catch (err) {
     setLifePatternAnalysisText(userId, '서버와의 통신에 실패했습니다.');
+    setLifePatternAIButtons(userId, false);
   }
 }
 
