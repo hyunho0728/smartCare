@@ -203,6 +203,7 @@ def api_get_elders():
             ai_desc = eval_res["ai_summary"]
             confidence = eval_res.get("confidence", {"label": "보통", "score": 60})
             evidence = eval_res.get("evidence", [])
+            pattern_insights = eval_res.get("pattern_insights", [])
         except Exception:
             risk_score = 50
             risk_level = "watch"
@@ -210,6 +211,11 @@ def api_get_elders():
             ai_desc = "상태 데이터 분석 중입니다."
             confidence = {"label": "낮음", "score": 35}
             evidence = ["분석 데이터 확인 필요"]
+            pattern_insights = [{
+                "title": "생활 패턴 분석",
+                "detail": "분석 데이터를 불러오는 중입니다.",
+                "level": "watch"
+            }]
 
         if not latest_health:
             ai_desc = "아직 입력된 건강/식사 기록이 없습니다."
@@ -271,6 +277,7 @@ def api_get_elders():
             "score_breakdown": score_breakdown,
             "confidence": confidence,
             "evidence": evidence,
+            "pattern_insights": pattern_insights,
             "risk": risk_level,
             "alert_time": latest_risk.analyzed_at.strftime("%Y-%m-%d %H:%M") if latest_risk and latest_risk.analyzed_at else "-",
             "last": display_last_time,

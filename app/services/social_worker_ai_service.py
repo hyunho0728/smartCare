@@ -138,7 +138,7 @@ def _confidence_from_data(health_history, login_history, latest_health):
     return {"label": "낮음", "score": 45}
 
 
-def _result_from_analysis(record, score_breakdown=None, confidence=None, evidence=None):
+def _result_from_analysis(record, score_breakdown=None, confidence=None, evidence=None, pattern_insights=None):
     risk_score = float(record.risk_score)
     _, risk_level_code = _risk_level_from_score(risk_score)
 
@@ -150,6 +150,7 @@ def _result_from_analysis(record, score_breakdown=None, confidence=None, evidenc
         "analysis_id": record.analysis_id,
         "confidence": confidence or {"label": "보통", "score": 60},
         "evidence": evidence or [],
+        "pattern_insights": pattern_insights or [],
         "reused": True
     }
 
@@ -172,6 +173,7 @@ def calculate_risk(user, health_history, login_history):
     risk_score = 100
     score_breakdown = [{"item": "기본 만점", "score": "100점", "type": "base"}]
     evidence = []
+    pattern_insights = []
 
     if user.age >= 80:
         risk_score -= 10
@@ -193,6 +195,11 @@ def calculate_risk(user, health_history, login_history):
             risk_score -= 20
             score_breakdown.append({"item": "식사 결식 페널티", "score": "-20점", "type": "minus"})
             evidence.append("최신 식사 기록에 결식 포함")
+            pattern_insights.append({
+                "title": "식사 패턴",
+                "detail": "최신 식사 기록에 결식이 포함되어 있습니다.",
+                "level": "warn"
+            })
 
         if latest_recorded_at:
             elapsed = now - latest_recorded_at
@@ -203,10 +210,26 @@ def calculate_risk(user, health_history, login_history):
                 risk_score -= time_penalty
                 score_breakdown.append({"item": f"미입력 경과 ({elapsed_hours}시간)", "score": f"-{time_penalty}점", "type": "minus"})
                 evidence.append(f"마지막 건강 입력 후 {elapsed_hours}시간 경과")
+                pattern_insights.append({
+                    "title": "입력 시간 패턴",
+                    "detail": f"마지막 건강 상태 입력 후 {elapsed_hours}시간이 경과했습니다.",
+                    "level": "danger" if elapsed_hours >= 24 else "watch"
+                })
+            else:
+                pattern_insights.append({
+                    "title": "입력 시간 패턴",
+                    "detail": "최근 건강 상태 입력이 확인되었습니다.",
+                    "level": "safe"
+                })
     else:
         risk_score -= 40
         score_breakdown.append({"item": "건강 상태 미등록", "score": "-40점", "type": "minus"})
         evidence.append("건강 상태 입력 기록 없음")
+        pattern_insights.append({
+            "title": "입력 시간 패턴",
+            "detail": "건강 상태 입력 기록이 없어 평소 패턴을 판단하기 어렵습니다.",
+            "level": "danger"
+        })
 
     latest_login_at = _latest_time(login_history, "auth_time")
     if latest_login_at:
@@ -221,10 +244,26 @@ def calculate_risk(user, health_history, login_history):
                 "type": "minus"
             })
             evidence.append(f"마지막 접속 후 {login_elapsed_hours}시간 경과")
+            pattern_insights.append({
+                "title": "접속 패턴",
+                "detail": f"마지막 앱 접속 후 {login_elapsed_hours}시간이 지나 평소 활동 확인이 필요합니다.",
+                "level": "warn"
+            })
+        else:
+            pattern_insights.append({
+                "title": "접속 패턴",
+                "detail": "최근 앱 접속 기록이 확인되었습니다.",
+                "level": "safe"
+            })
     else:
         risk_score -= 10
         score_breakdown.append({"item": "로그인 기록 없음", "score": "-10점", "type": "minus"})
         evidence.append("로그인 기록 없음")
+        pattern_insights.append({
+            "title": "접속 패턴",
+            "detail": "앱 접속 기록이 없어 생활 활동 패턴을 충분히 판단하기 어렵습니다.",
+            "level": "watch"
+        })
 
     # ==========================================================
     # 2단계: 머신러닝 기반 시계열 이상 탐지 (Isolation Forest & Trend)
@@ -259,6 +298,11 @@ def calculate_risk(user, health_history, login_history):
                         "type": "minus"
                     })
                     evidence.append(f"평소 입력 시간 대비 {diff:.1f}시간 편차")
+                    pattern_insights.append({
+                        "title": "입력 시간 이상 패턴",
+                        "detail": f"평소 입력 시간대와 {diff:.1f}시간 차이가 감지되었습니다.",
+                        "level": "warn"
+                    })
                     trend_desc.append(f"평소 입력 시간대(평균 {int(mean_hour)}시)와 {diff:.1f}시간의 큰 시차가 발생했습니다.")
 
     # 2. 7일 건강 점수 연속 하락 추세 감지
@@ -275,6 +319,11 @@ def calculate_risk(user, health_history, login_history):
                 "type": "minus"
             })
             evidence.append("최근 건강 상태가 연속 악화")
+            pattern_insights.append({
+                "title": "건강 변화 패턴",
+                "detail": "최근 건강 상태가 연속으로 나빠지는 흐름이 감지되었습니다.",
+                "level": "danger"
+            })
             trend_desc.append("최근 건강 상태가 지속 하락하는 악화 흐름이 나타났습니다.")
 
     # 3. 7일 내 결식 빈도 급증 분석
@@ -289,7 +338,30 @@ def calculate_risk(user, health_history, login_history):
             "type": "minus"
         })
         evidence.append(f"최근 7일 결식 {skip_count}회")
+        pattern_insights.append({
+            "title": "식사 패턴",
+            "detail": f"최근 7일 동안 결식이 {skip_count}회 감지되었습니다.",
+            "level": "warn"
+        })
         trend_desc.append(f"최근 7일 중 {skip_count}회의 결식 패턴이 감지되었습니다.")
+
+    if (
+        latest_health and
+        skip_count < 3 and
+        not any(item["title"] == "식사 패턴" for item in pattern_insights)
+    ):
+        pattern_insights.append({
+            "title": "식사 패턴",
+            "detail": f"최근 7일 결식은 {skip_count}회로 급증 패턴은 감지되지 않았습니다.",
+            "level": "safe"
+        })
+
+    if len(recent_conds) >= 3 and not any(item["title"] == "건강 변화 패턴" for item in pattern_insights):
+        pattern_insights.append({
+            "title": "건강 변화 패턴",
+            "detail": "최근 건강 상태의 연속 악화 패턴은 감지되지 않았습니다.",
+            "level": "safe"
+        })
 
     # AI 감점 합산
     risk_score = max(0, min(100, risk_score - ai_penalty))
@@ -319,7 +391,8 @@ def calculate_risk(user, health_history, login_history):
         "time_deviation": time_dev_minutes,
         "predicted_risk_prob": round(100.0 - risk_score, 2),
         "confidence": _confidence_from_data(health_history, login_history, latest_health),
-        "evidence": evidence
+        "evidence": evidence,
+        "pattern_insights": pattern_insights
     }
 
 
@@ -355,7 +428,8 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
             latest_analysis,
             score_breakdown=risk_result["score_breakdown"],
             confidence=risk_result["confidence"],
-            evidence=risk_result["evidence"]
+            evidence=risk_result["evidence"],
+            pattern_insights=risk_result["pattern_insights"]
         )
 
     # ==========================================================
@@ -371,6 +445,7 @@ def evaluate_and_record_risk(user, health_history, login_history, db_session, Ri
         "analysis_id": new_risk_analysis.analysis_id,
         "confidence": risk_result["confidence"],
         "evidence": risk_result["evidence"],
+        "pattern_insights": risk_result["pattern_insights"],
         "reused": False
     }
 
