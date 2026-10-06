@@ -913,6 +913,7 @@ let unassignedUsers = [];
 let alertHistory = [];
 let emergencyAlerts = [];
 let emergencyUnreadCount = 0;
+let emergencyPollTimer = null;
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
@@ -1089,6 +1090,7 @@ async function login(){
       document.getElementById('login').style.display = 'none';
       document.getElementById('dashboard').style.display = 'block';
       await loadEldersData();
+      startEmergencyPolling();
     } else {
       toast(result.message || '아이디 또는 비밀번호가 일치하지 않습니다.');
     }
@@ -1099,6 +1101,7 @@ async function login(){
 
 // 기존 코드 수정
 async function logout(){
+  stopEmergencyPolling();
   await fetch('/api/admin/logout', { method: 'POST' });
   
   // ➕ [추가] 로그아웃 시 스토리지 정리
@@ -1162,18 +1165,51 @@ async function loadEldersData() {
 }
 
 /* 미배정된 어르신 목록을 화면 우측 패널에 렌더링하고 담당 배정 버튼을 활성화합니다. */
-async function loadEmergencyAlerts() {
+async function loadEmergencyAlerts(options = {}) {
   try {
+    const { showPopup = false } = options;
+    const previousUnreadIds = new Set(
+      emergencyAlerts
+        .filter(alert => !alert.is_read)
+        .map(alert => alert.alert_id)
+    );
+
     const res = await fetch('/api/admin/emergency-alerts?limit=100');
     const result = await res.json();
 
     if (result.success) {
-      emergencyAlerts = result.data || [];
+      const nextAlerts = result.data || [];
+      const newUnreadAlert = nextAlerts.find(alert =>
+        !alert.is_read && !previousUnreadIds.has(alert.alert_id)
+      );
+
+      emergencyAlerts = nextAlerts;
       emergencyUnreadCount = Number(result.unread_count || 0);
       renderEmergencyAlerts();
+
+      if (showPopup && newUnreadAlert) {
+        showEmergencyPopup(newUnreadAlert);
+      }
     }
   } catch (err) {
     console.error('긴급호출 알림 조회 실패:', err);
+  }
+}
+
+function startEmergencyPolling() {
+  stopEmergencyPolling();
+  emergencyPollTimer = setInterval(() => {
+    const dashboard = document.getElementById('dashboard');
+    if (dashboard && dashboard.style.display !== 'none') {
+      loadEmergencyAlerts({ showPopup: true });
+    }
+  }, 5000);
+}
+
+function stopEmergencyPolling() {
+  if (emergencyPollTimer) {
+    clearInterval(emergencyPollTimer);
+    emergencyPollTimer = null;
   }
 }
 
@@ -2107,10 +2143,12 @@ async function checkSessionOnLoad() {
       }
 
       await loadEldersData();
+      startEmergencyPolling();
     } else {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('signup').style.display = 'none';
       document.getElementById('login').style.display = 'flex';
+      stopEmergencyPolling();
       
       // ➕ [추가] 로그아웃/세션 없음 상태일 때 스토리지 초기화
       sessionStorage.removeItem('activeTab');
@@ -2139,13 +2177,10 @@ function toggle(i) {
     }
   }
 }
-async function openEmergency(){
-  await loadEmergencyAlerts();
-
+function showEmergencyPopup(targetAlert) {
   const modal = document.getElementById('emergency');
   const desc = document.getElementById('emergency-desc');
   const readBtn = document.getElementById('emergency-read-btn');
-  const targetAlert = emergencyAlerts.find(alert => !alert.is_read) || emergencyAlerts[0];
 
   if (targetAlert) {
     if (desc) {
@@ -2169,6 +2204,11 @@ async function openEmergency(){
   }
 
   if (modal) modal.classList.add('show');
+}
+async function openEmergency(){
+  await loadEmergencyAlerts();
+  const targetAlert = emergencyAlerts.find(alert => !alert.is_read) || emergencyAlerts[0];
+  showEmergencyPopup(targetAlert);
 }
 function openAdd(){document.getElementById('add').classList.add('show')}
 function openFeedback(userId, name, actionType) {
