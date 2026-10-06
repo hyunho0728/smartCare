@@ -1795,17 +1795,51 @@
             }
         }
 
-        function confirmEmergency() {
+        async function confirmEmergency() {
             speak('긴급 전화를 연결할까요?');
+
             showConfirm(
                 '🚨',
                 '긴급 안심콜(129)로\n전화 연결하시겠습니까?',
                 '취소',
                 '전화걸기',
                 closeModal,
-                () => {
+                async () => {
                     closeModal();
-                    window.location.href = 'tel:129';
+
+                    try {
+                        const res = await fetch('/api/user/emergency', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                phone_number: currentUserPhone
+                            })
+                        });
+
+                        const result = await res.json();
+
+                        if (!result.success) {
+                            showAlert(
+                                '⚠️',
+                                result.message || '긴급알림 전송에 실패했습니다.'
+                            );
+                            speak(
+                                result.message || '긴급알림 전송에 실패했습니다.'
+                            );
+                            return;
+                        }
+
+                        window.location.href = 'tel:129';
+
+                    } catch (err) {
+                        showAlert(
+                            '⚠️',
+                            '긴급알림 전송 중 오류가 발생했습니다.'
+                        );
+                        speak('긴급알림 전송 중 오류가 발생했습니다.');
+                    }
                 }
             );
         }

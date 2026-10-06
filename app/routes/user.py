@@ -335,3 +335,67 @@ def api_upload_checkup():
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"업로드 실패: {str(e)}"}), 500
+
+# --- 긴급호출 API ---
+@user_bp.route('/api/user/emergency', methods=['POST'])
+def api_user_emergency():
+    """어르신이 긴급호출 버튼을 눌렀을 때 담당 복지사에게 긴급알림 생성"""
+
+    user_id = session.get('user_id')
+
+    if not user_id:
+        data = request.get_json() or {}
+        phone_clean = extract_numbers(data.get('phone_number', ''))
+
+        if phone_clean:
+            user = User.query.filter_by(
+                phone_number=phone_clean,
+                is_active=True
+            ).first()
+
+            if user:
+                user_id = user.user_id
+
+    if not user_id:
+        return jsonify({
+            "success": False,
+            "message": "로그인이 필요합니다."
+        }), 401
+
+    user = User.query.get(user_id)
+
+    if not user or not user.is_active:
+        return jsonify({
+            "success": False,
+            "message": "사용자 정보를 찾을 수 없습니다."
+        }), 404
+
+    try:
+        from models.models import EmergencyAlert
+
+        alert = EmergencyAlert(
+            user_id=user.user_id,
+            worker_id=user.worker_id,
+            user_name=user.name,
+            user_phone=user.phone_number,
+            emergency_contact=user.emergency_contact,
+            message="어르신이 긴급호출 버튼을 눌렀습니다."
+        )
+
+        db.session.add(alert)
+        db.session.commit()
+
+        return jsonify({
+            "success": True,
+            "message": "긴급알림이 담당 복지사에게 전달되었습니다.",
+            "has_worker": bool(user.worker_id),
+            "has_emergency_contact": bool(user.emergency_contact)
+        })
+
+    except Exception as e:
+        db.session.rollback()
+
+        return jsonify({
+            "success": False,
+            "message": f"긴급알림 처리 실패: {str(e)}"
+        }), 500
