@@ -914,6 +914,8 @@ let alertHistory = [];
 let emergencyAlerts = [];
 let emergencyUnreadCount = 0;
 let emergencyPollTimer = null;
+let elderDataPollTimer = null;
+let elderDataRefreshInProgress = false;
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
@@ -1091,6 +1093,7 @@ async function login(){
       document.getElementById('dashboard').style.display = 'block';
       await loadEldersData();
       startEmergencyPolling();
+      startElderDataPolling();
     } else {
       toast(result.message || '아이디 또는 비밀번호가 일치하지 않습니다.');
     }
@@ -1102,6 +1105,7 @@ async function login(){
 // 기존 코드 수정
 async function logout(){
   stopEmergencyPolling();
+  stopElderDataPolling();
   await fetch('/api/admin/logout', { method: 'POST' });
   
   // ➕ [추가] 로그아웃 시 스토리지 정리
@@ -1210,6 +1214,33 @@ function stopEmergencyPolling() {
   if (emergencyPollTimer) {
     clearInterval(emergencyPollTimer);
     emergencyPollTimer = null;
+  }
+}
+
+function startElderDataPolling() {
+  stopElderDataPolling();
+  elderDataPollTimer = setInterval(refreshElderDataInBackground, 10000);
+}
+
+function stopElderDataPolling() {
+  if (elderDataPollTimer) {
+    clearInterval(elderDataPollTimer);
+    elderDataPollTimer = null;
+  }
+  elderDataRefreshInProgress = false;
+}
+
+async function refreshElderDataInBackground() {
+  const dashboard = document.getElementById('dashboard');
+  if (!dashboard || dashboard.style.display === 'none' || elderDataRefreshInProgress) {
+    return;
+  }
+
+  try {
+    elderDataRefreshInProgress = true;
+    await loadEldersData();
+  } finally {
+    elderDataRefreshInProgress = false;
   }
 }
 
@@ -2144,11 +2175,13 @@ async function checkSessionOnLoad() {
 
       await loadEldersData();
       startEmergencyPolling();
+      startElderDataPolling();
     } else {
       document.getElementById('dashboard').style.display = 'none';
       document.getElementById('signup').style.display = 'none';
       document.getElementById('login').style.display = 'flex';
       stopEmergencyPolling();
+      stopElderDataPolling();
       
       // ➕ [추가] 로그아웃/세션 없음 상태일 때 스토리지 초기화
       sessionStorage.removeItem('activeTab');
