@@ -377,6 +377,48 @@ def api_get_emergency_alerts():
         ).count()
     })
 
+@worker_bp.route('/api/admin/emergency-alerts/<int:alert_id>/read', methods=['POST', 'PATCH'])
+def api_mark_emergency_alert_read(alert_id):
+    """현재 로그인한 복지사의 긴급호출 알림을 읽음 처리"""
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+
+    alert = EmergencyAlert.query.filter_by(
+        alert_id=alert_id,
+        worker_id=current_worker_id
+    ).first()
+
+    if not alert:
+        return jsonify({"success": False, "message": "긴급알림을 찾을 수 없습니다."}), 404
+
+    try:
+        alert.is_read = True
+        db.session.commit()
+
+        unread_count = EmergencyAlert.query.filter_by(
+            worker_id=current_worker_id,
+            is_read=False
+        ).count()
+
+        return jsonify({
+            "success": True,
+            "message": "긴급알림을 읽음 처리했습니다.",
+            "alert_id": alert.alert_id,
+            "is_read": bool(alert.is_read),
+            "unread_count": unread_count
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": f"읽음 처리 실패: {str(e)}"}), 500
+
 @worker_bp.route('/api/admin/elders/assign', methods=['POST'])
 def api_assign_elder():
     """미배정 어르신을 현재 로그인한 복지사에게 배정"""
