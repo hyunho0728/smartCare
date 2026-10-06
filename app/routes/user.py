@@ -96,6 +96,7 @@ def api_user_login():
         "user_id": user.user_id,
         "user_name": user.name,
         "phone_number": format_phone_display(phone_clean),
+        "emergency_contact": extract_numbers(user.emergency_contact),
         "session_token": token,
         "today_saved": bool(today_health is not None),
         "today_data": today_status_data
@@ -143,7 +144,8 @@ def api_user_check_session():
         "valid": True,
         "user_info": {
             "user_name": user.name,
-            "phone_number": format_phone_display(user.phone_number)
+            "phone_number": format_phone_display(user.phone_number),
+            "emergency_contact": extract_numbers(user.emergency_contact)
         },
         "today_saved": bool(today_health is not None),
         "today_data": today_status_data
@@ -341,10 +343,14 @@ def api_upload_checkup():
 def api_user_emergency():
     """어르신이 긴급호출 버튼을 눌렀을 때 담당 복지사에게 긴급알림 생성"""
 
+    data = request.get_json() or {}
+    call_target = data.get('call_target', '129')
+    if call_target not in ('guardian', '129'):
+        return jsonify({"success": False, "message": "올바른 연락 대상을 선택해주세요."}), 400
+
     user_id = session.get('user_id')
 
     if not user_id:
-        data = request.get_json() or {}
         phone_clean = extract_numbers(data.get('phone_number', ''))
 
         if phone_clean:
@@ -370,6 +376,13 @@ def api_user_emergency():
             "message": "사용자 정보를 찾을 수 없습니다."
         }), 404
 
+    guardian_phone = extract_numbers(user.emergency_contact)
+    if call_target == 'guardian' and not guardian_phone:
+        return jsonify({"success": False, "message": "등록된 보호자 연락처가 없습니다. 129를 선택해주세요."}), 400
+
+    call_number = guardian_phone if call_target == 'guardian' else '129'
+    target_name = '보호자' if call_target == 'guardian' else '129'
+
     try:
         from models.models import EmergencyAlert
 
@@ -379,7 +392,7 @@ def api_user_emergency():
             user_name=user.name,
             user_phone=user.phone_number,
             emergency_contact=user.emergency_contact,
-            message="어르신이 긴급호출 버튼을 눌렀습니다."
+            message=f"어르신이 긴급호출 버튼을 눌렀습니다. 연락 대상: {target_name}."
         )
 
         db.session.add(alert)
@@ -397,7 +410,9 @@ def api_user_emergency():
             "message": message,
             "alert_id": alert.alert_id,
             "has_worker": has_worker,
-            "has_emergency_contact": bool(user.emergency_contact)
+            "has_emergency_contact": bool(guardian_phone),
+            "call_target": call_target,
+            "call_number": call_number
         })
 
     except Exception as e:

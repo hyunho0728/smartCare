@@ -531,6 +531,9 @@
             gap: 2vw;
             margin-top: 3vh;
         }
+        .modal-row.emergency-options {
+            flex-direction: column;
+        }
     /* ===== 추가 기능: 진행률 ===== */
     .progress-container {
     position: fixed;
@@ -1088,6 +1091,8 @@
     <script>
         let currentUserName = '어르신';
         let currentUserPhone = '';
+        let currentEmergencyContact = '';
+        let isEmergencyCalling = false;
         let todaySaved = false;
         let savedTime = '';
         let isModifyMode = false;
@@ -1399,6 +1404,7 @@
                 const result = await res.json();
                 if (result.success) {
                     currentUserPhone = result.phone_number;
+                    currentEmergencyContact = result.emergency_contact || '';
                     currentUserName = result.user_name || '어르신';
                     document.getElementById('user-greeting').innerHTML = `${currentUserName}님,<br>안녕하세요`;
                     if (result.today_saved && result.today_data) {
@@ -1796,6 +1802,27 @@
         }
 
         async function confirmEmergency() {
+            if (isEmergencyCalling) return;
+
+            if (currentEmergencyContact) {
+                speak('보호자 또는 129 중 연락할 곳을 선택해주세요.');
+                const row = document.getElementById('modal-row');
+                row.classList.add('emergency-options');
+                document.getElementById('modal-icon').textContent = '🚨';
+                document.getElementById('modal-text').textContent =
+                    '연락할 곳을 선택해주세요.\n어느 곳을 선택해도 사회복지사에게 긴급알림을 보냅니다.';
+                row.innerHTML = `
+                    <button class="main-btn red-btn" id="emergency-guardian">보호자에게 전화</button>
+                    <button class="main-btn red-btn" id="emergency-129">129로 전화</button>
+                    <button class="main-btn gray-btn" id="emergency-cancel">취소</button>
+                `;
+                document.getElementById('emergency-guardian').onclick = () => callEmergency('guardian');
+                document.getElementById('emergency-129').onclick = () => callEmergency('129');
+                document.getElementById('emergency-cancel').onclick = closeModal;
+                document.getElementById('modal').classList.add('show');
+                return;
+            }
+
             speak('긴급 전화를 연결할까요?');
 
             showConfirm(
@@ -1804,48 +1831,48 @@
                 '취소',
                 '전화걸기',
                 closeModal,
-                async () => {
-                    closeModal();
-
-                    try {
-                        const res = await fetch('/api/user/emergency', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                phone_number: currentUserPhone
-                            })
-                        });
-
-                        const result = await res.json();
-
-                        if (!result.success) {
-                            showAlert(
-                                '⚠️',
-                                result.message || '긴급알림 전송에 실패했습니다.'
-                            );
-                            speak(
-                                result.message || '긴급알림 전송에 실패했습니다.'
-                            );
-                            return;
-                        }
-
-                        window.location.href = 'tel:129';
-
-                    } catch (err) {
-                        showAlert(
-                            '⚠️',
-                            '긴급알림 전송 중 오류가 발생했습니다.'
-                        );
-                        speak('긴급알림 전송 중 오류가 발생했습니다.');
-                    }
-                }
+                () => callEmergency('129')
             );
+        }
+
+        async function callEmergency(callTarget) {
+            if (isEmergencyCalling) return;
+            isEmergencyCalling = true;
+            closeModal();
+
+            try {
+                const res = await fetch('/api/user/emergency', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        phone_number: currentUserPhone,
+                        call_target: callTarget
+                    })
+                });
+                const result = await res.json();
+                if (!res.ok || !result.success) {
+                    const message = result.message || '긴급알림 전송에 실패했습니다.';
+                    showAlert('⚠️', message);
+                    speak(message);
+                    return;
+                }
+                if (!/^\d+$/.test(result.call_number || '')) {
+                    showAlert('⚠️', '전화 연결 번호를 확인할 수 없습니다.');
+                    speak('전화 연결 번호를 확인할 수 없습니다.');
+                    return;
+                }
+                window.location.href = `tel:${result.call_number}`;
+            } catch (err) {
+                showAlert('⚠️', '긴급알림 전송 중 오류가 발생했습니다.');
+                speak('긴급알림 전송 중 오류가 발생했습니다.');
+            } finally {
+                isEmergencyCalling = false;
+            }
         }
 
         function showAlert(icon, text) {
             const row = document.getElementById('modal-row');
+            row.classList.remove('emergency-options');
             document.getElementById('modal-icon').textContent = icon;
             document.getElementById('modal-text').textContent = text;
             row.innerHTML = `<button class="main-btn" onclick="closeModal()">확인</button>`;
@@ -1854,6 +1881,7 @@
 
         function showConfirm(icon, text, leftText, rightText, leftFn, rightFn) {
             const row = document.getElementById('modal-row');
+            row.classList.remove('emergency-options');
             document.getElementById('modal-icon').textContent = icon;
             document.getElementById('modal-text').textContent = text;
             row.innerHTML = `
@@ -1885,6 +1913,7 @@
                 const result = await res.json();
                 if (result.valid && result.user_info) {
                     currentUserPhone = result.user_info.phone_number;
+                    currentEmergencyContact = result.user_info.emergency_contact || '';
                     currentUserName = result.user_info.user_name || '어르신';
                     document.getElementById('user-greeting').innerHTML = `${currentUserName}님,<br>안녕하세요`;
                     if (result.today_saved && result.today_data) {
@@ -1921,7 +1950,11 @@
             try {
                 const res = await fetch('/api/user/check-session?_t=' + new Date().getTime());
                 const data = await res.json();
+                if (data.valid && data.user_info) {
+                    currentEmergencyContact = data.user_info.emergency_contact || '';
+                }
                 if (!data.valid) {
+                    currentEmergencyContact = '';
                     isLoggingOut = true;
                     speak('로그아웃 되었습니다.');
                     showAlert('🔒', '로그아웃 되었습니다.');
@@ -1931,6 +1964,7 @@
                         todaySaved = false;
                         savedData = null;
                         currentUserPhone = '';
+                        currentEmergencyContact = '';
                         currentUserName = '어르신';
                         goTo('screen-login');
                         isLoggingOut = false;
