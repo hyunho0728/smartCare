@@ -1,7 +1,7 @@
 import os
 import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
-from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument
+from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument, EmergencyAlert
 from services.social_worker_ai_service import (
     evaluate_and_record_risk,
     analyze_checkup_document_with_gemini,
@@ -329,6 +329,52 @@ def api_get_elders():
         "data": assigned_list,
         "unassigned": unassigned_list,
         "alert_history": alert_history
+    })
+
+@worker_bp.route('/api/admin/emergency-alerts', methods=['GET'])
+def api_get_emergency_alerts():
+    """현재 로그인한 복지사의 긴급호출 알림 목록 조회"""
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+
+    unread_only = str(request.args.get('unread_only', '')).lower() in ('1', 'true', 'yes')
+
+    try:
+        limit = int(request.args.get('limit', 50))
+    except (TypeError, ValueError):
+        limit = 50
+    limit = max(1, min(limit, 100))
+
+    query = EmergencyAlert.query.filter_by(worker_id=current_worker_id)
+    if unread_only:
+        query = query.filter_by(is_read=False)
+
+    alerts = query.order_by(EmergencyAlert.created_at.desc()).limit(limit).all()
+
+    return jsonify({
+        "success": True,
+        "data": [{
+            "alert_id": alert.alert_id,
+            "user_id": alert.user_id,
+            "user_name": alert.user_name,
+            "user_phone": format_phone_display(alert.user_phone),
+            "emergency_contact": format_phone_display(alert.emergency_contact),
+            "message": alert.message,
+            "created_at": alert.created_at.strftime("%Y-%m-%d %H:%M") if alert.created_at else "-",
+            "is_read": bool(alert.is_read)
+        } for alert in alerts],
+        "unread_count": EmergencyAlert.query.filter_by(
+            worker_id=current_worker_id,
+            is_read=False
+        ).count()
     })
 
 @worker_bp.route('/api/admin/elders/assign', methods=['POST'])
