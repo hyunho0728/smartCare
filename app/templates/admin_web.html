@@ -58,7 +58,8 @@
 .search{width:300px;height:46px;border:1px solid var(--line);border-radius:15px;background:#fff;padding:0 15px;font-size:14px;outline:none}
 .icon-alert{width:46px;height:46px;border:0;border-radius:15px;background:#fff3cd;font-size:20px;cursor:pointer;position:relative}
 .icon-alert:before{content:'🔔'}
-.icon-alert:after{content:'';position:absolute;top:9px;right:10px;width:9px;height:9px;background:var(--red);border-radius:50%}
+.icon-alert:after{content:'';position:absolute;top:9px;right:10px;width:9px;height:9px;background:var(--red);border-radius:50%;display:none}
+.icon-alert.has-unread:after{display:block}
 .page{display:none}
 .page.active{display:block}
 .kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}
@@ -584,7 +585,7 @@
 
           <aside>
             <div class="panel">
-              <div class="panel-head"><h3>최근 징후 알림</h3></div>
+              <div class="panel-head"><h3>최근 긴급호출 알림</h3></div>
               <div class="alert-list" id="alert-list"><p style="padding:15px;color:var(--muted);font-size:13px;">새로운 알림이 없습니다.</p></div>
             </div>
             <div class="panel">
@@ -652,6 +653,13 @@
 
             <button
               class="alert-tab"
+              id="emergency-alert-tab"
+              onclick="switchAlertTab('emergency', this)">
+              긴급호출
+            </button>
+
+            <button
+              class="alert-tab"
               id="history-alert-tab"
               onclick="switchAlertTab('history', this)">
               알림 기록
@@ -683,6 +691,35 @@
               </thead>
 
               <tbody id="alerts-record-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- 긴급호출 알림 -->
+          <div
+            class="alert-tab-content"
+            id="emergency-alert-content">
+
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>호출 일시</th>
+                  <th>대상자</th>
+                  <th>연락처</th>
+                  <th>보호자 연락처</th>
+                  <th>상태</th>
+                  <th>처리</th>
+                </tr>
+              </thead>
+
+              <tbody id="emergency-alerts-tbody">
+                <tr>
+                  <td
+                    colspan="6"
+                    style="text-align:center;padding:30px;color:var(--muted);">
+                    긴급호출 알림이 없습니다.
+                  </td>
+                </tr>
+              </tbody>
             </table>
           </div>
 
@@ -770,7 +807,10 @@
       <div class="e-icon">🚨</div>
       <div class="e-title">긴급 연락 수신</div>
       <p style="line-height:1.7;color:var(--muted);margin-bottom:22px" id="emergency-desc">긴급 알림 대상자가 없습니다.</p>
-      <button class="btn primary" onclick="toast('긴급 연락망을 확인합니다.');closeModal('emergency')">확인</button>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button class="btn primary" id="emergency-read-btn" onclick="closeModal('emergency')">확인</button>
+        <button class="btn soft" onclick="closeModal('emergency')">닫기</button>
+      </div>
     </div>
   </div>
 </div>
@@ -871,6 +911,8 @@
 let users = [];
 let unassignedUsers = [];
 let alertHistory = [];
+let emergencyAlerts = [];
+let emergencyUnreadCount = 0;
 let selectedFeedbackUserId = null; // 길동 추가
 const risk = {
   safe: ['안전', 'b-green', '#16a34a'],
@@ -1081,6 +1123,7 @@ async function loadEldersData() {
       alertHistory = result.alert_history || [];
       console.log('서버에서 받은 어르신 데이터: ', users); // 삭제
 
+      await loadEmergencyAlerts();
       updateKPIs();
       renderTable();
       renderOtherSections();
@@ -1119,6 +1162,93 @@ async function loadEldersData() {
 }
 
 /* 미배정된 어르신 목록을 화면 우측 패널에 렌더링하고 담당 배정 버튼을 활성화합니다. */
+async function loadEmergencyAlerts() {
+  try {
+    const res = await fetch('/api/admin/emergency-alerts?limit=100');
+    const result = await res.json();
+
+    if (result.success) {
+      emergencyAlerts = result.data || [];
+      emergencyUnreadCount = Number(result.unread_count || 0);
+      renderEmergencyAlerts();
+    }
+  } catch (err) {
+    console.error('긴급호출 알림 조회 실패:', err);
+  }
+}
+
+function renderEmergencyAlerts() {
+  const alertButton = document.querySelector('.icon-alert');
+  if (alertButton) {
+    alertButton.classList.toggle('has-unread', emergencyUnreadCount > 0);
+    alertButton.title = emergencyUnreadCount > 0
+      ? `읽지 않은 긴급호출 ${emergencyUnreadCount}건`
+      : '긴급호출 알림';
+  }
+
+  const tbody = document.getElementById('emergency-alerts-tbody');
+  if (tbody) {
+    if (!emergencyAlerts || emergencyAlerts.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:24px;color:var(--muted)">긴급호출 알림이 없습니다.</td></tr>';
+    } else {
+      tbody.innerHTML = emergencyAlerts.map(alert => `
+        <tr>
+          <td>${alert.created_at || '-'}</td>
+          <td><b>${alert.user_name || '-'}</b></td>
+          <td>${alert.user_phone || '-'}</td>
+          <td>${alert.emergency_contact || '-'}</td>
+          <td><span class="badge ${alert.is_read ? 'b-green' : 'b-red'}">${alert.is_read ? '확인 완료' : '미확인'}</span></td>
+          <td>
+            ${alert.is_read
+              ? '-'
+              : `<button class="mini-btn danger" onclick="markEmergencyAlertRead(${alert.alert_id})">읽음 처리</button>`}
+          </td>
+        </tr>
+      `).join('');
+    }
+  }
+
+  const list = document.getElementById('alert-list');
+  if (list) {
+    const unreadAlerts = emergencyAlerts.filter(alert => !alert.is_read).slice(0, 5);
+    if (unreadAlerts.length === 0) {
+      list.innerHTML = '<p style="padding:15px;color:var(--muted);font-size:13px;">새로운 긴급호출 알림이 없습니다.</p>';
+    } else {
+      list.innerHTML = unreadAlerts.map(alert => `
+        <div class="alert" onclick="openEmergency()">
+          <h4>
+            <span>${alert.user_name || '-'} 긴급호출</span>
+            <span>${alert.created_at || '-'}</span>
+          </h4>
+          <p>${alert.message || '긴급호출 알림이 접수되었습니다.'}<br>연락처: ${alert.user_phone || '-'}</p>
+        </div>
+      `).join('');
+    }
+  }
+}
+
+async function markEmergencyAlertRead(alertId, closeAfter = false) {
+  try {
+    const res = await fetch(`/api/admin/emergency-alerts/${alertId}/read`, {
+      method: 'POST'
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      emergencyAlerts = emergencyAlerts.map(alert =>
+        alert.alert_id === alertId ? { ...alert, is_read: true } : alert
+      );
+      emergencyUnreadCount = Number(result.unread_count || 0);
+      renderEmergencyAlerts();
+      if (closeAfter) closeModal('emergency');
+    } else {
+      toast(result.message || '긴급알림 읽음 처리에 실패했습니다.');
+    }
+  } catch (err) {
+    toast('서버와의 통신에 실패했습니다.');
+  }
+}
+
 function renderUnassignedList() {
   const unassignedBox = document.getElementById('unassigned-list');
   if (!unassignedBox) return;
@@ -1389,6 +1519,8 @@ function renderOtherSections() {
       `).join('');
     }
   }
+
+  renderEmergencyAlerts();
 }
 
 async function assignElder(userId, name) {
@@ -1460,6 +1592,14 @@ function switchAlertTab(tab, button) {
     document
       .getElementById('recent-alert-content')
       .classList.add('active');
+  }
+
+  if (tab === 'emergency') {
+    document
+      .getElementById('emergency-alert-content')
+      .classList.add('active');
+
+    loadEmergencyAlerts();
   }
 
   if (tab === 'history') {
@@ -1999,7 +2139,37 @@ function toggle(i) {
     }
   }
 }
-function openEmergency(){document.getElementById('emergency').classList.add('show')}
+async function openEmergency(){
+  await loadEmergencyAlerts();
+
+  const modal = document.getElementById('emergency');
+  const desc = document.getElementById('emergency-desc');
+  const readBtn = document.getElementById('emergency-read-btn');
+  const targetAlert = emergencyAlerts.find(alert => !alert.is_read) || emergencyAlerts[0];
+
+  if (targetAlert) {
+    if (desc) {
+      desc.innerHTML = `
+        <b>${targetAlert.user_name || '-'} 어르신 긴급호출</b><br>
+        호출 시각: ${targetAlert.created_at || '-'}<br>
+        연락처: ${targetAlert.user_phone || '-'}<br>
+        보호자 연락처: ${targetAlert.emergency_contact || '-'}
+      `;
+    }
+    if (readBtn) {
+      readBtn.style.display = targetAlert.is_read ? 'none' : '';
+      readBtn.onclick = () => markEmergencyAlertRead(targetAlert.alert_id, true);
+    }
+  } else {
+    if (desc) desc.textContent = '긴급 알림 대상자가 없습니다.';
+    if (readBtn) {
+      readBtn.style.display = 'none';
+      readBtn.onclick = () => closeModal('emergency');
+    }
+  }
+
+  if (modal) modal.classList.add('show');
+}
 function openAdd(){document.getElementById('add').classList.add('show')}
 function openFeedback(userId, name, actionType) {
   selectedFeedbackUserId = userId;

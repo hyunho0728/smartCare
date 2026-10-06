@@ -385,10 +385,18 @@ def api_user_emergency():
         db.session.add(alert)
         db.session.commit()
 
+        has_worker = bool(user.worker_id)
+        message = (
+            "긴급알림이 담당 복지사에게 전달되었습니다."
+            if has_worker
+            else "담당 복지사가 아직 배정되지 않아 긴급호출 내역을 저장했습니다."
+        )
+
         return jsonify({
             "success": True,
-            "message": "긴급알림이 담당 복지사에게 전달되었습니다.",
-            "has_worker": bool(user.worker_id),
+            "message": message,
+            "alert_id": alert.alert_id,
+            "has_worker": has_worker,
             "has_emergency_contact": bool(user.emergency_contact)
         })
 
