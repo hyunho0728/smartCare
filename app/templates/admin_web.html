@@ -145,11 +145,14 @@
 .chart svg{width:100%;height:190px}
 .main-chart-labels{position:absolute;left:24px;right:24px;bottom:24px;height:14px;pointer-events:none;color:#8a95a6;font-size:12px}
 .main-chart-labels span{position:absolute;left:var(--x);white-space:nowrap}
-.analysis{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.analysis{display:grid;grid-template-columns:1fr;gap:20px}
 .analysis-box{border-left:5px solid var(--blue);background:#f8fbff;border-radius:0 18px 18px 0;padding:18px;margin-bottom:14px}
 .analysis-box.danger{border-left-color:var(--red);background:#fff6f6}
 .analysis-box h4{font-size:15px;margin-bottom:8px}
 .analysis-box p{font-size:13px;color:#475569;line-height:1.65}
+.analysis-actions-v2{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;}
+.ai-notice-v2{margin-top:10px;color:#64748b;font-size:12px;line-height:1.55;word-break:keep-all;}
+.mini-btn:disabled{opacity:.55;cursor:not-allowed;background:#f1f5f9;color:#94a3b8;}
 .modal-bg{position:fixed;inset:0;background:rgba(8,15,30,.58);display:none;align-items:center;justify-content:center;z-index:50;padding:20px}
 .modal-bg.show{display:flex}
 .modal{width:560px;background:#fff;border-radius:26px;box-shadow:0 30px 90px rgba(0,0,0,.28);overflow:hidden}
@@ -196,8 +199,14 @@
 .quick-card-v2 .meal-inline{display:flex;flex-direction:column;gap:2px;font-size:13px;}
 
 .ai-panel-v2{background:#fff;border:1px solid #dbe7f6;border-radius:26px;padding:20px 22px;box-shadow:0 14px 34px rgba(37,99,235,.10);border-left:8px solid var(--red);}
+.ai-panel-head-v2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
 .ai-panel-v2 h4{font-size:18px;margin-bottom:8px;}
+.ai-panel-head-v2 h4{margin-bottom:0;}
+.ai-type-badge{display:inline-flex;align-items:center;justify-content:center;min-height:26px;padding:4px 9px;border-radius:999px;background:#eef6ff;color:#1d4ed8;border:1px solid #bfdbfe;font-size:11px;font-weight:900;white-space:nowrap;}
 .ai-panel-v2 p{color:#475569;line-height:1.65;font-size:14px;word-break:keep-all;}
+.life-ai-result{margin-top:12px;border:1px solid #dbe7f6;border-radius:14px;background:#f8fafc;padding:12px;color:#475569;font-size:13px;line-height:1.6;word-break:keep-all;}
+.life-ai-result b{display:block;color:#1e293b;font-size:13px;margin-bottom:4px;}
+.life-ai-result span{display:block;white-space:pre-wrap;}
 
 /* 어르신 상세 - 최근 조치 기록 >> 길동 추가 */
 .action-history-v2{
@@ -286,6 +295,9 @@
 .checkup-thumb-wrap:hover{transform:scale(1.04);border-color:var(--blue);}
 .checkup-thumb{width:100%;height:100%;object-fit:cover;}
 .checkup-thumb-date{position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.75);color:#fff;font-size:10px;text-align:center;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.checkup-ai-result{margin-top:12px;background:#fff;border:1px solid #dbe7f6;border-radius:12px;padding:12px;color:#475569;font-size:13px;line-height:1.6;word-break:keep-all;}
+.checkup-ai-result b{display:block;color:#1e293b;font-size:13px;margin-bottom:4px;}
+.checkup-ai-result span{display:block;white-space:pre-wrap;}
 .checkup-del-btn{
   position:absolute;
   top:4px;
@@ -603,15 +615,16 @@
       <section class="page" id="analysis">
         <div class="analysis">
           <div class="panel" style="padding:24px">
-            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px"><h3>생활 패턴 분석</h3></div>
+            <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px">
+              <div class="chart-title-row">
+                <div>
+                  <h3>생활 패턴 분석</h3>
+                  <span id="aiAnalysisSubText">어르신을 선택하면 AI 생활 패턴 분석을 확인합니다.</span>
+                </div>
+                <select class="chart-person-select" id="aiAnalysisUserSelect" onchange="updateLifePatternAnalysis(this.value)"></select>
+              </div>
+            </div>
             <div id="ai-analysis-list"><p style="color:var(--muted);font-size:14px;">등록된 분석 기록이 없습니다.</p></div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><h3>예측 위험도</h3></div>
-            <table class="table">
-              <thead><tr><th>어르신</th><th>최근 상태</th><th>식사 상태</th><th>예측 위험도</th></tr></thead>
-              <tbody id="ai-risk-tbody"></tbody>
-            </table>
           </div>
         </div>
       </section>
@@ -1084,14 +1097,19 @@ async function loadEldersData() {
         }
       }
 
-      // 저장된 AI 분석 결과가 있다면 각 어르신 패널에 복원
+      // 저장된 검진표 AI 분석 결과가 있다면 검진표 섹션에 복원
       users.forEach(u => {
-        const savedAiDesc = sessionStorage.getItem(`ai_desc_${u.id}`);
-        if (savedAiDesc) {
-          const descEl = document.getElementById(`ai-desc-${u.id}`);
+        const savedCheckupAiDesc = sessionStorage.getItem(`checkup_ai_desc_${u.id}`);
+        if (savedCheckupAiDesc) {
+          const descEl = document.getElementById(`checkup-ai-desc-${u.id}`);
           if (descEl) {
-            descEl.innerText = savedAiDesc;
+            setCheckupAnalysisText(descEl, savedCheckupAiDesc);
           }
+        }
+        const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
+        if (savedLifeAiDesc) {
+          setLifePatternAnalysisText(u.id, savedLifeAiDesc);
+          setLifePatternAIButtons(u.id, false, true);
         }
       });
     }
@@ -1123,7 +1141,7 @@ function renderUnassignedList() {
 
 function updateKPIs(){
   const total = users.length;
-  const done = users.filter(u => u.meal && u.meal !== '미입력' && !u.meal.includes('입력이 필요')).length;
+  const done = users.filter(u => u.has_recorded_today === true).length;
   const watch = users.filter(u => u.risk === 'watch' || u.risk === 'warn').length;
   const danger = users.filter(u => u.risk === 'danger').length;
 
@@ -1139,16 +1157,142 @@ function populateChartSelect(){
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
 }
 
-function recommendedActionHtml(riskCode) {
-  if (riskCode === 'danger') return '<span class="badge b-red">즉시 방문/전화</span>';
-  if (riskCode === 'warn') return '<span class="badge b-orange">안부 전화</span>';
-  if (riskCode === 'watch') return '<span class="badge b-yellow">상태 확인</span>';
-  return '<span class="badge b-green">상태 유지</span>';
+function populateLifePatternSelect(){
+  const select = document.getElementById('aiAnalysisUserSelect');
+  if(!select) return;
+  const priority = { danger: 0, warn: 1, watch: 2, safe: 3 };
+  const sortedUsers = users
+    .map((u, i) => ({ ...u, originalIndex: i }))
+    .sort((a, b) => {
+      const riskDiff = (priority[a.risk] ?? 4) - (priority[b.risk] ?? 4);
+      if (riskDiff !== 0) return riskDiff;
+      return Number(a.score ?? 100) - Number(b.score ?? 100);
+    });
+
+  select.innerHTML = sortedUsers.map(u => {
+    const r = risk[u.risk] || risk.safe;
+    const mark = u.risk === 'danger' ? '🔴' : (u.risk === 'warn' ? '🟠' : (u.risk === 'watch' ? '🟡' : '🟢'));
+    return `<option value="${u.originalIndex}">${mark} ${r[0]} · ${u.name} (${u.age}세)</option>`;
+  }).join('');
+}
+
+function updateLifePatternAnalysis(index){
+  const aiList = document.getElementById('ai-analysis-list');
+  const sub = document.getElementById('aiAnalysisSubText');
+  const u = users[Number(index)];
+
+  if (!aiList || !u) return;
+
+  const action = getRecommendedAction(u);
+  const r = risk[u.risk] || risk.safe;
+  if (sub) sub.innerText = `${u.name} 어르신의 생활 패턴 분석입니다. 위험도가 높은 순서로 정렬됩니다.`;
+
+  aiList.innerHTML = `
+    <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
+      <h4>${u.name} 어르신 패턴 분석</h4>
+      <div class="analysis-actions-v2">
+        <span class="badge ${r[1]}">우선도: ${r[0]}</span>
+      </div>
+      <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
+      <div class="analysis-actions-v2">
+        <span class="badge ${action.badge}">권장 조치: ${action.label}</span>
+        <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${action.actionType}')">조치 결과 작성</button>
+      </div>
+      <div class="life-ai-result" data-life-ai-user-id="${u.id}">
+        <b>AI 생활 패턴 분석</b>
+        AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+      </div>
+      <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송됩니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+      <div class="ai-actions-v2" style="margin-top:10px;">
+        <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
+      </div>
+    </div>
+  `;
+
+  const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
+  if (savedLifeAiDesc) {
+    setLifePatternAnalysisText(u.id, savedLifeAiDesc);
+    setLifePatternAIButtons(u.id, false, true);
+  }
+}
+
+function isHealthUnrecorded(u) {
+  return u?.has_recorded === false ||
+    u?.lastInput === '기록 없음' ||
+    u?.lastInput === '미입력' ||
+    !u?.lastInput;
+}
+
+function scoreBreakdownContains(u, keywords) {
+  return (u?.score_breakdown || []).some(b =>
+    keywords.some(keyword => String(b.item || '').includes(keyword))
+  );
+}
+
+function hasRecommendationDetailContext(u) {
+  return ['meal', 'meal_short', 'lastInput', 'has_recorded', 'score_breakdown', 'health', 'disease']
+    .some(key => Object.prototype.hasOwnProperty.call(u || {}, key));
+}
+
+function getRecommendedAction(u) {
+  const data = typeof u === 'string' ? { risk: u } : (u || {});
+  const riskCode = data.risk;
+  const score = Number(data.score);
+  const hasScore = Number.isFinite(score);
+
+  if (!hasRecommendationDetailContext(data)) {
+    if (riskCode === 'danger') return { label: '즉시 방문/전화', badge: 'b-red', actionType: '방문확인' };
+    if (riskCode === 'warn') return { label: '안부 전화', badge: 'b-orange', actionType: '전화확인' };
+    if (riskCode === 'watch') return { label: '상태 확인', badge: 'b-yellow', actionType: '전화확인' };
+    return { label: '상태 유지', badge: 'b-green', actionType: '전화확인' };
+  }
+
+  const unrecorded = isHealthUnrecorded(data);
+  const mealText = `${data.meal || ''} ${data.meal_short || ''}`;
+  const hasSkippedMeal = mealText.includes('결식') || scoreBreakdownContains(data, ['결식']);
+  const healthLevel = Number(data.health);
+  const poorHealth = Number.isFinite(healthLevel) && healthLevel <= 2;
+  const hasDisease = data.disease && data.disease !== '없음';
+  const hasDecline = scoreBreakdownContains(data, ['연속 악화', '악화']);
+  const isDelayed = unrecorded || scoreBreakdownContains(data, ['미입력 경과', '건강 상태 미등록']);
+  const isDanger = riskCode === 'danger' || (hasScore && score < 40);
+  const isWarn = riskCode === 'warn' || (hasScore && score < 60);
+  const isWatch = riskCode === 'watch' || (hasScore && score < 80);
+
+  if (isDanger) {
+    if (hasSkippedMeal || poorHealth || hasDecline || (unrecorded && hasDisease)) {
+      return { label: '즉시 방문 확인', badge: 'b-red', actionType: '방문확인' };
+    }
+    return { label: '긴급 안부 전화', badge: 'b-red', actionType: '전화확인' };
+  }
+
+  if (isWarn) {
+    if (hasSkippedMeal || poorHealth || hasDecline) {
+      return { label: '방문 검토', badge: 'b-orange', actionType: '방문확인' };
+    }
+    return { label: '안부 전화', badge: 'b-orange', actionType: '전화확인' };
+  }
+
+  if (unrecorded) {
+    return { label: '첫 건강 상태 입력 안내', badge: 'b-yellow', actionType: '전화확인' };
+  }
+
+  if (isWatch || isDelayed) {
+    return { label: '상태 확인', badge: 'b-yellow', actionType: '전화확인' };
+  }
+
+  return { label: '정기 관찰', badge: 'b-green', actionType: '전화확인' };
+}
+
+function recommendedActionHtml(u) {
+  const action = getRecommendedAction(u);
+  return `<span class="badge ${action.badge}">${action.label}</span>`;
 }
 
 function alertActionButtonHtml(u) {
   if (u.risk === 'safe') return '-';
-  return `<button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}')">조치 작성</button>`;
+  const action = getRecommendedAction(u);
+  return `<button class="mini-btn danger" onclick="openFeedback(${u.id},'${u.name}','${action.actionType}')">조치 작성</button>`;
 }
 
 function renderOtherSections() {
@@ -1179,28 +1323,12 @@ function renderOtherSections() {
   }
 
   const aiList = document.getElementById('ai-analysis-list');
-  const aiRiskTbody = document.getElementById('ai-risk-tbody');
-  if (aiList && aiRiskTbody) {
+  if (aiList) {
     if (!users || users.length === 0) {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
-      aiRiskTbody.innerHTML = '<tr><td colspan="4" style="text-align:color:var(--muted)">데이터가 없습니다.</td></tr>';
     } else {
-      aiList.innerHTML = users.map(u => `
-        <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
-          <h4>${u.name} 어르신 패턴 분석</h4>
-          <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
-        </div>
-      `).join('');
-
-      const healthLabels = ['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'];
-      aiRiskTbody.innerHTML = users.map(u => `
-        <tr>
-          <td><b>${u.name}</b></td>
-          <td>${healthLabels[u.health] || '미입력'}</td>
-          <td>${u.meal || '미입력'}</td>
-          <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'} (${u.score}점)</span></td>
-        </tr>
-      `).join('');
+      populateLifePatternSelect();
+      updateLifePatternAnalysis(0);
     }
   }
 
@@ -1218,7 +1346,7 @@ function renderOtherSections() {
           <td><b>${u.name}</b></td>
           <td>${u.phone}</td>
           <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-          <td>${recommendedActionHtml(u.risk)}</td>
+          <td>${recommendedActionHtml(u)}</td>
           <td>${alertActionButtonHtml(u)}</td>
         </tr>
       `).join('');
@@ -1235,7 +1363,7 @@ function renderOtherSections() {
             <td><b>${u.name}</b></td>
             <td>${u.phone}</td>
             <td><span class="badge ${risk[u.risk] ? risk[u.risk][1] : 'b-green'}">${risk[u.risk] ? risk[u.risk][0] : '안전'}</span></td>
-            <td>${recommendedActionHtml(u.risk)}</td>
+            <td>${recommendedActionHtml(u)}</td>
             <td>${alertActionButtonHtml(u)}</td>
           </tr>
         `).join('');
@@ -1288,7 +1416,7 @@ function nav(id, btn) {
   const descriptions = {
     live: '담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.',
     elder: '담당 어르신의 기본 정보, 연락처, 기저질환 정보를 등록하고 관리합니다.',
-    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 분석 결과와 예측 위험도를 확인합니다.',
+    analysis: '건강 상태와 생활 패턴 데이터를 기반으로 분석 결과와 우선 확인 대상을 확인합니다.',
     alerts: '이상 징후 알림 발생 내역과 사회복지사의 조치 결과를 기록하고 관리합니다.',
     match: '미배정된 어르신을 선택하여 담당으로 배정합니다.'
   };
@@ -1455,9 +1583,10 @@ function renderTable(){
 
   body.innerHTML = data.map((u, i) => {
     const r = risk[u.risk] || risk.safe;
-    const isUnrecorded = (u.lastInput === '기록 없음' || u.lastInput === '미입력' || !u.lastInput);
+    const isUnrecorded = isHealthUnrecorded(u);
     const healthText = isUnrecorded ? '첫 건강 상태 입력이 필요합니다' : (['', '매우 나쁨', '나쁨', '보통', '좋음', '매우 좋음'][u.health] || '미입력');
     const chartFillId = 'riskFillV2' + i;
+    const recommendedAction = getRecommendedAction(u);
 
     let breakfastDisplay = '-';
     let lunchDisplay = '-';
@@ -1486,7 +1615,7 @@ function renderTable(){
       ? docs.map(d => `
           <div class="checkup-thumb-wrap" onclick="openImageViewer('${d.file_path}', '${u.name} 어르신 검진표 (${d.uploaded_at})')">
             <button class="checkup-del-btn" title="사진 삭제" onclick="event.stopPropagation(); deleteCheckupDoc(${d.doc_id})">×</button>
-            <button class="mini-btn" title="AI 분석" style="position:absolute;bottom:22px;left:4px;right:4px;background:rgba(37,99,235,0.9);color:#fff;border:none;padding:2px 0;font-size:11px;z-index:2;" onclick="event.stopPropagation(); analyzeCheckupDoc(${d.doc_id}, '${u.name}', ${u.id})">AI 분석</button>
+            <button class="mini-btn" title="검진표 AI 분석" style="position:absolute;bottom:22px;left:4px;right:4px;background:rgba(37,99,235,0.9);color:#fff;border:none;padding:2px 0;font-size:11px;z-index:2;" onclick="event.stopPropagation(); analyzeCheckupDoc(${d.doc_id}, '${u.name}', ${u.id})">검진표 AI</button>
             <img class="checkup-thumb" src="${d.file_path}" alt="검진표 썸네일">
             <div class="checkup-thumb-date">${d.uploaded_at.split(' ')[0]}</div>
           </div>
@@ -1595,10 +1724,14 @@ function renderTable(){
 
               <div class="checkup-gallery-card">
                 <div class="checkup-gallery-head">
-                  <span>📷 건강검진표 / 처방전 사진 (${docs.length}건)</span>
+                  <span>📷 건강검진표 AI 분석 자료 (${docs.length}건)</span>
                 </div>
                 <div class="checkup-grid">
                   ${checkupDocsHtml}
+                </div>
+                <div class="checkup-ai-result" id="checkup-ai-desc-${u.id}">
+                  <b>검진표 AI 분석 결과</b>
+                  검진표 사진의 검진표 AI 버튼을 누르면 이곳에 분석 결과가 표시됩니다.
                 </div>
               </div>
             </div>
@@ -1659,15 +1792,24 @@ function renderTable(){
                   </div>
                   <div class="quick-card-v2">
                     <span>권장 조치</span>
-                    <b style="font-size:14px;color:var(--primary-dark);white-space:nowrap;">${isUnrecorded ? '첫 건강 상태 입력 안내' : '정기 관찰'}</b>
+                    <b style="font-size:14px;color:var(--primary-dark);white-space:nowrap;">${recommendedAction.label}</b>
                   </div>
                 </div>
               </div>
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
-                <h4>🤖 AI 건강검진표 분석</h4>
+                <div class="ai-panel-head-v2">
+                  <h4>🤖 AI 생활 패턴 분석</h4>
+                  <span class="ai-type-badge">개인 패턴 기반</span>
+                </div>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
+                <div class="life-ai-result" data-life-ai-user-id="${u.id}">
+                  <b>AI 생활 패턴 분석</b>
+                  AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+                </div>
+                <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송되며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
                 <div class="ai-actions-v2">
+                  <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
                 </div>
               </div>
@@ -1675,7 +1817,7 @@ function renderTable(){
 
                 <div class="action-history-head-v2">
                   <h4>📋 최근 조치 기록</h4>
-                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}')">조치 결과 작성</button>
+                  <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${recommendedAction.actionType}')">조치 결과 작성</button>
                 </div>
 
                 <div class="action-history-list-v2">
@@ -1859,10 +2001,14 @@ function toggle(i) {
 }
 function openEmergency(){document.getElementById('emergency').classList.add('show')}
 function openAdd(){document.getElementById('add').classList.add('show')}
-function openFeedback(userId, name) {
+function openFeedback(userId, name, actionType) {
   selectedFeedbackUserId = userId;
 
   document.getElementById('fbName').value = name;
+  const actionTypeSelect = document.getElementById('fbActionType');
+  if (actionTypeSelect && actionType) {
+    actionTypeSelect.value = actionType;
+  }
   document.getElementById('feedback').classList.add('show');
 }
 function closeModal(id){document.getElementById(id).classList.remove('show')}
@@ -2031,11 +2177,60 @@ async function remoteLogoutElder(userId, name) {
   }
 }
 
-/* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 결과를 화면에 출력하며 새로고침 대비로 sessionStorage에 저장합니다. */
+function setCheckupAnalysisText(targetEl, text) {
+  targetEl.innerHTML = '<b>검진표 AI 분석 결과</b><span></span>';
+  targetEl.querySelector('span').textContent = text;
+}
+
+function setLifePatternAnalysisText(userId, text) {
+  document.querySelectorAll(`[data-life-ai-user-id="${userId}"]`).forEach(targetEl => {
+    targetEl.innerHTML = '<b>AI 생활 패턴 분석</b><span></span>';
+    targetEl.querySelector('span').textContent = text;
+  });
+}
+
+function setLifePatternAIButtons(userId, isLoading, hasResult = false) {
+  document.querySelectorAll(`[data-life-ai-button-id="${userId}"]`).forEach(button => {
+    button.disabled = isLoading;
+    button.innerText = isLoading ? '분석 중...' : (hasResult ? '재분석' : 'AI 분석');
+  });
+}
+
+/* 개인정보를 제외한 생활 패턴 요약 데이터를 Gemini AI로 분석 요청합니다. */
+async function analyzeLifePatternAI(userId, elderName) {
+  const confirmed = confirm(
+    `${elderName} 어르신의 이름, 전화번호, 주소를 제외한 생활 패턴 요약 데이터를 Gemini로 전송해 분석합니다.\n\n계속 진행하시겠습니까?`
+  );
+  if (!confirmed) return;
+
+  setLifePatternAIButtons(userId, true);
+  setLifePatternAnalysisText(userId, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
+
+  try {
+    const res = await fetch(`/api/admin/elders/${userId}/life-pattern-ai`, {
+      method: 'POST'
+    });
+    const result = await res.json();
+
+    if (result.success) {
+      setLifePatternAnalysisText(userId, result.analysis);
+      sessionStorage.setItem(`life_ai_desc_${userId}`, result.analysis);
+      setLifePatternAIButtons(userId, false, true);
+    } else {
+      setLifePatternAnalysisText(userId, result.message || 'AI 생활 패턴 분석에 실패했습니다.');
+      setLifePatternAIButtons(userId, false);
+    }
+  } catch (err) {
+    setLifePatternAnalysisText(userId, '서버와의 통신에 실패했습니다.');
+    setLifePatternAIButtons(userId, false);
+  }
+}
+
+/* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 결과를 검진표 섹션에 출력하며 새로고침 대비로 sessionStorage에 저장합니다. */
 async function analyzeCheckupDoc(docId, elderName, userId) {
-  const descEl = document.getElementById(`ai-desc-${userId}`);
+  const descEl = document.getElementById(`checkup-ai-desc-${userId}`);
   if (descEl) {
-    descEl.innerHTML = `⏳ <b>${elderName} 어르신의 건강검진표를 Gemini AI가 정밀 분석 중입니다... (잠시만 기다려주세요)</b>`;
+    setCheckupAnalysisText(descEl, `${elderName} 어르신의 건강검진표를 Gemini AI가 정밀 분석 중입니다...`);
   }
 
   try {
@@ -2046,17 +2241,17 @@ async function analyzeCheckupDoc(docId, elderName, userId) {
 
     if (descEl) {
       if (result.success) {
-        descEl.innerText = result.analysis;
+        setCheckupAnalysisText(descEl, result.analysis);
         
-        // AI 분석 결과를 sessionStorage에 저장 (새로고침 대비)
-        sessionStorage.setItem(`ai_desc_${userId}`, result.analysis);
+        // 검진표 AI 분석 결과를 sessionStorage에 저장 (새로고침 대비)
+        sessionStorage.setItem(`checkup_ai_desc_${userId}`, result.analysis);
       } else {
-        descEl.innerText = result.message || "AI 분석에 실패했습니다.";
+        setCheckupAnalysisText(descEl, result.message || "AI 분석에 실패했습니다.");
       }
     }
   } catch (err) {
     if (descEl) {
-      descEl.innerText = "서버와의 통신에 실패했습니다.";
+      setCheckupAnalysisText(descEl, "서버와의 통신에 실패했습니다.");
     }
   }
 }

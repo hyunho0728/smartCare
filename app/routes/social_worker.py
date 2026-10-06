@@ -2,7 +2,11 @@ import os
 import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
 from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument
-from services.social_worker_ai_service import evaluate_and_record_risk, analyze_checkup_document_with_gemini
+from services.social_worker_ai_service import (
+    evaluate_and_record_risk,
+    analyze_checkup_document_with_gemini,
+    analyze_life_pattern_with_gemini,
+)
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -171,6 +175,7 @@ def api_get_elders():
 
     assigned_users = User.query.filter_by(worker_id=current_worker_id, is_active=True).all() if current_worker_id else []
     unassigned_users = User.query.filter(User.worker_id.is_(None), User.is_active.is_(True)).all()
+    today = datetime.datetime.now().date()
 
     def process_elder_data(u):
         health_history = HealthStatus.query.filter_by(user_id=u.user_id)\
@@ -180,6 +185,7 @@ def api_get_elders():
             .order_by(LoginHistory.auth_time.desc()).all()
 
         latest_health = health_history[0] if health_history else None
+        today_health = next((h for h in health_history if h.target_date == today), None)
         if latest_health:
             condition = latest_health.condition_level
             meal = f"아침 : {latest_health.breakfast_status}  점심 : {latest_health.lunch_status}  저녁 : {latest_health.dinner_status}"
@@ -194,16 +200,26 @@ def api_get_elders():
             display_last_time = "미입력"
 
         try:
-            eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis)
+            eval_res = evaluate_and_record_risk(u, health_history, login_history, db.session, RiskAnalysis, force=False)
             risk_score = eval_res["score"]
             risk_level = eval_res["risk_level"].lower()
             score_breakdown = eval_res["score_breakdown"]
             ai_desc = eval_res["ai_summary"]
+            confidence = eval_res.get("confidence", {"label": "보통", "score": 60})
+            evidence = eval_res.get("evidence", [])
+            pattern_insights = eval_res.get("pattern_insights", [])
         except Exception:
             risk_score = 50
             risk_level = "watch"
             score_breakdown = [{"item": "기본 점수 (데이터 부족)", "score": "-50점", "type": "minus"}]
             ai_desc = "상태 데이터 분석 중입니다."
+            confidence = {"label": "낮음", "score": 35}
+            evidence = ["분석 데이터 확인 필요"]
+            pattern_insights = [{
+                "title": "생활 패턴 분석",
+                "detail": "분석 데이터를 불러오는 중입니다.",
+                "level": "watch"
+            }]
 
         if not latest_health:
             ai_desc = "아직 입력된 건강/식사 기록이 없습니다."
@@ -263,6 +279,9 @@ def api_get_elders():
             "meal_short": meal_short,
             "score": risk_score,
             "score_breakdown": score_breakdown,
+            "confidence": confidence,
+            "evidence": evidence,
+            "pattern_insights": pattern_insights,
             "risk": risk_level,
             "alert_time": latest_risk.analyzed_at.strftime("%Y-%m-%d %H:%M") if latest_risk and latest_risk.analyzed_at else "-",
             "last": display_last_time,
@@ -271,6 +290,7 @@ def api_get_elders():
             "chart": chart_points,
             "desc": ai_desc,
             "has_recorded": bool(latest_health is not None),
+            "has_recorded_today": bool(today_health is not None),
             "checkup_docs": docs_list,
             "action_history": action_history #added by 길동
         }
@@ -608,3 +628,43 @@ def api_analyze_checkup(doc_id):
         })
     except Exception as e:
         return jsonify({"success": False, "message": f"AI 분석 실패: {str(e)}"}), 500
+
+
+@worker_bp.route('/api/admin/elders/<int:user_id>/life-pattern-ai', methods=['POST'])
+def api_analyze_life_pattern(user_id):
+    """어르신 생활 패턴 데이터를 개인정보 없이 Gemini AI로 분석"""
+    current_worker_id = session.get('admin_worker_id')
+    if not current_worker_id:
+        admin_login_id = session.get('admin_id')
+        if admin_login_id:
+            worker = Worker.query.filter_by(login_id=admin_login_id).first()
+            if worker:
+                current_worker_id = worker.worker_id
+
+    if not current_worker_id:
+        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
+
+    user = User.query.get(user_id)
+    if not user or not user.is_active:
+        return jsonify({"success": False, "message": "대상자를 찾을 수 없습니다."}), 404
+
+    if user.worker_id not in (current_worker_id, None):
+        return jsonify({"success": False, "message": "분석 권한이 없습니다."}), 403
+
+    try:
+        health_history = HealthStatus.query.filter_by(user_id=user_id)\
+            .order_by(HealthStatus.recorded_at.desc()).all()
+        login_history = LoginHistory.query.filter_by(user_id=user_id)\
+            .order_by(LoginHistory.auth_time.desc()).all()
+
+        analysis_result = analyze_life_pattern_with_gemini(
+            user,
+            health_history,
+            login_history
+        )
+        return jsonify({
+            "success": True,
+            "analysis": analysis_result
+        })
+    except Exception as e:
+        return jsonify({"success": False, "message": f"AI 생활 패턴 분석 실패: {str(e)}"}), 500
