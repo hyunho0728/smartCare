@@ -1111,6 +1111,8 @@ async function logout(){
   // ➕ [추가] 로그아웃 시 스토리지 정리
   sessionStorage.removeItem('activeTab');
   sessionStorage.removeItem('openDetailIndex');
+  sessionStorage.removeItem('openDetailUserId');
+  sessionStorage.removeItem('life_ai_selected_user_id');
 
   document.getElementById('dashboard').style.display = 'none';
   document.getElementById('login').style.display = 'flex';
@@ -1138,14 +1140,8 @@ async function loadEldersData() {
       populateChartSelect();
       if (users.length > 0) updateMainChart(0);
 
-      // 새로고침 후 저장된 아코디언 상세 창이 있다면 자동으로 다시 열기
-      const savedIndex = sessionStorage.getItem('openDetailIndex');
-      if (savedIndex !== null) {
-        const targetRow = document.getElementById('detail-' + savedIndex);
-        if (targetRow) {
-          targetRow.classList.add('open');
-        }
-      }
+      // 새로고침 후 저장된 상세 창이 있다면 사용자 ID 기준으로 다시 열기
+      restoreOpenDetailRow();
 
       // 저장된 검진표 AI 분석 결과가 있다면 검진표 섹션에 복원
       users.forEach(u => {
@@ -1373,12 +1369,34 @@ function populateLifePatternSelect(){
   }).join('');
 }
 
+function getLifePatternSelectedIndex(){
+  const savedUserId = sessionStorage.getItem('life_ai_selected_user_id');
+  if (savedUserId) {
+    const savedIndex = users.findIndex(u => String(u.id) === savedUserId);
+    if (savedIndex >= 0) return savedIndex;
+  }
+
+  const select = document.getElementById('aiAnalysisUserSelect');
+  if (select && select.value !== '') {
+    const selectedIndex = Number(select.value);
+    if (users[selectedIndex]) return selectedIndex;
+  }
+
+  return 0;
+}
+
 function updateLifePatternAnalysis(index){
   const aiList = document.getElementById('ai-analysis-list');
   const sub = document.getElementById('aiAnalysisSubText');
   const u = users[Number(index)];
 
   if (!aiList || !u) return;
+
+  sessionStorage.setItem('life_ai_selected_user_id', String(u.id));
+  const select = document.getElementById('aiAnalysisUserSelect');
+  if (select && select.value !== String(index)) {
+    select.value = String(index);
+  }
 
   const action = getRecommendedAction(u);
   const r = risk[u.risk] || risk.safe;
@@ -1525,7 +1543,7 @@ function renderOtherSections() {
       aiList.innerHTML = '<p style="color:var(--muted);padding:10px;">등록된 분석 기록이 없습니다.</p>';
     } else {
       populateLifePatternSelect();
-      updateLifePatternAnalysis(0);
+      updateLifePatternAnalysis(getLifePatternSelectedIndex());
     }
   }
 
@@ -1863,7 +1881,7 @@ function renderTable(){
         `;
 
     return `
-    <tr class="main-row" onclick="toggle(${i})">
+    <tr class="main-row" data-user-id="${u.id}" onclick="toggle(${i})">
       <td>
         <div class="person">
           <div class="avatar">👵</div>
@@ -1889,7 +1907,7 @@ function renderTable(){
       </td>
     </tr>
 
-    <tr class="detail-row" id="detail-${i}">
+    <tr class="detail-row" id="detail-${i}" data-user-id="${u.id}">
       <td colspan="6">
         <div class="detail-wrap v2">
           <div class="detail-title-v2">
@@ -2040,6 +2058,17 @@ function renderTable(){
   }).join('');
 }
 
+function restoreOpenDetailRow(){
+  const savedUserId = sessionStorage.getItem('openDetailUserId');
+  if (!savedUserId) return;
+
+  const targetRow = Array.from(document.querySelectorAll('.detail-row'))
+    .find(row => row.dataset.userId === savedUserId);
+  if (targetRow) {
+    targetRow.classList.add('open');
+  }
+}
+
 function updateMainChart(index){
   /*선택된 어르신의 최근 7일 건강 위험 점수 그래프를 갱신합니다.*/
   const u = users[Number(index)];
@@ -2186,6 +2215,8 @@ async function checkSessionOnLoad() {
       // ➕ [추가] 로그아웃/세션 없음 상태일 때 스토리지 초기화
       sessionStorage.removeItem('activeTab');
       sessionStorage.removeItem('openDetailIndex');
+      sessionStorage.removeItem('openDetailUserId');
+      sessionStorage.removeItem('life_ai_selected_user_id');
     }
   } catch (err) {
     console.error('세션 확인 실패:', err);
@@ -2200,13 +2231,15 @@ function toggle(i) {
   if (!detailRow) return;
   
   const isOpen = detailRow.classList.toggle('open');
+  const detailUserId = detailRow.dataset.userId;
   
   // ➕ [추가] 아코디언 열림/닫힘 상태 저장
-  if (isOpen) {
-    sessionStorage.setItem('openDetailIndex', i);
+  if (isOpen && detailUserId) {
+    sessionStorage.setItem('openDetailUserId', detailUserId);
+    sessionStorage.removeItem('openDetailIndex');
   } else {
-    if (sessionStorage.getItem('openDetailIndex') === String(i)) {
-      sessionStorage.removeItem('openDetailIndex');
+    if (detailUserId && sessionStorage.getItem('openDetailUserId') === String(detailUserId)) {
+      sessionStorage.removeItem('openDetailUserId');
     }
   }
 }
