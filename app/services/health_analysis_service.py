@@ -4,6 +4,7 @@ import json
 import os
 import re
 from google import genai
+from google.genai import types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from services.ai_service import generate_content, resolve_model, AIError
 
@@ -29,6 +30,22 @@ class Report(BaseModel):
     findings: list[Finding] = Field(max_length=12)
     recommended_actions: list[str] = Field(max_length=8)
     limitations: list[str] = Field(max_length=12)
+
+
+def provider_schema():
+    """Gemini Schema에 없는 additional_properties를 전송하지 않는다.
+
+    Pydantic의 extra=forbid는 응답 수신 후 로컬 검증에서 그대로 적용한다.
+    """
+    string = lambda: types.Schema(type='STRING')
+    strings = lambda: types.Schema(type='ARRAY', items=string())
+    finding = types.Schema(type='OBJECT', properties={
+        'title': string(), 'detail': string(), 'source_refs': strings(),
+    }, required=['title', 'detail', 'source_refs'])
+    return types.Schema(type='OBJECT', properties={
+        'summary': string(), 'findings': types.Schema(type='ARRAY', items=finding),
+        'recommended_actions': strings(), 'limitations': strings(),
+    }, required=['summary', 'findings', 'recommended_actions', 'limitations'])
 
 
 # 값/단위/참고범위도 허용된 문자만 전달해 OCR 자유 문자열의 개인정보 유출을 막는다.
@@ -224,7 +241,8 @@ def analyze(snapshot, model=None):
               + json.dumps(payload, ensure_ascii=False))
     try:
         response = generate_content(model=resolve_model(model), feature='health_analysis', contents=[prompt],
-            config={'response_mime_type': 'application/json', 'response_schema': Report})
+            config=types.GenerateContentConfig(response_mime_type='application/json', response_schema=provider_schema(),
+                automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)))
         if not response.text or not response.text.strip():
             raise HealthAnalysisError('AI 분석 결과가 비어 있습니다. 다시 시도해주세요.')
         result = Report.model_validate_json(response.text).model_dump()
@@ -244,7 +262,9 @@ def analyze(snapshot, model=None):
     except Exception as error:
         if getattr(error, 'code', None) == 429:
             raise HealthAnalysisError('AI 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.', 429) from error
-        if getattr(error, 'code', None) in (400, 401, 403, 404):
+        if getattr(error, 'code', None) == 400:
+            raise HealthAnalysisError('AI 요청 형식 오류(400)가 발생했습니다. 서버의 분석 요청 설정을 확인해주세요.', 502) from error
+        if getattr(error, 'code', None) in (401, 403, 404):
             raise HealthAnalysisError('선택한 AI 모델을 사용할 수 없습니다. 모델·API 키·사용 권한을 확인해주세요.', 503) from error
         raise HealthAnalysisError('AI 건강 종합 분석에 실패했습니다. 잠시 후 다시 시도해주세요.') from error
 

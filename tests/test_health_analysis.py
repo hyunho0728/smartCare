@@ -107,8 +107,11 @@ class ProviderTests(unittest.TestCase):
     def test_json_contract_and_private_payload(self):
         result, client = self.call(json.dumps(report()))
         kwargs = client.return_value.models.generate_content.call_args.kwargs
-        self.assertEqual(kwargs['config']['response_mime_type'], 'application/json')
-        self.assertIs(kwargs['config']['response_schema'], service.Report)
+        self.assertEqual(kwargs['config'].response_mime_type, 'application/json')
+        schema = kwargs['config'].response_schema
+        self.assertIsNone(schema.additional_properties)
+        self.assertIsNone(schema.properties['findings'].items.additional_properties)
+        self.assertTrue(kwargs['config'].automatic_function_calling.disable)
         self.assertEqual(client.call_args.kwargs['http_options'].timeout, 60000)
         self.assertIn('data', kwargs['contents'][0])
         for secret in ('비밀이름', '비밀주소', '비밀병원', '010-1234-5678', 'raw_text', 'patient_name'):
@@ -129,6 +132,14 @@ class ProviderTests(unittest.TestCase):
             with self.assertRaises(service.HealthAnalysisError) as error:
                 self.call(failure=failure)
             self.assertEqual(error.exception.status, status)
+
+    def test_request_format_error_is_not_model_permission_error(self):
+        failure = RuntimeError('unsupported schema'); failure.code = 400
+        with self.assertRaises(service.HealthAnalysisError) as error:
+            self.call(failure=failure)
+        self.assertEqual(error.exception.status, 502)
+        self.assertIn('요청 형식 오류', str(error.exception))
+        self.assertNotIn('모델을 사용할 수 없습니다', str(error.exception))
 
 
 class ApiTests(unittest.TestCase):

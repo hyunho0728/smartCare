@@ -155,7 +155,9 @@ def extract_document(path, model=None):
         code = getattr(exc, 'code', None)
         if code == 429:
             raise CheckupError("AI 요청 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini 할당량을 확인해주세요.", 429) from exc
-        if code in (400, 401, 403, 404):
+        if code == 400:
+            raise CheckupError('AI 요청 형식 오류(400)가 발생했습니다. 서버의 검진표 요청 설정을 확인해주세요.', 502) from exc
+        if code in (401, 403, 404):
             raise CheckupError("선택한 모델·Gemini API 키·사용 권한을 확인해주세요.", 503) from exc
         raise CheckupError("AI 판독에 실패했습니다. 시간 초과 또는 서비스 상태를 확인하고 다시 시도해주세요.", 502) from exc
 
