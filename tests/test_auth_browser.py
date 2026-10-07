@@ -182,17 +182,17 @@ class AuthBrowserTests(unittest.TestCase):
         page.locator('#ai-analysis-list button').filter(has_text='페이지 원본 확인').click()
         self.assertEqual(page.evaluate('window.openedReviewId'), 1)
         button.click()
-        page.wait_for_function("document.querySelector('#ai-analysis-list select').options.length === 2")
+        page.wait_for_function("document.querySelector('#ai-analysis-list select[aria-label=\"건강 종합 분석 이력\"]').options.length === 2")
         page.locator('#ai-analysis-list summary').filter(has_text='모델 설정·분석 이력').click()
-        page.locator('#ai-analysis-list select').select_option(first)
+        page.locator('#ai-analysis-list select[aria-label="건강 종합 분석 이력"]').select_option(first)
         page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
-        self.assertEqual(page.locator('#ai-analysis-list select').input_value(), first)
+        self.assertEqual(page.locator('#ai-analysis-list select[aria-label="건강 종합 분석 이력"]').input_value(), first)
         page.request.post(self.url + '/api/auth/logout'); self.login()
         page.locator('#tbody .main-row').wait_for(state='attached')
         page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
         page.locator('#ai-analysis-list').filter(has_text='저장된 AI 결과').wait_for()
-        self.assertEqual(page.locator('#ai-analysis-list select option').count(), 2)
-        self.assertNotEqual(page.locator('#ai-analysis-list select').input_value(), first)
+        self.assertEqual(page.locator('#ai-analysis-list select[aria-label="건강 종합 분석 이력"] option').count(), 2)
+        self.assertNotEqual(page.locator('#ai-analysis-list select[aria-label="건강 종합 분석 이력"]').input_value(), first)
         self.assertEqual(self.ai_calls, 2); self.assertFalse(self.errors)
 
     def test_compact_analysis_folds_latest_score_and_missing_metrics(self):
@@ -253,6 +253,40 @@ class AuthBrowserTests(unittest.TestCase):
         self.login('user'); page.locator('#screen-main.active').wait_for()
         page.evaluate("fetch('/api/auth/logout',{method:'POST'})")
         page.wait_for_url(self.url + '/login', timeout=10000)
+        self.assertFalse(self.errors)
+
+    def test_score_reasons_support_numeric_and_legacy_shapes_after_refresh(self):
+        page = self.page; self.login(); page.locator('#tbody .main-row').wait_for()
+        page.wait_for_function("!document.querySelector('[data-life-ai-button-id]').disabled")
+        at = (dt.datetime.now() + dt.timedelta(minutes=1)).isoformat()
+        page.evaluate("""at => updateHealthAnalysisStatus(1, {
+          score:34, level:'DANGER', label:'위험', as_of:at,
+          breakdown:[{code:'disease',item:'등록 기저질환 감점',points:-5},
+                     {code:'elapsed',item:'건강 기록 미입력 경과',points:-46},
+                     {code:'irregular',item:'입력 시간 불규칙',points:-15}]
+        })""", at)
+        page.locator('#tbody .main-row').first.click()
+        reasons = page.locator('.detail-row.open .score-reason-list')
+        for text in ('-5점', '-46점', '-15점'): self.assertIn(text, reasons.inner_text())
+        self.assertNotIn('undefined', reasons.inner_text())
+        self.assertEqual(reasons.locator('.score-tag.minus').count(), 3)
+        page.evaluate('loadEldersData()')
+        page.wait_for_function("document.querySelector('.detail-row.open .score-reason-list').textContent.includes('-46점')")
+        self.assertNotIn('undefined', reasons.inner_text())
+        # 기존 목록 API 형식도 점수·스타일을 유지하고, 새 상태에는 감점만 전달한다.
+        self.elder.update(score=70, risk='watch', status_as_of=(dt.datetime.now()+dt.timedelta(minutes=2)).isoformat(),
+            score_breakdown=[{'item':'기본 점수','score':'100점','type':'base'},
+                             {'item':'건강 기록 미입력 경과','score':'-30점','type':'minus'}])
+        page.evaluate('loadEldersData()')
+        page.wait_for_function("document.querySelector('.detail-row.open .score-reason-list').textContent.includes('-30점')")
+        self.assertIn('100점',reasons.inner_text()); self.assertNotIn('undefined',reasons.inner_text())
+        self.assertEqual(reasons.locator('.score-tag.minus').count(),1)
+        self.assertEqual(reasons.locator('.score-tag.base').count(),1)
+        page.locator('.detail-row.open .life-ai-result summary').filter(has_text='모델 설정·분석 이력').click()
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        panel=page.locator('#ai-analysis-list [data-life-ai-user-id="1"]')
+        self.assertIn('주요 감점: 건강 기록 미입력 경과',panel.inner_text())
+        self.assertNotIn('기본 점수',panel.inner_text())
         self.assertFalse(self.errors)
 
     def test_health_comparison_state_changes_and_legacy_mobile(self):

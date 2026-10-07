@@ -96,6 +96,11 @@
       const title = document.createElement('h3');
       title.textContent = `저장된 확정 결과 · ${result.confirmed_at} · 담당자 #${result.confirmed_by}`;
       find('confirmed').append(title);
+      if (state.expectedRevision != null && state.expectedRevision !== result.confirmed_revision) {
+        const notice = document.createElement('p'); notice.className = 'health-reanalysis-note';
+        notice.textContent = `분석 당시 확정 버전 ${state.expectedRevision} · 현재 확정 버전 ${result.confirmed_revision}. 이 창에는 현재 확정 결과가 표시됩니다.`;
+        find('confirmed').append(notice);
+      }
       const identity = document.createElement('p');
       identity.textContent = `이름: ${result.confirmed_result.patient_name || '판독 불가'} / 검진일: ${result.confirmed_result.checkup_date || '미상'} / 기관: ${result.confirmed_result.institution || '미상'}`;
       find('confirmed').append(identity);
@@ -113,12 +118,12 @@
     }
     status(result.analysis || '판독 결과를 확인해주세요.');
   }
-  async function open(docId, shouldAnalyze) {
+  async function open(docId, shouldAnalyze, options = {}) {
     if (active && (pending.has(active.docId) || active.saving)) {
       if (!dialog.open) dialog.showModal();
       return;
     }
-    const state = {docId, result: null}; active = state;
+    const state = {docId, result: null, expectedRevision: options.expectedRevision}; active = state;
     find('model-used').textContent = '';
     find('editor').hidden = true; find('confirmed').replaceChildren(); find('original').replaceChildren();
     const originalUrl = `/api/admin/checkup/${docId}/original`;
@@ -169,6 +174,6 @@
   }
   find('close').onclick = () => dialog.close();
   find('analyze').onclick = analyze; find('confirm').onclick = confirm;
-  window.openCheckupReview = docId => open(docId, false);
+  window.openCheckupReview = (docId, options) => open(docId, false, options);
   window.analyzeCheckupDoc = docId => open(docId, true);
 })();

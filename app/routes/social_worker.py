@@ -11,6 +11,7 @@ from services.auth_service import select_role, current_role, role_redirect
 from services.health_analysis_service import build_input, analyze, summarize, MODEL, HealthAnalysisError
 from services.ai_service import resolve_model, AIError
 from services.health_comparison_service import system_status, enrich_snapshot, material_signature
+from services.health_trend_service import build_trends, legacy_trends
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -715,6 +716,7 @@ def _health_analysis_json(record, current_snapshot=None):
     data = {'analysis_id': record.analysis_id, 'analyzed_at': record.analyzed_at.isoformat(),
             'model': record.model, 'analysis': record.summary, 'result': record.result,
             'input_snapshot': record.input_snapshot}
+    data['trends'] = record.input_snapshot.get('trends') or legacy_trends(record.input_snapshot)
     if current_snapshot is not None:
         data['needs_reanalysis'] = material_signature(record.input_snapshot) != material_signature(current_snapshot)
     return data
@@ -745,6 +747,11 @@ def api_analyze_life_pattern(user_id):
         status = system_status(calculate_risk(user, health, logins, now=now), now)
         previous = HealthAnalysis.query.filter_by(user_id=user_id).order_by(HealthAnalysis.analyzed_at.desc(), HealthAnalysis.analysis_id.desc()).first()
         enrich_snapshot(snapshot, status, previous, [row.auth_time for row in logins])
+        selected_ids = {doc['doc_id'] for doc in snapshot['documents']}
+        risk_history = _trend_risks(user_id, now, 30)
+        snapshot['trends'] = build_trends(health, risk_history,
+            [(doc, result) for doc, result in documents if doc.doc_id in selected_ids], status, now,
+            document_limit=2)
         db.session.rollback()
         result = analyze(snapshot, model=model)
         # 응답 대기 중 담당자 또는 활성 상태가 바뀌면 저장하지 않는다.
@@ -813,3 +820,29 @@ def api_get_health_analysis(user_id):
     except Exception:
         current_app.logger.exception('건강 종합 분석 조회 실패')
         return jsonify(success=False, message='저장된 분석을 불러오지 못했습니다. 다시 시도해주세요.'), 500
+
+
+def _trend_risks(user_id, now, days):
+    start = datetime.datetime.combine(now.date() - datetime.timedelta(days=days - 1), datetime.time.min)
+    return RiskAnalysis.query.filter(RiskAnalysis.user_id == user_id,
+        RiskAnalysis.analyzed_at >= start, RiskAnalysis.analyzed_at <= now).all()
+
+
+@worker_bp.route('/api/admin/elders/<int:user_id>/health-trends', methods=['GET'])
+def api_get_health_trends(user_id):
+    try:
+        user, _ = _analysis_target(user_id)
+        days = request.args.get('days', '30')
+        if days not in ('7', '30'):
+            raise HealthAnalysisError('조회 기간은 7일 또는 30일을 선택해주세요.', 400)
+        days = int(days)
+        now = datetime.datetime.now()
+        health, logins, documents = _health_context(user, now)
+        status = system_status(calculate_risk(user, health, logins, now=now), now)
+        trends = build_trends(health, _trend_risks(user_id, now, days), documents, status, now, days)
+        return jsonify(success=True, trends=trends, current_status=status)
+    except HealthAnalysisError as error:
+        return jsonify(success=False, message=str(error)), error.status
+    except Exception:
+        current_app.logger.exception('건강 추세 조회 실패')
+        return jsonify(success=False, message='건강 추세를 불러오지 못했습니다. 다시 시도해주세요.'), 500

@@ -539,31 +539,7 @@
                   <select class="chart-person-select" id="chartUserSelect" onchange="updateMainChart(this.value)"></select>
                 </div>
               </div>
-              <div class="chart">
-                <svg viewBox="0 0 700 210" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="mainChartGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop id="mainChartStop1" offset="0%" stop-color="#ef4444" stop-opacity=".22"/>
-                      <stop id="mainChartStop2" offset="100%" stop-color="#ef4444" stop-opacity="0"/>
-                    </linearGradient>
-                  </defs>
-                  <line x1="0" y1="45" x2="700" y2="45" stroke="#e5edf6"/>
-                  <line x1="0" y1="95" x2="700" y2="95" stroke="#e5edf6"/>
-                  <line x1="0" y1="145" x2="700" y2="145" stroke="#e5edf6"/>
-                  <polyline id="mainChartLine" points="0,150 700,150" fill="none" stroke="#2563eb" stroke-width="4" stroke-linejoin="round"/>
-                  <polyline id="mainChartFill" points="0,150 700,150 700,210 0,210" fill="url(#mainChartGrad)"/>
-                  <line id="mainChartTrend" x1="0" y1="150" x2="700" y2="150" stroke="#2563eb" stroke-width="2" stroke-dasharray="7 6"/>
-                </svg>
-                <div class="main-chart-labels" aria-hidden="true">
-                  <span style="--x:0%">6일 전</span>
-                  <span style="--x:16%">5일 전</span>
-                  <span style="--x:32%">4일 전</span>
-                  <span style="--x:48%">3일 전</span>
-                  <span style="--x:64%">2일 전</span>
-                  <span style="--x:80%">어제</span>
-                  <span style="--x:92.86%">오늘</span>
-                </div>
-              </div>
+              <div id="main-health-trend" data-health-trend-view="dashboard" data-health-trend-compact="true" style="padding:16px 24px"></div>
             </div>
           </div>
 
@@ -895,12 +871,22 @@
 const registrationMode = {{ registration_mode|default(false)|tojson }};
 let users = [];
 const latestHealthStatuses = new Map();
+function normalizeScoreBreakdown(items) {
+  return (items || []).map(item => {
+    const match = String(item.score ?? '').match(/^(-?\d+(?:\.\d+)?)점$/);
+    const points = typeof item.points === 'number' && Number.isFinite(item.points)
+      ? item.points : match ? Number(match[1]) : null;
+    return {...item, points, score: points === null ? (item.score ?? '기록 없음') : `${points}점`,
+      type: item.type || (points === null ? '' : points < 0 ? 'minus' : 'plus')};
+  });
+}
 function applyLatestHealthStatus(user) {
   const status = latestHealthStatuses.get(String(user.id));
   if (status && (!user.status_as_of || Date.parse(status.as_of) >= Date.parse(user.status_as_of))) {
     user.score = status.score; user.risk = status.level.toLowerCase();
     user.status_as_of = status.as_of; user.score_breakdown = status.breakdown;
   }
+  user.score_breakdown = normalizeScoreBreakdown(user.score_breakdown);
   window.syncHealthAnalysisStatus?.(user);
   return user;
 }
@@ -1096,7 +1082,7 @@ async function loadEldersData() {
       renderOtherSections();
       renderUnassignedList();
       populateChartSelect();
-      if (users.length > 0) updateMainChart(0);
+      if (users.length > 0) updateMainChart(document.getElementById('chartUserSelect')?.value || 0);
 
       // 새로고침 후 저장된 상세 창이 있다면 사용자 ID 기준으로 다시 열기
       restoreOpenDetailRow();
@@ -1300,7 +1286,10 @@ function updateKPIs(){
 function populateChartSelect(){
   const select = document.getElementById('chartUserSelect');
   if(!select) return;
+  const selectedId = document.getElementById('main-health-trend')?.dataset.healthTrendUserId;
   select.innerHTML = users.map((u, i) => `<option value="${i}">${u.name} (${u.age}세)</option>`).join('');
+  const index = users.findIndex(user => String(user.id) === selectedId);
+  if (index >= 0) select.value = String(index);
 }
 
 function populateLifePatternSelect(){
@@ -1766,7 +1755,7 @@ function renderTable(){
       dinnerDisplay = '미입력';
     }
 
-    const breakdownHtml = (u.score_breakdown || []).map(b => `
+    const breakdownHtml = normalizeScoreBreakdown(u.score_breakdown).map(b => `
       <span class="score-tag ${b.type}">
         <span>${b.item}</span>
         <b>${b.score}</b>
@@ -1904,32 +1893,16 @@ function renderTable(){
               <div class="risk-panel-v2">
                 <div class="risk-head-v2">
                   <div>
-                    <h4>최근 7일 위험점수 그래프</h4>
-                    <p>낮은 점수일수록 위험합니다. 날짜별 변화 흐름을 시각화했습니다.</p>
+                    <h4>현재 건강 추세</h4>
+                    <p>점수는 높을수록 안전합니다. 최신 생활 기록과 확정 검진의 추세를 확인합니다.</p>
                   </div>
                   <div class="score-big-v2" style="color:${r[2]}">${u.score}<small>점</small></div>
                 </div>
 
-                <svg class="risk-svg-v2" viewBox="0 0 700 200" preserveAspectRatio="none">
-                  <defs>
-                    <linearGradient id="${chartFillId}" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stop-color="${r[2]}" stop-opacity=".24"/>
-                      <stop offset="100%" stop-color="${r[2]}" stop-opacity="0"/>
-                    </linearGradient>
-                  </defs>
-                  <line x1="0" y1="40" x2="700" y2="40" stroke="#dbe7f6"/>
-                  <line x1="0" y1="90" x2="700" y2="90" stroke="#dbe7f6"/>
-                  <line x1="0" y1="140" x2="700" y2="140" stroke="#dbe7f6"/>
-                  <polyline points="${u.chart || '0,120 700,120'}" fill="none" stroke="${r[2]}" stroke-width="5" stroke-linejoin="round"/>
-                  <polyline points="${u.chart || '0,120 700,120'} 700,200 0,200" fill="url(#${chartFillId})"/>
-                  <text x="0" y="190" font-size="12" fill="#64748b">6일 전</text>
-                  <text x="112" y="190" font-size="12" fill="#64748b">5일 전</text>
-                  <text x="224" y="190" font-size="12" fill="#64748b">4일 전</text>
-                  <text x="336" y="190" font-size="12" fill="#64748b">3일 전</text>
-                  <text x="448" y="190" font-size="12" fill="#64748b">2일 전</text>
-                  <text x="560" y="190" font-size="12" fill="#64748b">어제</text>
-                  <text x="650" y="190" font-size="12" fill="#64748b">오늘</text>
-                </svg>
+                <details class="health-details" data-current-trend-details="${u.id}">
+                  <summary>현재 건강 추세 그래프 보기</summary>
+                  <div data-health-trend-user-id="${u.id}" data-health-trend-view="detail:${u.id}"></div>
+                </details>
 
                 <div class="score-reason-box">
                   <div class="score-reason-title">
@@ -2003,41 +1976,12 @@ function restoreOpenDetailRow(){
 }
 
 function updateMainChart(index){
-  /*선택된 어르신의 최근 7일 건강 위험 점수 그래프를 갱신합니다.*/
-  const u = users[Number(index)];
-  if(!u) return;
-
-  const r = risk[u.risk] || risk.safe;
-  const points = u.chart || '0,120 700,120';
-
-  const line = document.getElementById('mainChartLine');
-  const fill = document.getElementById('mainChartFill');
-  const trend = document.getElementById('mainChartTrend');
-  const stop1 = document.getElementById('mainChartStop1');
-  const stop2 = document.getElementById('mainChartStop2');
-
-  if(line) {
-    line.setAttribute('points', points);
-    line.setAttribute('stroke', r[2]);
-  }
-  if(fill) {
-    fill.setAttribute('points', points + ' 700,210 0,210');
-  }
-  if(trend) {
-    const pointArr = points.split(' ');
-    const first = pointArr[0].split(',');
-    const last = pointArr[pointArr.length - 1].split(',');
-    trend.setAttribute('x1', first[0]);
-    trend.setAttribute('y1', first[1]);
-    trend.setAttribute('x2', last[0]);
-    trend.setAttribute('y2', last[1]);
-    trend.setAttribute('stroke', r[2]);
-  }
-  if(stop1) stop1.setAttribute('stop-color', r[2]);
-  if(stop2) stop2.setAttribute('stop-color', r[2]);
-
+  const u = users[Number(index)]; if (!u) return;
+  const target = document.getElementById('main-health-trend');
+  if (target) target.dataset.healthTrendUserId = String(u.id);
   const sub = document.getElementById('chartSubText');
-  if(sub) sub.innerText = `${u.name} 어르신의 최근 7일 건강 위험 점수 변화입니다.`;
+  if (sub) sub.innerText = `${u.name} 어르신의 현재 시스템 점수 추세입니다. 높을수록 안전합니다.`;
+  window.HealthTrends?.scan();
 }
 
 function handleDiseaseSelect() {
@@ -2371,6 +2315,8 @@ function setCheckupAnalysisText(targetEl, text) {
 <script src="{{ url_for('static', filename='js/ai_models.js') }}"></script>
 <script src="{{ url_for('static', filename='js/checkup_review.js') }}"></script>
 <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_responsive.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/health_trends.css') }}">
+<script src="{{ url_for('static', filename='js/health_trends.js') }}"></script>
 <script src="{{ url_for('static', filename='js/life_pattern_feedback.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin_responsive.js') }}"></script>
 </body>

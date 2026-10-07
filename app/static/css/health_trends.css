@@ -1,0 +1,25 @@
+.health-trend {min-width:0;max-width:100%;padding:10px 0;overflow-wrap:anywhere;}
+.health-trend h5 {margin:16px 0 8px;font-size:15px;}
+.health-trend p {white-space:normal;}
+.health-trend-controls {display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0;}
+.health-trend label {display:flex;flex-wrap:wrap;gap:8px;align-items:center;max-width:100%;}
+.health-trend select,.health-trend button {min-height:44px;max-width:100%;}
+.health-trend select {border:1px solid #cbd5e1;border-radius:8px;padding:8px;background:#fff;color:#172033;min-width:0;}
+.health-trend .health-trend-svg {width:100%;height:auto;display:block;overflow:visible;}
+.health-trend-svg text {font-size:15px;fill:#475569;}
+.health-trend-svg circle {cursor:pointer;}
+.health-trend-svg circle:focus {outline:2px solid #111827;outline-offset:3px;}
+.health-trend-legend {display:flex;gap:16px;flex-wrap:wrap;}
+.health-trend-point-info {min-height:44px;color:#334155;}
+.health-trend-table {max-width:100%;margin:10px 0;}
+.health-trend-table summary {cursor:pointer;min-height:44px;align-content:center;font-weight:600;color:#24548c;}
+.health-trend-table-scroll {overflow-x:auto;max-width:100%;}
+.health-trend table {border-collapse:collapse;width:100%;font-size:13px;}
+.health-trend caption {text-align:left;padding:8px;}
+.health-trend th,.health-trend td {padding:8px;text-align:left;border-bottom:1px solid #dbe7f6;white-space:normal;min-width:65px;}
+.health-trend .health-analysis-meta {font-size:13px;color:#475569;}
+@media(max-width:768px) {
+  .health-trend-controls {align-items:stretch;flex-direction:column;}
+  .health-trend-controls label {justify-content:space-between;}
+  .health-trend-svg text {font-size:32px;}
+}

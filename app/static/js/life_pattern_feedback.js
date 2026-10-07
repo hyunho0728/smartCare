@@ -54,7 +54,8 @@
       const line = element('p', sourceText(source), 'health-analysis-source');
       if (source.doc_id) {
         const button = element('button', `검진표 ${source.doc_id} · ${source.page || '?'}페이지 원본 확인`, 'mini-btn');
-        button.type = 'button'; button.addEventListener('click', () => window.openCheckupReview(source.doc_id)); line.append(button);
+        button.type = 'button'; button.addEventListener('click', () => window.openCheckupReview(source.doc_id,
+          {expectedRevision: snapshot.documents.find(doc => doc.doc_id === source.doc_id)?.confirmed_revision})); line.append(button);
       }
       block.append(line);
     }
@@ -200,6 +201,9 @@
         panel.append(element('h5', '종합 요약'), element('p', report.summary.length > 180 ? report.summary.slice(0,180) + '…' : report.summary));
         if (report.summary.length > 180) fold(panel, '전체 요약 보기', 'summary').append(element('p', report.summary));
         renderCoreChanges(panel, snapshot);
+        const graphs = fold(panel, '분석 당시 건강 추세', 'graphs');
+        const graphBody = element('div'); graphs.append(graphBody);
+        window.HealthTrends?.snapshot(graphBody, record);
         const scoreDetails = fold(panel, '점수 산정 근거·분석 당시 상태', 'scores');
         renderStatus(scoreDetails, state.currentStatus, '현재 조회 상태 · 시스템 생활패턴 지표');
         renderStatus(scoreDetails, snapshot.system_status, '분석 당시 상태 · 점수 산정 근거');
@@ -268,7 +272,8 @@
     if (!user.status_as_of || !state.loaded || (state.currentStatus && Date.parse(state.currentStatus.as_of) >= Date.parse(user.status_as_of))) return;
     const labels = {safe:'안전',watch:'주의',warn:'경고',danger:'위험'};
     if (!labels[user.risk]) return;
-    state.currentStatus = {score:user.score, level:user.risk.toUpperCase(), label:labels[user.risk], as_of:user.status_as_of, breakdown:user.score_breakdown || []};
+    state.currentStatus = {score:user.score, level:user.risk.toUpperCase(), label:labels[user.risk], as_of:user.status_as_of,
+      breakdown:(user.score_breakdown || []).filter(item => typeof item.points === 'number' && item.points < 0)};
   };
   // 과거 sessionStorage 문자열을 새 종합 분석 결과로 사용하지 않는다.
   window.setLifePatternAnalysisText = id => { if (!stateFor(id).loaded) load(id); else render(id); };
@@ -289,7 +294,7 @@
       state.history = [{analysis_id: body.analysis_id, analyzed_at: body.analyzed_at}, ...state.history.filter(h => h.analysis_id !== body.analysis_id)].slice(0, 20);
       state.loaded = true;
     } catch (error) { state.error = message(error); }
-    finally { state.pending = false; window.updateHealthAnalysisStatus?.(id, state.currentStatus); render(id); window.AIModels?.usageChanged(); }
+    finally { state.pending = false; window.updateHealthAnalysisStatus?.(id, state.currentStatus); render(id); window.AIModels?.usageChanged(); window.HealthTrends?.invalidate(id); }
   };
   new MutationObserver(records => {
     if (records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 &&
