@@ -255,6 +255,51 @@ class AuthBrowserTests(unittest.TestCase):
         page.wait_for_url(self.url + '/login', timeout=10000)
         self.assertFalse(self.errors)
 
+    def test_background_refresh_keeps_reading_position_and_expanded_panels(self):
+        page = self.page; self.login()
+        page.locator('#tbody .main-row').wait_for()
+        page.locator('#tbody .main-row').first.click()
+        page.wait_for_function("!document.querySelector('.detail-row.open [data-life-ai-button-id]').disabled")
+        page.locator('.detail-row.open [data-life-ai-button-id="1"]').click()
+        detail = page.locator('.detail-row.open')
+        detail.filter(has_text='저장된 AI 결과').wait_for()
+        detail.locator('.life-ai-result summary').filter(has_text='분석 당시 건강 추세').click()
+        for width in (360, 390, 768, 1280, 1440):
+            page.set_viewport_size({'width': width, 'height': 844})
+            page.evaluate('window.scrollTo(0,1400)'); page.wait_for_timeout(100)
+            position = page.evaluate('window.scrollY')
+            for _ in range(2):
+                page.evaluate('loadEldersData()'); page.wait_for_timeout(100)
+                self.assertAlmostEqual(page.evaluate('window.scrollY'), position, delta=2)
+                graphs = detail.locator('.life-ai-result details').filter(has=page.locator('summary', has_text='분석 당시 건강 추세'))
+                self.assertIsNotNone(graphs.get_attribute('open'))
+                self.assertIn('저장된 AI 결과', detail.inner_text())
+                self.no_overflow()
+        # Exercise the real ten-second poll, including a changed server value.
+        self.elder['address'] = '자동 갱신 주소'
+        position = page.evaluate('window.scrollY')
+        detail.filter(has_text='자동 갱신 주소').wait_for(timeout=15000)
+        page.wait_for_timeout(100)
+        self.assertAlmostEqual(page.evaluate('window.scrollY'), position, delta=2)
+        # A user scrolling during a slow response must keep their new position.
+        page.evaluate('stopElderDataPolling()')
+        held = []
+        page.route('**/api/admin/elders', lambda route: held.append(route))
+        page.evaluate('void loadEldersData()')
+        for _ in range(50):
+            if held: break
+            page.wait_for_timeout(20)
+        self.assertTrue(held)
+        page.evaluate('window.scrollTo(0,1800)')
+        self.elder['address'] = '지연 응답 주소'
+        held[0].continue_()
+        detail.filter(has_text='지연 응답 주소').wait_for()
+        page.wait_for_timeout(100)
+        self.assertAlmostEqual(page.evaluate('window.scrollY'), 1800, delta=2)
+        self.assertEqual(page.evaluate('document.body.style.minHeight'), '')
+        self.assertEqual(page.evaluate('document.documentElement.style.overflowAnchor'), '')
+        self.assertFalse(self.errors)
+
     def test_score_reasons_support_numeric_and_legacy_shapes_after_refresh(self):
         page = self.page; self.login(); page.locator('#tbody .main-row').wait_for()
         page.wait_for_function("!document.querySelector('[data-life-ai-button-id]').disabled")

@@ -871,6 +871,31 @@
 const registrationMode = {{ registration_mode|default(false)|tojson }};
 let users = [];
 const latestHealthStatuses = new Map();
+let viewportRestoreFrame = null;
+let viewportRestoreStyles = null;
+function preserveViewportDuringRender(render) {
+  // Keep the scroll range while observers restore expanded AI and graph panels.
+  const root = document.documentElement;
+  const body = document.body;
+  if (!viewportRestoreStyles) {
+    viewportRestoreStyles = {minHeight: body.style.minHeight, overflowAnchor: root.style.overflowAnchor};
+  }
+  body.style.minHeight = `${Math.max(root.scrollHeight, body.scrollHeight)}px`;
+  root.style.overflowAnchor = 'none';
+  if (viewportRestoreFrame !== null) cancelAnimationFrame(viewportRestoreFrame);
+  try { render(); }
+  finally {
+    viewportRestoreFrame = requestAnimationFrame(() => {
+      // Do not undo a deliberate scroll made since the DOM update.
+      const nextX = window.scrollX, nextY = window.scrollY;
+      body.style.minHeight = viewportRestoreStyles.minHeight;
+      window.scrollTo({left: nextX, top: nextY, behavior: 'instant'});
+      root.style.overflowAnchor = viewportRestoreStyles.overflowAnchor;
+      viewportRestoreStyles = null;
+      viewportRestoreFrame = null;
+    });
+  }
+}
 function normalizeScoreBreakdown(items) {
   return (items || []).map(item => {
     const match = String(item.score ?? '').match(/^(-?\d+(?:\.\d+)?)점$/);
@@ -896,7 +921,9 @@ window.updateHealthAnalysisStatus = (id, status) => {
   if (old && Date.parse(old.as_of) >= Date.parse(status.as_of)) return;
   latestHealthStatuses.set(String(id), status);
   users.forEach(applyLatestHealthStatus);
-  updateKPIs(); renderTable(); restoreOpenDetailRow(); renderOtherSections();
+  preserveViewportDuringRender(() => {
+    updateKPIs(); renderTable(); restoreOpenDetailRow(); renderOtherSections();
+  });
 };
 window.healthAnalysisAction = (id, kind) => {
   const user = users.find(u => String(u.id) === String(id)); if (!user) return;
@@ -1077,25 +1104,27 @@ async function loadEldersData() {
       console.log('서버에서 받은 어르신 데이터: ', users); // 삭제
 
       await loadEmergencyAlerts();
-      updateKPIs();
-      renderTable();
-      renderOtherSections();
-      renderUnassignedList();
-      populateChartSelect();
-      if (users.length > 0) updateMainChart(document.getElementById('chartUserSelect')?.value || 0);
+      preserveViewportDuringRender(() => {
+        updateKPIs();
+        renderTable();
+        renderOtherSections();
+        renderUnassignedList();
+        populateChartSelect();
+        if (users.length > 0) updateMainChart(document.getElementById('chartUserSelect')?.value || 0);
 
-      // 새로고침 후 저장된 상세 창이 있다면 사용자 ID 기준으로 다시 열기
-      restoreOpenDetailRow();
+        // 새로고침 후 저장된 상세 창이 있다면 사용자 ID 기준으로 다시 열기
+        restoreOpenDetailRow();
 
-      // 저장된 검진표 AI 분석 결과가 있다면 검진표 섹션에 복원
-      users.forEach(u => {
-        const savedCheckupAiDesc = sessionStorage.getItem(`checkup_ai_desc_${u.id}`);
-        if (savedCheckupAiDesc) {
-          const descEl = document.getElementById(`checkup-ai-desc-${u.id}`);
-          if (descEl) {
-            setCheckupAnalysisText(descEl, savedCheckupAiDesc);
+        // 저장된 검진표 AI 분석 결과가 있다면 검진표 섹션에 복원
+        users.forEach(u => {
+          const savedCheckupAiDesc = sessionStorage.getItem(`checkup_ai_desc_${u.id}`);
+          if (savedCheckupAiDesc) {
+            const descEl = document.getElementById(`checkup-ai-desc-${u.id}`);
+            if (descEl) {
+              setCheckupAnalysisText(descEl, savedCheckupAiDesc);
+            }
           }
-        }
+        });
       });
     }
   } catch (err) {
