@@ -16,7 +16,7 @@
   };
   const navButton = document.querySelector('.nav button[onclick*="alerts"]');
   if (navButton) {
-    const badge = el('span', '0'); badge.dataset.statusAlertCount = ''; badge.setAttribute('aria-label', '미읽음 알림 수'); navButton.append(badge);
+    const badge = el('span', '0'); badge.hidden = true; badge.dataset.statusAlertCount = ''; badge.setAttribute('aria-label', '미읽음 알림 수'); navButton.append(badge);
   }
   const notice = el('div', undefined, 'status-alert-notice'); notice.hidden = true;
   notice.setAttribute('role', 'status'); document.body.append(notice);
@@ -42,6 +42,12 @@
       throw new Error(data.message || '요청에 실패했습니다.');
     }
     return data;
+  }
+  function setUnreadCount(count) {
+    document.querySelectorAll('[data-status-alert-count]').forEach(node => {
+      node.textContent = count;
+      node.hidden = Number(count) <= 0;
+    });
   }
   function transition(a) {
     return `${a.previous_status.label} ${a.previous_status.score}점 → ${a.current_status.label} ${a.current_status.score}점`;
@@ -102,7 +108,7 @@
       items = data.data; unreadItems = data.unread_data;
       queriedAt = data.queried_at; backgroundAt = data.last_background_success_at;
       initialized = true; error = '';
-      document.querySelectorAll('[data-status-alert-count]').forEach(n => { n.textContent = data.unread_count; });
+      setUnreadCount(data.unread_count);
     } catch (failure) { error = `갱신 실패: ${failure.message} 마지막 성공 자료를 유지합니다.`; }
     finally { pending = false; render(); if (retry) queueMicrotask(refresh); }
   }
@@ -115,7 +121,7 @@
       const response = await request(`/api/admin/status-alerts/${id}/read`, {method:'POST'});
       items = items.map(a => a.alert_id === id ? response.data : a);
       unreadItems = unreadItems.filter(a => a.alert_id !== id);
-      document.querySelectorAll('[data-status-alert-count]').forEach(n => { n.textContent = response.unread_count; });
+      setUnreadCount(response.unread_count);
       if (detail?.alert_id === id) detail = {...detail, ...response.data};
       success = true;
     } catch (failure) {

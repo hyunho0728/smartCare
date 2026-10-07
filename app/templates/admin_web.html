@@ -545,7 +545,7 @@
 
           <aside>
             <div class="panel status-alert-panel">
-              <div class="panel-head"><h3>최근 상태 변화 <span data-status-alert-count aria-label="미읽음 알림 수">0</span></h3></div>
+              <div class="panel-head"><h3>최근 상태 변화 <span data-status-alert-count aria-label="미읽음 알림 수" hidden>0</span></h3></div>
               <p class="status-alert-meta" data-status-alert-query></p>
               <p class="status-alert-error" data-status-alert-error role="status"></p>
               <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
@@ -645,12 +645,18 @@
             class="alert-tab-content active"
             id="recent-alert-content">
 
-            <h4>미읽음 상태 변화 알림</h4>
-            <p class="status-alert-meta" data-status-alert-query></p>
-            <p class="status-alert-error" data-status-alert-error role="status"></p>
-            <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
-            <div data-status-alert-recent></div>
-            <h4>현재 대상자 상태 · 상태 변화 알림과 별도</h4>
+            <div class="status-alert-section">
+              <div class="status-alert-toolbar">
+                <div>
+                  <h4>미읽음 상태 변화 알림</h4>
+                  <p class="status-alert-meta" data-status-alert-query></p>
+                </div>
+                <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
+              </div>
+              <p class="status-alert-error" data-status-alert-error role="status"></p>
+              <div data-status-alert-recent></div>
+            </div>
+            <h4 class="status-alert-state-title">현재 대상자 상태 · 상태 변화 알림과 별도</h4>
 
             <table class="table">
               <thead>
@@ -702,11 +708,18 @@
             class="alert-tab-content"
             id="history-alert-content">
 
-            <p class="status-alert-meta" data-status-alert-query></p>
-            <p class="status-alert-error" data-status-alert-error role="status"></p>
-            <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
-            <p class="status-alert-meta">최근 100개 상태 변화 알림을 표시합니다.</p>
-            <div data-status-alert-history></div>
+            <div class="status-alert-section">
+              <div class="status-alert-toolbar">
+                <div>
+                  <h4>상태 변화 알림 이력</h4>
+                  <p class="status-alert-meta" data-status-alert-query></p>
+                </div>
+                <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
+              </div>
+              <p class="status-alert-error" data-status-alert-error role="status"></p>
+              <p class="status-alert-meta">최근 100개 상태 변화 알림을 표시합니다.</p>
+              <div data-status-alert-history></div>
+            </div>
           </div>
 
           <!-- 조치 기록 -->

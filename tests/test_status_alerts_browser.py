@@ -32,6 +32,7 @@ class StatusAlertBrowserTests(unittest.TestCase):
         dashboard=page.locator('[data-status-alert-dashboard]')
         dashboard.locator('.status-alert-card').wait_for()
         self.assertEqual(page.locator('.nav [data-status-alert-count]').inner_text(),'1')
+        self.assertTrue(page.locator('.nav [data-status-alert-count]').is_visible())
         self.assertTrue(page.locator('.status-alert-notice').is_hidden())
         dashboard.get_by_role('button',name='원인·관련 기록').click()
         modal=page.locator('#status-alert-detail')
@@ -48,6 +49,8 @@ class StatusAlertBrowserTests(unittest.TestCase):
         modal.get_by_role('button',name='읽음 처리',exact=True).click()
         modal.locator('p').filter(has_text='읽음 '+str(dt.datetime.now().year)).wait_for()
         page.wait_for_function("document.querySelector('.nav [data-status-alert-count]').textContent==='0'")
+        self.assertTrue(page.locator('.nav [data-status-alert-count]').is_hidden())
+        self.assertTrue(page.locator('.status-alert-panel [data-status-alert-count]').is_hidden())
         db.session.expire_all(); self.assertTrue(db.session.get(StatusAlert,alert_id).is_read)
         modal.get_by_role('button',name='닫기',exact=True).click()
         page.reload(); page.locator('#tbody .main-row').wait_for()
@@ -141,6 +144,38 @@ class StatusAlertBrowserTests(unittest.TestCase):
         page.wait_for_timeout(300)
         self.assertEqual(page.locator('.nav [data-status-alert-count]').inner_text(),'0')
         self.assertEqual(page.locator('[data-status-alert-dashboard] .status-alert-card').count(),0)
+        self.assertFalse(self.errors)
+
+    def test_empty_badges_hidden_and_alert_content_aligned(self):
+        page=self.page; self.login()
+        page.locator('[data-status-alert-dashboard]').filter(has_text='상태 변화 알림이 없습니다.').wait_for()
+        self.assertTrue(all(n.is_hidden() for n in page.locator('[data-status-alert-count]').all()))
+        page.evaluate("nav('alerts',document.querySelector('.nav button[onclick*=alerts]'))")
+        for width in (360,390,768,1280,1440):
+            page.set_viewport_size({'width':width,'height':900})
+            page.wait_for_timeout(300)  # Wait for the existing sidebar grid transition.
+            for tab in ('recent','history'):
+                page.evaluate(f"switchAlertTab('{tab}',document.getElementById('{tab}-alert-tab'))")
+                section=page.locator(f'#{tab}-alert-content .status-alert-section')
+                heading=section.locator('h4').bounding_box()
+                metadata=section.locator('[data-status-alert-query]').bounding_box()
+                empty=section.locator('[data-status-alert-recent], [data-status-alert-history]').bounding_box()
+                self.assertAlmostEqual(heading['x'],metadata['x'],delta=1)
+                self.assertAlmostEqual(heading['x'],empty['x'],delta=1)
+                parent=section.bounding_box()
+                self.assertGreaterEqual(heading['x']-parent['x'],12)
+                refresh=section.locator('[data-status-alert-refresh]').bounding_box()
+                self.assertGreaterEqual(refresh['height'],44)
+                if width <= 768:
+                    self.assertGreaterEqual(refresh['y'],metadata['y']+metadata['height'])
+                else:
+                    self.assertAlmostEqual(refresh['y'],heading['y'],delta=1)
+                if tab=='recent':
+                    state=page.locator('.status-alert-state-title').bounding_box()
+                    self.assertAlmostEqual(state['x']+(12 if width <= 768 else 22),heading['x'],delta=1)
+                self.no_overflow()
+                if width in (390,1440):
+                    page.screenshot(path=str(browser_fixtures.OUTPUT/f'status_alert_alignment_{tab}_{width}.png'))
         self.assertFalse(self.errors)
 
 
