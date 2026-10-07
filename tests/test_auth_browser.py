@@ -49,7 +49,7 @@ class AuthBrowserTests(unittest.TestCase):
                     'recommended_actions': ['안부 확인'], 'limitations': snapshot['limitations'],
                     'priority_actions': [{'action': '연락 확인', 'reason': '기록과 안부를 확인하세요.',
                                           'source_refs': [snapshot['sources'][0]['ref']], 'priority': '우선 확인'}]}
-        self.ai_patch = patch('routes.social_worker.analyze', side_effect=ai); self.ai_patch.start()
+        self.ai_patch = patch('routes.social_worker.analyze', side_effect=ai); self.ai_mock = self.ai_patch.start()
         self.server = make_server('127.0.0.1', 0, app)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True); self.thread.start()
         self.runtime = sync_playwright().start()
@@ -177,10 +177,13 @@ class AuthBrowserTests(unittest.TestCase):
             page.set_viewport_size({'width': width, 'height': 1000}); self.no_overflow()
             if width in (390, 1440): page.screenshot(path=str(OUTPUT / f'health_analysis_{width}.png'))
         page.evaluate('window.openCheckupReview = id => { window.openedReviewId = id; }')
+        page.locator('#ai-analysis-list summary').filter(has_text='전체 확인 사항·관련 근거').click()
+        page.locator('#ai-analysis-list .health-analysis-finding summary').click()
         page.locator('#ai-analysis-list button').filter(has_text='페이지 원본 확인').click()
         self.assertEqual(page.evaluate('window.openedReviewId'), 1)
         button.click()
         page.wait_for_function("document.querySelector('#ai-analysis-list select').options.length === 2")
+        page.locator('#ai-analysis-list summary').filter(has_text='모델 설정·분석 이력').click()
         page.locator('#ai-analysis-list select').select_option(first)
         page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
         self.assertEqual(page.locator('#ai-analysis-list select').input_value(), first)
@@ -191,6 +194,55 @@ class AuthBrowserTests(unittest.TestCase):
         self.assertEqual(page.locator('#ai-analysis-list select option').count(), 2)
         self.assertNotEqual(page.locator('#ai-analysis-list select').input_value(), first)
         self.assertEqual(self.ai_calls, 2); self.assertFalse(self.errors)
+
+    def test_compact_analysis_folds_latest_score_and_missing_metrics(self):
+        original_ai = self.ai_mock.side_effect
+        def extended_report(snapshot, model=None):
+            report = original_ai(snapshot, model)
+            report['summary'] += ' 생활 기록과 확인할 내용을 사회복지사가 검토해주세요.' * 15
+            for action in ('검진 원본 확인', '기존 의료 상담 여부 확인'):
+                extra = copy.deepcopy(report['priority_actions'][0]); extra['action'] = action
+                extra['priority'] = '일반 확인'; report['priority_actions'].append(extra)
+            return report
+        self.ai_mock.side_effect = extended_report
+        self.elder['status_as_of'] = '2020-01-01T00:00:00'
+        page = self.page; self.login()
+        page.locator('#tbody .main-row').wait_for()
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        panel = page.locator('#ai-analysis-list [data-life-ai-user-id="1"]')
+        button = page.locator('#ai-analysis-list [data-life-ai-button-id="1"]')
+        page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
+        button.click(); panel.filter(has_text='저장된 AI 결과').wait_for()
+        self.assertIn('혈압·혈당 기록 없음', panel.inner_text())
+        self.assertNotIn('비교 불가', panel.inner_text())
+        self.assertEqual(panel.locator('.health-priority-card:visible').count(), 2)
+        self.assertNotIn('일반 확인: 기존 의료 상담 여부 확인', panel.inner_text())
+        panel.locator('summary').filter(has_text='추가 확인할 일').click()
+        self.assertEqual(panel.locator('.health-priority-card:visible').count(), 3)
+        panel.locator('summary').filter(has_text='추가 확인할 일').click()
+        self.assertIn('전체 요약 보기', panel.inner_text())
+        self.assertIn('…', panel.inner_text())
+        panel.locator('summary').filter(has_text='전체 요약 보기').click()
+        self.assertGreater(panel.inner_text().count('생활 기록과 확인할 내용'), 10)
+        panel.locator('summary').filter(has_text='전체 요약 보기').click()
+        self.assertNotIn('근거 s', panel.inner_text())
+        self.assertNotIn('현재 목록 상태', page.locator('#ai-analysis-list').inner_text())
+        score = page.evaluate('users[0].score')
+        current_score = panel.locator('.health-current-status strong').inner_text()
+        self.assertIn(f'{score}점', current_score)
+        page.evaluate('loadEldersData()')
+        self.assertEqual(page.evaluate('users[0].score'), score)
+        panel.locator('summary').filter(has_text='전체 확인 사항·관련 근거').click()
+        page.wait_for_timeout(50)
+        page.evaluate('renderTable(); renderOtherSections()')
+        self.assertTrue(panel.locator('details').filter(has=page.locator('summary', has_text='전체 확인 사항·관련 근거')).evaluate('el=>el.open'))
+        self.ai_fail = True; button.click(); panel.locator('.ai-spinner').wait_for()
+        self.assertIn('저장된 AI 결과', panel.inner_text())
+        panel.locator('[role=alert]').wait_for()
+        self.assertIn('저장된 AI 결과', panel.inner_text())
+        panel.locator('.health-contact-actions').get_by_role('button', name='조치 결과 작성').click()
+        page.locator('#feedback .modal').wait_for()
+        self.assertFalse(self.errors)
 
     def test_registration_entries_and_expiry(self):
         page = self.page
@@ -226,9 +278,17 @@ class AuthBrowserTests(unittest.TestCase):
         page.evaluate("analyzeLifePatternAI(1,'가상어르신')")
         panel.filter(has_text='저장된 AI 결과').wait_for()
         self.assertEqual(self.ai_calls, 1)
-        for expected in ('분석 당시 상태', '현재 조회 상태', '점수는 높을수록 안전', '우선 확인: 연락 확인',
-                         '첫 분석', '생활 기간 비교', '표본 1', '수치 차이: +10'):
-            self.assertIn(expected, panel.inner_text())
+        visible = panel.inner_text()
+        for expected in ('현재 상태', '점수는 높을수록 안전', '우선 확인: 연락 확인', '핵심 변화', '표본 1'):
+            self.assertIn(expected, visible)
+        for hidden in ('첫 분석', '근거 s1:', '수치 차이: +10', '현재 조회 상태', '사회복지사 권장 확인'):
+            self.assertNotIn(hidden, visible)
+        self.assertEqual(panel.locator('details[open]').count(), 0)
+        self.assertEqual(panel.locator('.health-current-status').count(), 1)
+        panel.locator('summary').filter(has_text='변화 수치·기간 자세히 보기').click()
+        self.assertIn('수치 차이: +10', panel.inner_text())
+        self.assertNotIn('첫 분석', panel.inner_text())
+        panel.locator('summary').filter(has_text='변화 수치·기간 자세히 보기').click()
         for width in (360, 390, 768, 1280, 1440):
             page.set_viewport_size({'width': width, 'height': 1000}); self.no_overflow()
             self.assertTrue(panel.evaluate('el => el.scrollWidth <= el.clientWidth'))
@@ -239,9 +299,13 @@ class AuthBrowserTests(unittest.TestCase):
         db.session.expire_all()
         record = db.session.query(CheckupResult).filter_by(doc_id=1).first()
         record.confirmed_revision += 1; db.session.commit()
+        panel.locator('summary').filter(has_text='모델 설정·분석 이력').click()
         panel.get_by_role('button', name='현재 자료·저장 결과 새로고침').click()
         panel.locator('.health-reanalysis-note').wait_for()
+        panel.locator('summary').filter(has_text='사용한 검진 자료·데이터 한계').click()
         self.assertIn('재확정되었다면', panel.inner_text())
+        panel.locator('summary').filter(has_text='전체 확인 사항·관련 근거').click()
+        panel.locator('.health-analysis-finding summary').click()
         page.evaluate('window.openCheckupReview = id => { window.openedReviewId = id; }')
         panel.get_by_role('button', name='검진표 1 · 1페이지 원본 확인', exact=True).first.click()
         self.assertEqual(page.evaluate('window.openedReviewId'), 1)
@@ -280,6 +344,7 @@ class AuthBrowserTests(unittest.TestCase):
         page.locator('#ai-model-open').click(); panel.locator('select').select_option('gemini-2.5-flash'); panel.locator('[data-ai-close]').click()
         page.locator('#ai-analysis-list').filter(has_text='저장된 AI 결과').wait_for()
         self.assertEqual(self.used_models, ['gemini-3.8-flash'])
+        page.locator('#ai-analysis-list summary').filter(has_text='모델 설정·분석 이력').click()
         self.assertIn('분석에 사용한 모델: Gemini 3.8 Flash', page.locator('#ai-analysis-list').inner_text())
         page.reload(); page.locator('#tbody .main-row').wait_for(state='attached')
         page.locator('#ai-model-open').click(); self.assertEqual(panel.locator('select').input_value(), 'gemini-2.5-flash')

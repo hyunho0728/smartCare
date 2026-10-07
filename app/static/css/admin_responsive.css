@@ -74,3 +74,20 @@
 .health-status-card { background: #f8fafc; }
 .health-priority-card { border-left: 4px solid #2563eb; }
 .health-reanalysis-note { padding: 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; }
+
+/* 종합 분석의 핵심 정보는 먼저, 세부 근거는 펼쳐서 확인한다. */
+.health-details {margin:10px 0;border-top:1px solid #dbe7f6;padding:4px 0;min-width:0;}
+.health-details > summary {min-height:44px;display:list-item;align-content:center;cursor:pointer;font-weight:600;color:#24548c;}
+.health-details > summary:focus-visible {outline:2px solid #2563eb;outline-offset:2px;}
+.health-details[open] {padding-bottom:10px;}
+.health-current-status {padding:14px;margin:12px 0;background:#f8fafc;border:1px solid #dbe7f6;border-radius:12px;}
+.health-current-status > strong {font-size:22px;}
+.health-current-status[data-level="DANGER"] {border-left:4px solid #ef4444;}
+.health-current-status[data-level="WARN"] {border-left:4px solid #f97316;}
+.health-current-status[data-level="WATCH"] {border-left:4px solid #eab308;}
+.health-current-status[data-level="SAFE"] {border-left:4px solid #22c55e;}
+.health-core-metrics {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;}
+.health-core-metrics > div {background:white;border:1px solid #dbe7f6;border-radius:10px;padding:10px;min-width:0;}
+.health-core-metrics p {margin-bottom:0;}
+.health-contact-actions {display:flex;gap:8px;flex-wrap:wrap;}
+@media(max-width:768px) {.health-core-metrics {grid-template-columns:1fr;}}

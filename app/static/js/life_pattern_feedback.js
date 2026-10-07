@@ -3,7 +3,7 @@
   const states = new Map();
   const stateFor = id => {
     id = String(id);
-    if (!states.has(id)) states.set(id, {pending: false, loading: false, loaded: false, record: null, currentStatus: null, history: [], error: ''});
+    if (!states.has(id)) states.set(id, {pending: false, loading: false, loaded: false, record: null, currentStatus: null, history: [], error: '', folds: {}});
     return states.get(id);
   };
   function element(tag, text, className) {
@@ -30,7 +30,20 @@
   }
   const valueText = value => value === null || value === undefined ? '비교 불가' : String(value);
   const deltaText = (recent, previous) => recent == null || previous == null ? '비교 불가' : `${recent - previous > 0 ? '+' : ''}${Math.round((recent - previous) * 10000) / 10000}`;
+  let renderingState;
+  function fold(parent, title, key) {
+    const state = renderingState;
+    const details = element('details', undefined, 'health-details');
+    details.open = !!state.folds[key];
+    const summary = element('summary', title);
+    // 클릭 시 바로 저장하여 비동기 toggle 이벤트 전의 화면 갱신에도 유지한다.
+    summary.addEventListener('click', () => { state.folds[key] = !details.open; });
+    details.append(summary);
+    parent.append(details); return details;
+  }
   function appendSources(block, refs, snapshot) {
+    if (!refs?.length) return;
+    block = fold(block, '관련 기록 보기', `sources:${refs.join(',')}`);
     const expanded = new Set(refs);
     for (const ref of refs) {
       const source = snapshot.sources.find(s => s.ref === ref);
@@ -38,7 +51,7 @@
     }
     for (const ref of expanded) {
       const source = snapshot.sources.find(s => s.ref === ref); if (!source) continue;
-      const line = element('p', `근거 ${ref}: ${sourceText(source)}`, 'health-analysis-source');
+      const line = element('p', sourceText(source), 'health-analysis-source');
       if (source.doc_id) {
         const button = element('button', `검진표 ${source.doc_id} · ${source.page || '?'}페이지 원본 확인`, 'mini-btn');
         button.type = 'button'; button.addEventListener('click', () => window.openCheckupReview(source.doc_id)); line.append(button);
@@ -75,7 +88,7 @@
         block.append(element('p', '0~100점 보정으로 감점 항목 변화 합계와 실제 점수 차이는 다를 수 있습니다.', 'health-analysis-meta'));
       } else block.append(element('p', '이전 분석에 상태 정보가 없어 점수 변화는 비교할 수 없습니다.'));
     }
-    panel.append(block);
+    if (previous.available) panel.append(block);
     const life = comparisons.life, before = life.previous, recent = life.recent;
     const lifeBlock = element('div', undefined, 'health-comparison-card');
     lifeBlock.append(element('strong', '생활 기간 비교: 이전 23일 → 최근 7일'));
@@ -100,68 +113,126 @@
       appendSources(card, c.source_refs, snapshot); panel.append(card);
     }
   }
+  function renderContact(panel, id) {
+    const contact = element('div', undefined, 'health-contact-actions');
+    for (const [title, kind] of [['연락처 복사', 'contact'], ['조치 결과 작성', 'feedback']]) {
+      const button = element('button', title, 'mini-btn'); button.type = 'button';
+      button.onclick = () => window.healthAnalysisAction(id, kind); contact.append(button);
+    }
+    panel.append(contact);
+  }
+  function renderCoreChanges(panel, snapshot) {
+    const comparisons = snapshot.comparisons;
+    panel.append(element('h5', '핵심 변화'));
+    if (!comparisons) { panel.append(element('p', '이 분석에는 비교 정보가 저장되지 않았습니다.')); return; }
+    const previous = comparisons.previous_analysis;
+    if (previous.available) panel.append(element('p', previous.same_inputs
+      ? '같은 자료로 재분석했습니다. 새 건강 변화가 확인된 것은 아닙니다.'
+      : `직전 분석 이후 새 생활 기록 ${previous.new_life_records}개 · 검진 ${previous.documents_changed ? '변경' : '동일'} · 등록 질환 ${previous.diseases_changed ? '변경' : '동일'}`));
+    const {previous: before, recent} = comparisons.life;
+    const metrics = element('div', undefined, 'health-core-metrics');
+    const add = (title, text) => { const card = element('div'); card.append(element('strong', title), element('p', text)); metrics.append(card); };
+    const b = before.metrics.condition_level, r = recent.metrics.condition_level;
+    if (b.count || r.count) add('건강 상태 평균 (1~5)', `${valueText(b.mean)} → ${valueText(r.mean)} · 표본 ${b.count}/${r.count}`);
+    if (before.meals.known || recent.meals.known) add('결식 비율', `${valueText(before.meals.skip_percent)}% → ${valueText(recent.meals.skip_percent)}%`);
+    for (const [key, label, unit] of [['systolic', '수축기혈압', 'mmHg'], ['diastolic', '이완기혈압', 'mmHg'], ['blood_sugar', '혈당 · 측정 조건 미확인', 'mg/dL']]) {
+      const b = before.metrics[key], r = recent.metrics[key];
+      if (b.count || r.count) add(label, `${b.count ? b.mean : '미기록'} → ${r.count ? r.mean : '미기록'} ${unit} · 표본 ${b.count}/${r.count}`);
+    }
+    add('생활 기록', `이전 23일 ${before.records}개 → 최근 7일 ${recent.records}개`);
+    add('접속한 날짜', `${before.login_days}/${before.calendar_days}일 → ${recent.login_days}/${recent.calendar_days}일`);
+    panel.append(metrics);
+    const missing = [];
+    if (!before.metrics.systolic.count && !recent.metrics.systolic.count && !before.metrics.diastolic.count && !recent.metrics.diastolic.count) missing.push('혈압');
+    if (!before.metrics.blood_sugar.count && !recent.metrics.blood_sugar.count) missing.push('혈당');
+    if (missing.length) panel.append(element('p', `${missing.join('·')} 기록 없음`, 'health-analysis-meta'));
+    panel.append(element('p', '이전 23일 → 최근 7일 비교입니다. 기간·표본 수가 다르며, 증감만으로 호전·악화를 판단하지 않습니다.', 'health-analysis-meta'));
+  }
   function render(id) {
     const state = stateFor(id);
+    renderingState = state;
     document.querySelectorAll(`[data-life-ai-user-id="${id}"]`).forEach(panel => {
       panel.replaceChildren(); panel.setAttribute('aria-busy', String(state.pending || state.loading));
-      panel.append(element('b', 'AI 건강 종합 분석'));
-      window.AIModels?.mount(panel);
+      panel.append(element('b', '건강 상태와 AI 분석'));
+      const settings = fold(panel, '모델 설정·분석 이력', 'settings');
+      window.AIModels?.mount(settings);
+      const refresh = element('button', '현재 자료·저장 결과 새로고침', 'mini-btn'); refresh.type = 'button'; refresh.disabled = state.pending || state.loading;
+      refresh.addEventListener('click', () => load(id, state.record?.analysis_id)); settings.append(refresh);
+      const status = state.currentStatus || state.record?.input_snapshot.system_status;
+      const statusCard = element('div', undefined, 'health-current-status');
+      statusCard.dataset.level = status?.level || '';
+      statusCard.append(element('h5', state.currentStatus ? '현재 상태' : status ? '분석 당시 상태 · 현재 조회 불가' : '현재 상태'));
+      if (status) {
+        statusCard.append(element('strong', `${status.label} · ${status.score}점 / 100점`),
+          element('p', `기준 ${dateText(status.as_of)} · 점수는 높을수록 안전합니다.`, 'health-analysis-meta'));
+        const reasons = [...status.breakdown].filter(item => item.points < 0).sort((a,b) => a.points-b.points).slice(0,2);
+        statusCard.append(element('p', reasons.length ? `주요 감점: ${reasons.map(item => item.item).join(' · ')}` : '계산된 감점 항목 없음'));
+      } else statusCard.append(element('p', '현재 상태를 확인하지 못했습니다.'));
+      panel.append(statusCard);
+      if (state.currentStatusError) panel.append(element('p', state.currentStatusError, 'ai-error'));
       if (state.record) {
         const record = state.record, snapshot = record.input_snapshot, report = record.result;
-        panel.append(element('p', `분석에 사용한 모델: ${window.AIModels?.label(record.model) || record.model || '기록 없음'}`, 'health-analysis-meta'));
-        panel.append(element('p', `분석 시각: ${dateText(record.analyzed_at)} · 과거 자료를 기준으로 작성된 참고 결과입니다.`, 'health-analysis-meta'));
-        panel.append(element('p', `생활 기록 범위: ${dateText(snapshot.window_start)} ~ ${dateText(snapshot.window_end)}`, 'health-analysis-meta'));
+        settings.append(element('p', `분석에 사용한 모델: ${window.AIModels?.label(record.model) || record.model || '기록 없음'}`, 'health-analysis-meta'));
+        settings.append(element('p', `생활 기록 범위: ${dateText(snapshot.window_start)} ~ ${dateText(snapshot.window_end)}`, 'health-analysis-meta'));
         const label = element('label', '분석 이력 ');
-        const select = element('select'); select.setAttribute('aria-label', '건강 종합 분석 이력');
-        select.disabled = state.pending || state.loading;
+        const select = element('select'); select.setAttribute('aria-label', '건강 종합 분석 이력'); select.disabled = state.pending || state.loading;
         for (const h of state.history) {
           const option = element('option', `${dateText(h.analyzed_at)} (#${h.analysis_id})`);
           option.value = h.analysis_id; option.selected = h.analysis_id === record.analysis_id; select.append(option);
         }
-        select.addEventListener('change', () => load(id, select.value)); label.append(select); panel.append(label);
-        const refresh = element('button', '현재 자료·저장 결과 새로고침', 'mini-btn'); refresh.type = 'button'; refresh.disabled = state.pending || state.loading;
-        refresh.addEventListener('click', () => load(id, record.analysis_id)); panel.append(refresh);
-        renderStatus(panel, snapshot.system_status, '분석 당시 상태 · 점수 산정 근거');
-        renderStatus(panel, state.currentStatus, '현재 조회 상태 · 시스템 생활패턴 지표');
-        if (state.currentStatusError) panel.append(element('p', state.currentStatusError, 'ai-error'));
-        if (record.needs_reanalysis) panel.append(element('p', '분석 이후 입력 자료나 검진 확정 버전이 변경되었습니다. 재분석이 필요합니다. 과거 값은 아래에 보존됩니다.', 'health-reanalysis-note'));
-        panel.append(element('h5', '사회복지사 우선 확인 · 위험등급과 별개인 확인 순서'));
-        if (!report.priority_actions) panel.append(element('p', '이전 형식의 결과입니다. 아래 권장 확인을 참고하세요.'));
-        for (const action of report.priority_actions || []) {
+        select.addEventListener('change', () => load(id, select.value)); label.append(select); settings.append(label);
+        panel.append(element('p', `AI 분석 시각: ${dateText(record.analyzed_at)} · 저장된 자료 기준 참고 결과`, 'health-analysis-meta'));
+        if (record.needs_reanalysis) panel.append(element('p', '분석 이후 자료가 변경되었습니다. 최신 자료로 재분석해주세요.', 'health-reanalysis-note'));
+        panel.append(element('h5', '우선 확인할 일'));
+        const actions = [...(report.priority_actions || [])].sort((a,b) => (a.priority === '우선 확인' ? 0 : 1) - (b.priority === '우선 확인' ? 0 : 1));
+        let moreActions;
+        if (actions.length) for (const [index, action] of actions.entries()) {
           const card = element('div', undefined, 'health-priority-card');
           card.append(element('strong', `${action.priority}: ${action.action}`), element('p', action.reason));
-          appendSources(card, action.source_refs, snapshot); panel.append(card);
+          appendSources(card, action.source_refs, snapshot);
+          if (index < 2) panel.append(card);
+          else { moreActions ||= fold(panel, `추가 확인할 일 ${actions.length - 2}개`, 'actions'); moreActions.append(card); }
+        } else {
+          panel.append(element('p', '이전 형식의 결과입니다. 권장 확인을 참고하세요.', 'health-analysis-meta'));
+          section(panel, '권장 확인', report.recommended_actions || []);
         }
-        renderComparisons(panel, snapshot);
-        panel.append(element('h5', '종합 요약'), element('p', report.summary));
-        panel.append(element('h5', '확인 사항과 근거'));
-        if (!report.findings.length) panel.append(element('p', 'AI가 제시한 확인 사항 없음. 자료 부족 여부는 아래 한계를 확인하세요.'));
+        renderContact(panel, id);
+        panel.append(element('h5', '종합 요약'), element('p', report.summary.length > 180 ? report.summary.slice(0,180) + '…' : report.summary));
+        if (report.summary.length > 180) fold(panel, '전체 요약 보기', 'summary').append(element('p', report.summary));
+        renderCoreChanges(panel, snapshot);
+        const scoreDetails = fold(panel, '점수 산정 근거·분석 당시 상태', 'scores');
+        renderStatus(scoreDetails, state.currentStatus, '현재 조회 상태 · 시스템 생활패턴 지표');
+        renderStatus(scoreDetails, snapshot.system_status, '분석 당시 상태 · 점수 산정 근거');
+        const changes = fold(panel, '변화 수치·기간 자세히 보기', 'changes'); renderComparisons(changes, snapshot);
+        const findings = fold(panel, '전체 확인 사항·관련 근거', 'findings');
+        if (!report.findings.length) findings.append(element('p', 'AI가 제시한 확인 사항 없음'));
         for (const finding of report.findings) {
           const block = element('div', undefined, 'health-analysis-finding');
           block.append(element('strong', finding.title), element('p', finding.detail));
-          appendSources(block, finding.source_refs, snapshot);
-          panel.append(block);
+          appendSources(block, finding.source_refs, snapshot); findings.append(block);
         }
-        section(panel, '사회복지사 권장 확인', report.recommended_actions);
-        section(panel, '데이터 한계', report.limitations);
-        panel.append(element('h5', '사용한 검진 자료'));
-        panel.append(element('p', '원본 확인창에는 현재 확정 결과가 표시됩니다. 재확정되었다면 아래 분석 당시 버전·값과 다를 수 있습니다.', 'health-analysis-meta'));
-        if (!snapshot.documents.length) panel.append(element('p', '확정된 검진 자료 없음'));
+        const data = fold(panel, '사용한 검진 자료·데이터 한계', 'data');
+        section(data, '데이터 한계', report.limitations);
+        data.append(element('h5', '사용한 검진 자료'), element('p', '원본 확인창에는 현재 확정 결과가 표시됩니다. 재확정되었다면 분석 당시 버전·값과 다를 수 있습니다.', 'health-analysis-meta'));
+        if (!snapshot.documents.length) data.append(element('p', '확정된 검진 자료 없음'));
         for (const doc of snapshot.documents) {
-          const line = element('p', `문서 ${doc.doc_id} · 검진일 ${doc.checkup_date || '미상'} · 확정 버전 ${doc.confirmed_revision} · 판독 불가/누락 ${doc.unreadable_items}개 · 제외 ${doc.excluded_items}개 `);
+          const line = element('p', `검진일 ${doc.checkup_date || '미상'} · 확정 버전 ${doc.confirmed_revision} · 판독 불가/누락 ${doc.unreadable_items}개 · 제외 ${doc.excluded_items}개 `);
           const button = element('button', '검진표 확인', 'mini-btn'); button.type = 'button';
-          button.addEventListener('click', () => window.openCheckupReview(doc.doc_id)); line.append(button); panel.append(line);
+          button.onclick = () => window.openCheckupReview(doc.doc_id); line.append(button); data.append(line);
         }
       } else if (!state.loading && !state.pending) panel.append(element('p', 'AI 분석을 실행하면 확정된 검진·생활 기록·등록 질환을 함께 분석합니다.'));
+      if (!state.record) renderContact(panel, id);
+      const notice = fold(panel, '외부 AI 전송 안내', 'notice');
+      notice.append(element('p', '최근 30일 생활·접속 기록, 확정 검진 항목, 정규화된 등록 질환, 시스템 점수와 서버가 계산한 변화 자료를 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않습니다. AI 결과는 참고 자료이며 긴급 조치 여부는 복지사가 최종 확인합니다.'));
       if (state.pending || state.loading) {
-        const status = element('div', undefined, 'ai-loading'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
+        const loading = element('div', undefined, 'ai-loading'); loading.setAttribute('role', 'status'); loading.setAttribute('aria-live', 'polite');
         const spinner = element('span', undefined, 'ai-spinner'); spinner.setAttribute('aria-hidden', 'true');
-        status.append(spinner, document.createTextNode(state.pending ? `AI 분석 중… ${window.AIModels?.label(state.pendingModel) || state.pendingModel || ''} · 완료까지 시간이 걸릴 수 있습니다.` : '저장된 분석을 불러오는 중…')); panel.append(status);
+        loading.append(spinner, document.createTextNode(state.pending ? `AI 분석 중… ${window.AIModels?.label(state.pendingModel) || state.pendingModel || ''} · 완료까지 시간이 걸릴 수 있습니다.` : '저장된 분석을 불러오는 중…')); panel.append(loading);
       }
       if (state.error) {
         const error = element('p', state.error, 'ai-error'); error.setAttribute('role', 'alert'); panel.append(error);
         const retry = element('button', '저장 결과 다시 불러오기', 'mini-btn'); retry.type = 'button'; retry.disabled = state.pending || state.loading;
-        retry.addEventListener('click', () => load(id)); panel.append(retry);
+        retry.onclick = () => load(id); panel.append(retry);
       }
     });
     document.querySelectorAll(`[data-life-ai-button-id="${id}"]`).forEach(button => {
@@ -186,12 +257,19 @@
       const body = await request(`/api/admin/elders/${id}/health-analysis${selected ? `?analysis_id=${encodeURIComponent(selected)}` : ''}`);
       state.record = body.selected; state.history = body.history; state.currentStatus = body.current_status; state.currentStatusError = body.current_status_error;
     } catch (error) { state.error = message(error); }
-    finally { state.loading = false; render(id); }
+    finally { state.loading = false; window.updateHealthAnalysisStatus?.(id, state.currentStatus); render(id); }
   }
   function sync() {
     const ids = new Set(Array.from(document.querySelectorAll('[data-life-ai-user-id]')).map(panel => panel.dataset.lifeAiUserId));
     for (const id of ids) { if (!stateFor(id).loaded) load(id); else render(id); }
   }
+  window.syncHealthAnalysisStatus = user => {
+    const state = stateFor(user.id);
+    if (!user.status_as_of || !state.loaded || (state.currentStatus && Date.parse(state.currentStatus.as_of) >= Date.parse(user.status_as_of))) return;
+    const labels = {safe:'안전',watch:'주의',warn:'경고',danger:'위험'};
+    if (!labels[user.risk]) return;
+    state.currentStatus = {score:user.score, level:user.risk.toUpperCase(), label:labels[user.risk], as_of:user.status_as_of, breakdown:user.score_breakdown || []};
+  };
   // 과거 sessionStorage 문자열을 새 종합 분석 결과로 사용하지 않는다.
   window.setLifePatternAnalysisText = id => { if (!stateFor(id).loaded) load(id); else render(id); };
   window.setLifePatternAIButtons = id => render(id);
@@ -211,7 +289,7 @@
       state.history = [{analysis_id: body.analysis_id, analyzed_at: body.analyzed_at}, ...state.history.filter(h => h.analysis_id !== body.analysis_id)].slice(0, 20);
       state.loaded = true;
     } catch (error) { state.error = message(error); }
-    finally { state.pending = false; render(id); window.AIModels?.usageChanged(); }
+    finally { state.pending = false; window.updateHealthAnalysisStatus?.(id, state.currentStatus); render(id); window.AIModels?.usageChanged(); }
   };
   new MutationObserver(records => {
     if (records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 &&

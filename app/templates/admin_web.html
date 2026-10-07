@@ -894,6 +894,29 @@
 <script>
 const registrationMode = {{ registration_mode|default(false)|tojson }};
 let users = [];
+const latestHealthStatuses = new Map();
+function applyLatestHealthStatus(user) {
+  const status = latestHealthStatuses.get(String(user.id));
+  if (status && (!user.status_as_of || Date.parse(status.as_of) >= Date.parse(user.status_as_of))) {
+    user.score = status.score; user.risk = status.level.toLowerCase();
+    user.status_as_of = status.as_of; user.score_breakdown = status.breakdown;
+  }
+  window.syncHealthAnalysisStatus?.(user);
+  return user;
+}
+window.updateHealthAnalysisStatus = (id, status) => {
+  if (!status) return;
+  const old = latestHealthStatuses.get(String(id));
+  if (old && Date.parse(old.as_of) >= Date.parse(status.as_of)) return;
+  latestHealthStatuses.set(String(id), status);
+  users.forEach(applyLatestHealthStatus);
+  updateKPIs(); renderTable(); restoreOpenDetailRow(); renderOtherSections();
+};
+window.healthAnalysisAction = (id, kind) => {
+  const user = users.find(u => String(u.id) === String(id)); if (!user) return;
+  if (kind === 'contact') copyPhoneNumber(user.name, user.phone);
+  else openFeedback(user.id, user.name, getRecommendedAction(user).actionType);
+};
 let unassignedUsers = [];
 let alertHistory = [];
 let emergencyAlerts = [];
@@ -1062,7 +1085,7 @@ async function loadEldersData() {
     const res = await fetch('/api/admin/elders');
     const result = await res.json();
     if (result.success) {
-      users = result.data || [];
+      users = (result.data || []).map(applyLatestHealthStatus);
       unassignedUsers = result.unassigned || [];
       alertHistory = result.alert_history || [];
       console.log('서버에서 받은 어르신 데이터: ', users); // 삭제
@@ -1334,21 +1357,11 @@ function updateLifePatternAnalysis(index){
 
   aiList.innerHTML = `
     <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
-      <h4>${u.name} 어르신 시스템 생활패턴 지표</h4>
-      <p class="health-analysis-meta">현재 목록 상태: ${r[0]} · ${u.score}점 · 기준 시각 ${u.status_as_of ? u.status_as_of.replace('T', ' ').slice(0, 19) : '기록 없음'} · 점수는 높을수록 안전합니다.</p>
-      <div class="analysis-actions-v2">
-        <span class="badge ${r[1]}">우선도: ${r[0]}</span>
-      </div>
-      <p>${u.desc || '특이 징후가 감지되지 않았습니다.'}</p>
-      <div class="analysis-actions-v2">
-        <span class="badge ${action.badge}">권장 조치: ${action.label}</span>
-        <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${action.actionType}')">조치 결과 작성</button>
-      </div>
+      <h4>${u.name} 어르신 건강 확인</h4>
       <div class="life-ai-result" data-life-ai-user-id="${u.id}">
         <b>AI 건강 종합 분석</b>
         AI 분석 버튼을 누르면 개인정보를 제외한 확정 검진·생활 기록·등록 질환의 종합 결과가 표시됩니다.
       </div>
-      <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목, 정규화된 등록 질환, 시스템 점수와 서버가 계산한 변화 자료를 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않습니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
       <div class="ai-actions-v2" style="margin-top:10px;">
         <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
       </div>
@@ -1949,20 +1962,13 @@ function renderTable(){
               </div>
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
-                <div class="ai-panel-head-v2">
-                  <h4>시스템 생활패턴 지표</h4>
-                  <span class="ai-type-badge">기존 위험점수 기준</span>
-                </div>
-                <p id="ai-desc-${u.id}">${u.desc}</p>
                 <div class="life-ai-result" data-life-ai-user-id="${u.id}">
                   <b>AI 건강 종합 분석</b>
                   AI 분석 버튼을 누르면 개인정보를 제외한 확정 검진·생활 기록·등록 질환의 종합 결과가 표시됩니다.
                 </div>
-                <p class="health-analysis-meta">현재 목록 상태: ${r[0]} · ${u.score}점 · 기준 시각 ${u.status_as_of ? u.status_as_of.replace('T', ' ').slice(0, 19) : '기록 없음'} · 점수는 높을수록 안전합니다.</p>
-                <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목, 정규화된 등록 질환, 시스템 점수와 서버가 계산한 변화 자료를 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않으며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
                 <div class="ai-actions-v2">
                   <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
-                  <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
+
                 </div>
               </div>
               <div class="action-history-v2">
