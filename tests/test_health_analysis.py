@@ -125,6 +125,47 @@ class ProviderTests(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(service.HealthAnalysisError):
                 self.call(value)
 
+    def test_provider_schema_guides_local_array_limits_without_rejected_constraints(self):
+        schema = service.provider_schema()
+        for name, maximum in [('findings', 12), ('recommended_actions', 8), ('limitations', 12), ('priority_actions', 8)]:
+            self.assertIn(f'~{maximum}개', schema.properties[name].description)
+            self.assertIsNone(schema.properties[name].max_items)
+        self.assertIn('1~8개', schema.properties['priority_actions'].description)
+        for name in ('findings', 'priority_actions'):
+            refs = schema.properties[name].items.properties['source_refs']
+            self.assertIn('1~20개', refs.description)
+            self.assertIsNone(refs.min_items); self.assertIsNone(refs.max_items)
+        summary = schema.properties['summary']
+        self.assertIn('2000자', summary.description)
+        self.assertIsNone(summary.max_length)  # 서버 미지원 속성은 보내지 않는다.
+
+    def test_valid_json_over_limit_is_explained_and_not_logged(self):
+        value = report(); value['limitations'] = ['비밀이름 010-1234-5678'] * 13
+        with self.assertLogs(service.logger, level='WARNING') as logs:
+            with self.assertRaises(service.HealthAnalysisError) as error:
+                self.call(json.dumps(value))
+        self.assertIn('데이터 한계', str(error.exception))
+        self.assertIn('허용 범위', str(error.exception))
+        self.assertIn('too_long', ''.join(logs.output))
+        self.assertNotIn('비밀이름', ''.join(logs.output)); self.assertNotIn('010-1234-5678', ''.join(logs.output))
+
+    def test_missing_priority_and_unknown_field_diagnostics(self):
+        value = report(); value.pop('priority_actions')
+        with self.assertRaises(service.HealthAnalysisError) as error:
+            self.call(json.dumps(value))
+        self.assertIn('우선 확인 행동', str(error.exception)); self.assertIn('누락', str(error.exception))
+        value = report(); value['비밀이름'] = '010-1234-5678'
+        with self.assertLogs(service.logger, level='WARNING') as logs, self.assertRaises(service.HealthAnalysisError):
+            self.call(json.dumps(value))
+        self.assertNotIn('비밀이름', ''.join(logs.output)); self.assertNotIn('010-1234-5678', ''.join(logs.output))
+
+    def test_output_token_limit_is_reported_before_parsing(self):
+        response = NS(text='{"summary":', candidates=[NS(finish_reason=service.types.FinishReason.MAX_TOKENS)])
+        with patch.dict(os.environ, {'GEMINI_API_KEY': 'fake'}), patch.object(service, 'generate_content', return_value=response):
+            with self.assertRaises(service.HealthAnalysisError) as error:
+                service.analyze(self.snapshot)
+        self.assertIn('출력 한도', str(error.exception))
+
     def test_key_quota_and_timeout(self):
         with patch.dict(os.environ, {'GEMINI_API_KEY': ''}), self.assertRaises(service.HealthAnalysisError) as error:
             service.analyze(self.snapshot)

@@ -1,6 +1,7 @@
 """확정된 자료만 사용하는 건강 종합 분석. 외부 요청은 허용 목록으로 구성한다."""
 import datetime as dt
 import json
+import logging
 import os
 import re
 from typing import Literal
@@ -10,6 +11,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from services.ai_service import generate_content, resolve_model, AIError
 
 MODEL = 'gemini-3.6-flash'
+logger = logging.getLogger(__name__)
 
 
 class HealthAnalysisError(Exception):
@@ -43,25 +45,51 @@ class Report(BaseModel):
 
 
 def provider_schema():
-    """Gemini Schema에 없는 additional_properties를 전송하지 않는다.
+    """로컬 계약에서 Gemini 생성 스키마와 길이 안내를 함께 만든다.
 
-    Pydantic의 extra=forbid는 응답 수신 후 로컬 검증에서 그대로 적용한다.
+    additional_properties는 전송하지 않는다. 배열/문자열의 길이는 설명으로
+    안내하고 로컬에서 엄격히 검증한다. 이 중첩 계약에 minItems/maxItems를
+    적용하면 실제 API가 INVALID_ARGUMENT를 반환해 단순 스키마를 유지한다.
     """
-    string = lambda: types.Schema(type='STRING')
-    strings = lambda: types.Schema(type='ARRAY', items=string())
-    finding = types.Schema(type='OBJECT', properties={
-        'title': string(), 'detail': string(), 'source_refs': strings(),
-    }, required=['title', 'detail', 'source_refs'])
-    action = types.Schema(type='OBJECT', properties={
-        'action': types.Schema(type='STRING', enum=['연락 확인', '생활·측정 기록 확인', '검진 원본 확인', '기존 의료 상담 여부 확인']),
-        'reason': string(), 'source_refs': strings(),
-        'priority': types.Schema(type='STRING', enum=['우선 확인', '일반 확인']),
-    }, required=['action', 'reason', 'source_refs', 'priority'])
-    return types.Schema(type='OBJECT', properties={
-        'summary': string(), 'findings': types.Schema(type='ARRAY', items=finding),
-        'recommended_actions': strings(), 'limitations': strings(),
-        'priority_actions': types.Schema(type='ARRAY', items=action),
-    }, required=['summary', 'findings', 'recommended_actions', 'limitations', 'priority_actions'])
+    root = Report.model_json_schema()
+    def convert(schema):
+        if '$ref' in schema:
+            schema = root['$defs'][schema['$ref'].rsplit('/', 1)[-1]]
+        options = {'type': schema['type'].upper()}
+        for key in ('enum', 'required'):
+            if key in schema:
+                options[key] = schema[key]
+        if 'properties' in schema:
+            options['properties'] = {name: convert(child) for name, child in schema['properties'].items()}
+        if 'items' in schema:
+            options['items'] = convert(schema['items'])
+            if 'maxItems' in schema:
+                options['description'] = f"{schema.get('minItems', 0)}~{schema['maxItems']}개 이내로 작성하세요. 유사한 내용은 묶고 근거는 핵심 참조만 선택하세요."
+        if 'maxLength' in schema:
+            options['description'] = f"빈 공백 없이 {schema.get('minLength', 0)}~{schema['maxLength']}자 이내로 간결하게 작성하세요."
+        return types.Schema(**options)
+    return convert(root)
+
+
+def validate_report(text, model):
+    try:
+        return Report.model_validate_json(text).model_dump()
+    except ValidationError as error:
+        # 응답 원문/값과 임의 추가 필드 이름은 건강정보일 수 있어 로그에도 남기지 않는다.
+        allowed_fields = set(Report.model_fields) | set(Finding.model_fields) | set(PriorityAction.model_fields)
+        issues = [{'path': '.'.join(str(part) if isinstance(part, int) or part in allowed_fields else '?' for part in issue['loc']),
+                   'type': issue['type']} for issue in error.errors(include_input=False, include_url=False)]
+        logger.warning('건강 종합 분석 응답 검증 실패 model=%s issues=%s', model, issues)
+        labels = {'summary': '종합 요약', 'findings': '확인 사항', 'recommended_actions': '권장 확인',
+                  'limitations': '데이터 한계', 'priority_actions': '우선 확인 행동'}
+        first = issues[0]
+        field = labels.get(first['path'].split('.')[0], '분석 결과')
+        reasons = {'missing': '필수 항목이 누락되었습니다', 'too_long': '항목 수가 허용 범위를 초과했습니다',
+                   'too_short': '필수 근거 또는 행동이 비어 있습니다', 'string_too_long': '설명이 허용 길이를 초과했습니다',
+                   'string_too_short': '설명이 비어 있습니다', 'literal_error': '허용된 행동 또는 확인 순서가 아닙니다',
+                   'extra_forbidden': '허용되지 않은 필드가 포함되었습니다', 'json_invalid': '응답 JSON이 손상되었거나 완성되지 않았습니다'}
+        reason = reasons.get(first['type'], '항목 형식이 올바르지 않습니다')
+        raise HealthAnalysisError(f'AI {field}: {reason}. 이전 결과는 유지됩니다. 다시 시도해주세요.') from error
 
 
 # 값/단위/참고범위도 허용된 문자만 전달해 OCR 자유 문자열의 개인정보 유출을 막는다.
@@ -260,6 +288,9 @@ def analyze(snapshot, model=None):
               '같은 자료로 재분석했다면 새 건강 변화로 표현하지 마세요. '
               'priority_actions에는 행동, 이유, source_refs, 우선 확인/일반 확인 순서를 넣으세요. '
               '이 순서는 위험등급이 아닙니다. recommended_actions도 동일한 확인 행동만 설명하세요.\n'
+              'JSON 객체 하나만 반환하세요. 근거는 실제 제공된 ref 중 핵심 1~20개만 선택하세요. '
+              'priority_actions는 최소 1개이며 같은 확인 행동은 묶어 간결하게 작성하세요. '
+              '각 배열은 스키마의 최대 항목 수를 지키고 데이터 한계는 유사한 내용을 묶어 작성하세요.\n'
               + json.dumps(payload, ensure_ascii=False))
     try:
         response = generate_content(model=resolve_model(model), feature='health_analysis', contents=[prompt],
@@ -267,7 +298,10 @@ def analyze(snapshot, model=None):
                 automatic_function_calling=types.AutomaticFunctionCallingConfig(disable=True)))
         if not response.text or not response.text.strip():
             raise HealthAnalysisError('AI 분석 결과가 비어 있습니다. 다시 시도해주세요.')
-        result = Report.model_validate_json(response.text).model_dump()
+        candidates = getattr(response, 'candidates', None)
+        if candidates and str(getattr(candidates[0], 'finish_reason', '')).split('.')[-1] == 'MAX_TOKENS':
+            raise HealthAnalysisError('AI 응답이 출력 한도로 중단되었습니다. 이전 결과는 유지됩니다. 다시 시도해주세요.')
+        result = validate_report(response.text, model=resolve_model(model))
         valid_refs = {s['ref'] for s in snapshot['sources']}
         if any(not set(f['source_refs']).issubset(valid_refs) for f in result['findings'] + result['priority_actions']):
             raise HealthAnalysisError('AI가 존재하지 않는 근거를 반환했습니다. 다시 분석해주세요.')

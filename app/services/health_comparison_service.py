@@ -23,6 +23,7 @@ def system_status(risk, now):
     categories = [('고령', 'age', '고령 감점'), ('기저질환', 'disease', '등록 기저질환 감점'),
                   ('식사 결식', 'meal', '최신 기록 결식'), ('미입력 경과', 'elapsed', '건강 기록 미입력 경과'),
                   ('건강 상태 미등록', 'missing_health', '건강 기록 없음'), ('장기 미접속', 'login_elapsed', '장기 미접속'),
+                  ('앱 미접속 경과', 'login_elapsed', '장기 미접속'),
                   ('로그인 기록 없음', 'missing_login', '접속 기록 없음'), ('생활패턴 불규칙', 'irregular', '입력 시간 불규칙'),
                   ('건강 척도 하락', 'condition', '건강 상태 연속 하락'), ('영양 불균형', 'nutrition', '최근 잦은 결식')]
     for item in risk['score_breakdown']:

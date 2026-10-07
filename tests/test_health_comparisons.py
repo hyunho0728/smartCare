@@ -37,6 +37,15 @@ class ComparisonTests(unittest.TestCase):
         for secret in ('비밀이름', '비밀주소', '010-1234-5678'):
             self.assertNotIn(secret, json.dumps(clean, ensure_ascii=False))
 
+    def test_existing_long_login_penalty_can_be_normalized(self):
+        row = fixtures.health(0)
+        risk = calculate_risk(fixtures.user(), [row], [NS(auth_time=NOW - dt.timedelta(days=5))], now=NOW)
+        normalized = comparison.system_status(risk, NOW)
+        self.assertEqual(normalized['score'], risk['score'])
+        penalty = next(p for p in normalized['breakdown'] if p['code'] == 'login_elapsed')
+        self.assertEqual(penalty['points'], -20)
+        self.assertEqual(penalty['item'], '장기 미접속')
+
     def test_daily_last_record_boundaries_missing_values_and_meals(self):
         older = fixtures.health(1); older.blood_sugar = 100
         newer = fixtures.health(1); newer.recorded_at += dt.timedelta(hours=1)
