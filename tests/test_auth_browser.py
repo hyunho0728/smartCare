@@ -307,18 +307,20 @@ class AuthBrowserTests(unittest.TestCase):
         page.evaluate("""at => updateHealthAnalysisStatus(1, {
           score:34, level:'DANGER', label:'위험', as_of:at,
           breakdown:[{code:'disease',item:'등록 기저질환 감점',points:-5},
-                     {code:'elapsed',item:'건강 기록 미입력 경과',points:-46},
+                     {code:'elapsed',item:'건강 기록 미입력 경과 (23시간)',points:-46},
                      {code:'irregular',item:'입력 시간 불규칙',points:-15}]
         })""", at)
         page.locator('#tbody .main-row').first.click()
         reasons = page.locator('.detail-row.open .score-reason-list')
         for text in ('-5점', '-46점', '-15점'): self.assertIn(text, reasons.inner_text())
+        self.assertIn('건강 기록 미입력 경과 (23시간)', reasons.inner_text())
         self.assertNotIn('undefined', reasons.inner_text())
         self.assertEqual(reasons.locator('.score-tag.minus').count(), 3)
         page.evaluate('loadEldersData()')
         page.wait_for_function("document.querySelector('.detail-row.open .score-reason-list').textContent.includes('-46점')")
         self.assertNotIn('undefined', reasons.inner_text())
         # 기존 목록 API 형식도 점수·스타일을 유지하고, 새 상태에는 감점만 전달한다.
+        self.assertIn('건강 기록 미입력 경과 (23시간)', reasons.inner_text())
         self.elder.update(score=70, risk='watch', status_as_of=(dt.datetime.now()+dt.timedelta(minutes=2)).isoformat(),
             score_breakdown=[{'item':'기본 점수','score':'100점','type':'base'},
                              {'item':'건강 기록 미입력 경과','score':'-30점','type':'minus'}])

@@ -37,6 +37,20 @@ class ComparisonTests(unittest.TestCase):
         for secret in ('비밀이름', '비밀주소', '010-1234-5678'):
             self.assertNotIn(secret, json.dumps(clean, ensure_ascii=False))
 
+    def test_elapsed_hours_survive_status_normalization_without_guessing(self):
+        row = fixtures.health(0)
+        row.recorded_at = NOW - dt.timedelta(hours=23, minutes=59)
+        risk = calculate_risk(fixtures.user(), [row], [NS(auth_time=NOW)], now=NOW)
+        normalized = comparison.system_status(risk, NOW)
+        elapsed = next(p for p in normalized['breakdown'] if p['code'] == 'elapsed')
+        self.assertEqual(elapsed['item'], '건강 기록 미입력 경과 (23시간)')
+        self.assertEqual(elapsed['points'], -46)
+        self.assertEqual(normalized['score'], risk['score'])
+        # A legacy reason without a duration must not infer hours from its penalty.
+        risk['score_breakdown'] = [{'item': '미입력 경과', 'score': '-46점', 'type': 'minus'}]
+        elapsed = comparison.system_status(risk, NOW)['breakdown'][0]
+        self.assertEqual(elapsed['item'], '건강 기록 미입력 경과')
+
     def test_existing_long_login_penalty_can_be_normalized(self):
         row = fixtures.health(0)
         risk = calculate_risk(fixtures.user(), [row], [NS(auth_time=NOW - dt.timedelta(days=5))], now=NOW)

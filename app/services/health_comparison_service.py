@@ -35,7 +35,12 @@ def system_status(risk, now):
         match = re.fullmatch(r'-(\d+(?:\.\d+)?)점', item['score'])
         if not match:
             raise ValueError('점수 산정 항목의 형식이 올바르지 않습니다.')
-        breakdown.append({'code': category[0], 'item': category[1], 'points': -float(match[1])})
+        label = category[1]
+        if category[0] == 'elapsed':
+            elapsed = re.fullmatch(r'미입력 경과 \((\d+)시간\)', item['item'])
+            if elapsed:
+                label += f" ({elapsed[1]}시간)"
+        breakdown.append({'code': category[0], 'item': label, 'points': -float(match[1])})
     return {'score': float(risk['score']), 'level': risk['risk_level_db'],
             'label': LEVEL_LABELS[risk['risk_level_db']], 'as_of': now.isoformat(), 'breakdown': breakdown}
 
