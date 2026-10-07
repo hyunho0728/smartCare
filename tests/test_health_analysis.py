@@ -133,7 +133,7 @@ class ProviderTests(unittest.TestCase):
         self.assertIn('1~8개', schema.properties['priority_actions'].description)
         for name in ('findings', 'priority_actions'):
             refs = schema.properties[name].items.properties['source_refs']
-            self.assertIn('1~20개', refs.description)
+            self.assertIn('실제로 제공된 ref', refs.description)
             self.assertIsNone(refs.min_items); self.assertIsNone(refs.max_items)
         summary = schema.properties['summary']
         self.assertIn('2000자', summary.description)
@@ -158,6 +158,28 @@ class ProviderTests(unittest.TestCase):
         with self.assertLogs(service.logger, level='WARNING') as logs, self.assertRaises(service.HealthAnalysisError):
             self.call(json.dumps(value))
         self.assertNotIn('비밀이름', ''.join(logs.output)); self.assertNotIn('010-1234-5678', ''.join(logs.output))
+
+    def test_finding_count_includes_actual_and_maximum(self):
+        findings = report(); findings['findings'] *= 13
+        with self.assertLogs(service.logger, level='WARNING') as logs, self.assertRaises(service.HealthAnalysisError) as error:
+            self.call(json.dumps(findings))
+        self.assertIn('확인 사항:', str(error.exception))
+        self.assertIn('반환 13개 / 최대 12개', str(error.exception))
+        self.assertIn('findings', ''.join(logs.output))
+
+    def test_more_than_twenty_provided_references_are_preserved(self):
+        self.snapshot = service.build_input(user(), [health(day) for day in range(25)], [], [document()], NOW)
+        refs = [source['ref'] for source in self.snapshot['sources'] if source['kind'] == '생활기록']
+        value = report(); value['findings'][0]['source_refs'] = refs
+        value['priority_actions'][0]['source_refs'] = refs
+        result, _ = self.call(json.dumps(value))
+        self.assertEqual(len(refs), 25)
+        self.assertEqual(result['findings'][0]['source_refs'], refs)
+        self.assertEqual(result['priority_actions'][0]['source_refs'], refs)
+        value['findings'][0]['source_refs'] = refs + ['missing']
+        with self.assertRaises(service.HealthAnalysisError) as error:
+            self.call(json.dumps(value))
+        self.assertIn('존재하지 않는 근거', str(error.exception))
 
     def test_output_token_limit_is_reported_before_parsing(self):
         response = NS(text='{"summary":', candidates=[NS(finish_reason=service.types.FinishReason.MAX_TOKENS)])

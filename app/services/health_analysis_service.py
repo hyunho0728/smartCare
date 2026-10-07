@@ -24,14 +24,14 @@ class Finding(BaseModel):
     model_config = ConfigDict(extra='forbid')
     title: str = Field(min_length=1, max_length=200)
     detail: str = Field(min_length=1, max_length=1500)
-    source_refs: list[str] = Field(min_length=1, max_length=20)
+    source_refs: list[str] = Field(min_length=1, description='현재 요청에 실제로 제공된 ref만 사용하세요. 기간 전체를 확인해야 한다면 필요한 근거를 모두 연결하되 중복 없이 핵심 근거를 우선하세요.')
 
 
 class PriorityAction(BaseModel):
     model_config = ConfigDict(extra='forbid')
     action: Literal['연락 확인', '생활·측정 기록 확인', '검진 원본 확인', '기존 의료 상담 여부 확인']
     reason: str = Field(min_length=1, max_length=1500)
-    source_refs: list[str] = Field(min_length=1, max_length=20)
+    source_refs: list[str] = Field(min_length=1, description='현재 요청에 실제로 제공된 ref만 사용하세요. 필요한 근거를 연결하되 중복 없이 핵심 근거를 우선하세요.')
     priority: Literal['우선 확인', '일반 확인']
 
 
@@ -56,6 +56,8 @@ def provider_schema():
         if '$ref' in schema:
             schema = root['$defs'][schema['$ref'].rsplit('/', 1)[-1]]
         options = {'type': schema['type'].upper()}
+        if 'description' in schema:
+            options['description'] = schema['description']
         for key in ('enum', 'required'):
             if key in schema:
                 options[key] = schema[key]
@@ -77,18 +79,32 @@ def validate_report(text, model):
     except ValidationError as error:
         # 응답 원문/값과 임의 추가 필드 이름은 건강정보일 수 있어 로그에도 남기지 않는다.
         allowed_fields = set(Report.model_fields) | set(Finding.model_fields) | set(PriorityAction.model_fields)
-        issues = [{'path': '.'.join(str(part) if isinstance(part, int) or part in allowed_fields else '?' for part in issue['loc']),
-                   'type': issue['type']} for issue in error.errors(include_input=False, include_url=False)]
+        issues = []
+        for issue in error.errors(include_input=False, include_url=False):
+            diagnostic = {'path': '.'.join(str(part) if isinstance(part, int) or part in allowed_fields else '?' for part in issue['loc']),
+                          'type': issue['type']}
+            for key in ('actual_length', 'max_length', 'min_length'):
+                value = (issue.get('ctx') or {}).get(key)
+                if type(value) is int:
+                    diagnostic[key] = value
+            issues.append(diagnostic)
         logger.warning('건강 종합 분석 응답 검증 실패 model=%s issues=%s', model, issues)
         labels = {'summary': '종합 요약', 'findings': '확인 사항', 'recommended_actions': '권장 확인',
                   'limitations': '데이터 한계', 'priority_actions': '우선 확인 행동'}
         first = issues[0]
         field = labels.get(first['path'].split('.')[0], '분석 결과')
+        parts = first['path'].split('.')
+        if len(parts) > 1 and parts[1].isdigit():
+            field += f' {int(parts[1]) + 1}번'
+        if parts[-1] == 'source_refs':
+            field += '의 근거 참조'
         reasons = {'missing': '필수 항목이 누락되었습니다', 'too_long': '항목 수가 허용 범위를 초과했습니다',
                    'too_short': '필수 근거 또는 행동이 비어 있습니다', 'string_too_long': '설명이 허용 길이를 초과했습니다',
                    'string_too_short': '설명이 비어 있습니다', 'literal_error': '허용된 행동 또는 확인 순서가 아닙니다',
                    'extra_forbidden': '허용되지 않은 필드가 포함되었습니다', 'json_invalid': '응답 JSON이 손상되었거나 완성되지 않았습니다'}
         reason = reasons.get(first['type'], '항목 형식이 올바르지 않습니다')
+        if first['type'] == 'too_long' and 'actual_length' in first and 'max_length' in first:
+            reason += f" (반환 {first['actual_length']}개 / 최대 {first['max_length']}개)"
         raise HealthAnalysisError(f'AI {field}: {reason}. 이전 결과는 유지됩니다. 다시 시도해주세요.') from error
 
 
@@ -288,7 +304,7 @@ def analyze(snapshot, model=None):
               '같은 자료로 재분석했다면 새 건강 변화로 표현하지 마세요. '
               'priority_actions에는 행동, 이유, source_refs, 우선 확인/일반 확인 순서를 넣으세요. '
               '이 순서는 위험등급이 아닙니다. recommended_actions도 동일한 확인 행동만 설명하세요.\n'
-              'JSON 객체 하나만 반환하세요. 근거는 실제 제공된 ref 중 핵심 1~20개만 선택하세요. '
+              'JSON 객체 하나만 반환하세요. 근거는 실제 제공된 ref 중 필요한 근거만 선택하고 중복하지 마세요. '
               'priority_actions는 최소 1개이며 같은 확인 행동은 묶어 간결하게 작성하세요. '
               '각 배열은 스키마의 최대 항목 수를 지키고 데이터 한계는 유사한 내용을 묶어 작성하세요.\n'
               + json.dumps(payload, ensure_ascii=False))
