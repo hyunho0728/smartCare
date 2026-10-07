@@ -1,13 +1,13 @@
 import os
 import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
-from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument, EmergencyAlert
+from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument, CheckupResult, HealthAnalysis, EmergencyAlert
 from services.social_worker_ai_service import (
     evaluate_and_record_risk,
-    analyze_life_pattern_with_gemini,
-    LifePatternAIError,
 )
 from services.auth_service import select_role, current_role, role_redirect
+
+from services.health_analysis_service import build_input, analyze, summarize, MODEL, HealthAnalysisError
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -693,44 +693,75 @@ def api_delete_checkup(doc_id):
         db.session.rollback()
         return jsonify({"success": False, "message": f"삭제 실패: {str(e)}"}), 500
 
+def _analysis_target(user_id):
+    if current_role() != 'worker':
+        raise HealthAnalysisError('사회복지사 로그인이 필요합니다.', 401)
+    worker = Worker.query.filter_by(login_id=session['admin_id']).first()
+    user = db.session.get(User, user_id)
+    if not user or not user.is_active:
+        raise HealthAnalysisError('대상자를 찾을 수 없습니다.', 404)
+    if user.worker_id != worker.worker_id:
+        raise HealthAnalysisError('현재 담당 대상자만 분석·조회할 수 있습니다.', 403)
+    return user, worker.worker_id
+
+
+def _health_analysis_json(record):
+    if not record:
+        return None
+    return {'analysis_id': record.analysis_id, 'analyzed_at': record.analyzed_at.isoformat(),
+            'model': record.model, 'analysis': record.summary, 'result': record.result,
+            'input_snapshot': record.input_snapshot}
+
+
 @worker_bp.route('/api/admin/elders/<int:user_id>/life-pattern-ai', methods=['POST'])
 def api_analyze_life_pattern(user_id):
-    """어르신 생활 패턴 데이터를 개인정보 없이 Gemini AI로 분석"""
-    current_worker_id = session.get('admin_worker_id')
-    if not current_worker_id:
-        admin_login_id = session.get('admin_id')
-        if admin_login_id:
-            worker = Worker.query.filter_by(login_id=admin_login_id).first()
-            if worker:
-                current_worker_id = worker.worker_id
-
-    if not current_worker_id:
-        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
-
-    user = User.query.get(user_id)
-    if not user or not user.is_active:
-        return jsonify({"success": False, "message": "대상자를 찾을 수 없습니다."}), 404
-
-    if user.worker_id not in (current_worker_id, None):
-        return jsonify({"success": False, "message": "분석 권한이 없습니다."}), 403
-
+    """기존 주소/analysis 응답을 유지하는 건강 종합 분석."""
     try:
-        health_history = HealthStatus.query.filter_by(user_id=user_id)\
-            .order_by(HealthStatus.recorded_at.desc()).all()
-        login_history = LoginHistory.query.filter_by(user_id=user_id)\
-            .order_by(LoginHistory.auth_time.desc()).all()
-
-        analysis_result = analyze_life_pattern_with_gemini(
-            user,
-            health_history,
-            login_history
-        )
-        return jsonify({
-            "success": True,
-            "analysis": analysis_result
-        })
-    except LifePatternAIError as e:
-        return jsonify(success=False, message=str(e)), e.status
+        user, worker_id = _analysis_target(user_id)
+        now = datetime.datetime.now()
+        start = now - datetime.timedelta(days=30)
+        health = HealthStatus.query.filter(HealthStatus.user_id == user_id, HealthStatus.recorded_at >= start, HealthStatus.recorded_at <= now).all()
+        logins = LoginHistory.query.filter(LoginHistory.user_id == user_id, LoginHistory.auth_time >= start, LoginHistory.auth_time <= now).all()
+        documents = db.session.query(CheckupDocument, CheckupResult).join(CheckupResult, CheckupResult.doc_id == CheckupDocument.doc_id).filter(CheckupDocument.user_id == user_id).all()
+        snapshot = build_input(user, health, logins, documents, now)
+        result = analyze(snapshot)
+        # 응답 대기 중 담당자 또는 활성 상태가 바뀌면 저장하지 않는다.
+        db.session.refresh(user)
+        if user.worker_id != worker_id or not user.is_active:
+            raise HealthAnalysisError('담당 대상자 정보가 변경되었습니다. 다시 확인해주세요.', 403)
+        record = HealthAnalysis(user_id=user_id, worker_id=worker_id, model=MODEL,
+                                input_snapshot=snapshot, result=result, summary=summarize(result))
+        db.session.add(record)
+        db.session.commit()
+        return jsonify(success=True, **_health_analysis_json(record))
+    except HealthAnalysisError as error:
+        db.session.rollback()
+        return jsonify(success=False, message=str(error)), error.status
     except Exception:
-        current_app.logger.exception("생활 패턴 분석 실패")
-        return jsonify(success=False, message="AI 생활 패턴 분석에 실패했습니다. 다시 시도해주세요."), 500
+        db.session.rollback()
+        current_app.logger.exception('건강 종합 분석 또는 저장 실패')
+        return jsonify(success=False, message='건강 종합 분석을 완료·저장하지 못했습니다. 이전 결과는 유지됩니다. 다시 시도해주세요.'), 500
+
+
+@worker_bp.route('/api/admin/elders/<int:user_id>/health-analysis', methods=['GET'])
+def api_get_health_analysis(user_id):
+    try:
+        _analysis_target(user_id)
+        query = HealthAnalysis.query.filter_by(user_id=user_id)
+        history = query.order_by(HealthAnalysis.analyzed_at.desc(), HealthAnalysis.analysis_id.desc()).limit(20).all()
+        selected = history[0] if history else None
+        if 'analysis_id' in request.args:
+            analysis_id = request.args.get('analysis_id', type=int)
+            if not analysis_id or analysis_id < 1:
+                raise HealthAnalysisError('분석 이력 번호를 확인해주세요.', 400)
+            selected = query.filter_by(analysis_id=analysis_id).first()
+            if not selected:
+                raise HealthAnalysisError('분석 이력을 찾을 수 없습니다.', 404)
+        return jsonify(success=True, latest=_health_analysis_json(history[0] if history else None),
+                       selected=_health_analysis_json(selected),
+                       history=[{'analysis_id': r.analysis_id, 'analyzed_at': r.analyzed_at.isoformat()} for r in history])
+    except HealthAnalysisError as error:
+        return jsonify(success=False, message=str(error)), error.status
+    except Exception:
+        current_app.logger.exception('건강 종합 분석 조회 실패')
+        return jsonify(success=False, message='저장된 분석을 불러오지 못했습니다. 다시 시도해주세요.'), 500

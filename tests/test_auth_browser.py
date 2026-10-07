@@ -4,9 +4,12 @@ import threading
 import time
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 from flask import jsonify
 from werkzeug.serving import make_server
 import test_auth as fixtures
+from models.models import db, User, CheckupDocument, CheckupResult
+from services.health_analysis_service import HealthAnalysisError
 try:
     from playwright.sync_api import sync_playwright
 except ImportError:
@@ -28,11 +31,20 @@ class AuthBrowserTests(unittest.TestCase):
                       'checkup_docs': [], 'score_breakdown': [], 'action_history': [], 'scores_7days': [80]*7}
         app.view_functions['worker.api_get_elders'] = lambda: jsonify(success=True, data=[copy.deepcopy(self.elder)], unassigned=[], alert_history=[])
         self.ai_calls = 0; self.ai_fail = False
-        def ai(user_id):
+        user = db.session.get(User, 1); user.has_underlying_disease = True; user.note = '고혈압'; db.session.commit()
+        extracted = {'is_checkup': True, 'patient_name': '가상어르신', 'institution': '가상기관', 'checkup_date': '2026-10-01',
+                     'items': [{'name': '공복혈당', 'value': '110', 'unit': 'mg/dL', 'reference_range': '<100',
+                                'raw_text': '공복혈당 110', 'page': 1, 'unreadable': False}]}
+        db.session.add(CheckupDocument(doc_id=1, user_id=1, file_path='/static/test.pdf'))
+        db.session.add(CheckupResult(doc_id=1, extraction=extracted, confirmed_result=extracted,
+                                     confirmed_revision=1, confirmed_by=1))
+        db.session.commit()
+        def ai(snapshot):
             self.ai_calls += 1; time.sleep(1.5)
-            if self.ai_fail: return jsonify(success=False, message='테스트 분석 실패'), 502
-            return jsonify(success=True, analysis='저장된 AI 결과')
-        app.view_functions['worker.api_analyze_life_pattern'] = ai
+            if self.ai_fail: raise HealthAnalysisError('테스트 분석 실패')
+            return {'summary': '저장된 AI 결과', 'findings': [{'title': '등록 정보 확인', 'detail': '기록을 확인하세요.', 'source_refs': [s['ref'] for s in snapshot['sources']]}],
+                    'recommended_actions': ['안부 확인'], 'limitations': snapshot['limitations']}
+        self.ai_patch = patch('routes.social_worker.analyze', side_effect=ai); self.ai_patch.start()
         self.server = make_server('127.0.0.1', 0, app)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True); self.thread.start()
         self.runtime = sync_playwright().start()
@@ -45,7 +57,7 @@ class AuthBrowserTests(unittest.TestCase):
 
     def tearDown(self):
         self.browser.close(); self.runtime.stop(); self.server.shutdown(); self.thread.join()
-        self.server.server_close(); self.fixture.tearDown()
+        self.server.server_close(); self.ai_patch.stop(); self.fixture.tearDown()
 
     def login(self, role='worker'):
         self.page.goto(self.url + '/login')
@@ -142,6 +154,38 @@ class AuthBrowserTests(unittest.TestCase):
         page.evaluate('renderTable(); renderOtherSections()')
         self.assertIn('테스트 분석 실패', page.locator('#ai-analysis-list').inner_text())
         self.no_overflow(); self.assertFalse(self.errors)
+        page.reload(); page.locator('#tbody .main-row').wait_for(state='attached')
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        page.locator('#ai-analysis-list').filter(has_text='저장된 AI 결과').wait_for()
+        self.assertEqual(self.ai_calls, 2)
+        self.assertFalse(self.errors)
+
+    def test_health_analysis_history_sources_and_restore(self):
+        page = self.page; self.login()
+        page.locator('#tbody .main-row').wait_for()
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        button = page.locator('#ai-analysis-list [data-life-ai-button-id="1"]')
+        page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
+        button.click(); page.locator('#ai-analysis-list').filter(has_text='저장된 AI 결과').wait_for()
+        first = page.locator('#ai-analysis-list select[aria-label="건강 종합 분석 이력"]').input_value()
+        for width in (360, 390, 768, 1280, 1440):
+            page.set_viewport_size({'width': width, 'height': 1000}); self.no_overflow()
+            if width in (390, 1440): page.screenshot(path=str(OUTPUT / f'health_analysis_{width}.png'))
+        page.evaluate('window.openCheckupReview = id => { window.openedReviewId = id; }')
+        page.locator('#ai-analysis-list button').filter(has_text='페이지 원본 확인').click()
+        self.assertEqual(page.evaluate('window.openedReviewId'), 1)
+        button.click()
+        page.wait_for_function("document.querySelector('#ai-analysis-list select').options.length === 2")
+        page.locator('#ai-analysis-list select').select_option(first)
+        page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
+        self.assertEqual(page.locator('#ai-analysis-list select').input_value(), first)
+        page.request.post(self.url + '/api/auth/logout'); self.login()
+        page.locator('#tbody .main-row').wait_for(state='attached')
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        page.locator('#ai-analysis-list').filter(has_text='저장된 AI 결과').wait_for()
+        self.assertEqual(page.locator('#ai-analysis-list select option').count(), 2)
+        self.assertNotEqual(page.locator('#ai-analysis-list select').input_value(), first)
+        self.assertEqual(self.ai_calls, 2); self.assertFalse(self.errors)
 
     def test_registration_entries_and_expiry(self):
         page = self.page

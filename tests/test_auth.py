@@ -131,15 +131,17 @@ class AuthTests(unittest.TestCase):
 
     def test_life_ai_configuration_failure_is_not_success(self):
         self.worker_login()
+        user = db.session.get(User, 1); user.has_underlying_disease = True; user.note = '고혈압'; db.session.commit()
         with patch.dict(os.environ, {'GEMINI_API_KEY': ''}):
             response = self.client.post('/api/admin/elders/1/life-pattern-ai')
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.json['success'])
 
     def test_life_ai_quota_failure_is_not_success(self):
-        from services.social_worker_ai_service import LifePatternAIError
+        from services.health_analysis_service import HealthAnalysisError
         self.worker_login()
-        with patch('routes.social_worker.analyze_life_pattern_with_gemini', side_effect=LifePatternAIError('quota', 429)):
+        user = db.session.get(User, 1); user.has_underlying_disease = True; user.note = '고혈압'; db.session.commit()
+        with patch('routes.social_worker.analyze', side_effect=HealthAnalysisError('quota', 429)):
             response = self.client.post('/api/admin/elders/1/life-pattern-ai')
         self.assertEqual(response.status_code, 429)
         self.assertFalse(response.json['success'])

@@ -116,6 +116,18 @@ class CheckupResult(db.Model):
 
 
 # 8. 긴급 호출 알림 모델
+class HealthAnalysis(db.Model):
+    __tablename__ = 'HEALTH_ANALYSIS'
+    analysis_id = db.Column(db.BigInteger().with_variant(db.Integer, 'sqlite'), primary_key=True, autoincrement=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False, index=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id'), nullable=False)
+    analyzed_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
+    model = db.Column(db.String(100), nullable=False)
+    input_snapshot = db.Column(db.JSON, nullable=False)
+    result = db.Column(db.JSON, nullable=False)
+    summary = db.Column(db.Text, nullable=False)
+
+
 class EmergencyAlert(db.Model):
     __tablename__ = 'EMERGENCY_ALERT'
 

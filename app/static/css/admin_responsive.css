@@ -60,3 +60,13 @@
   .analysis-box, .alert-card, .action-card { max-width: 100%; }
 }
 @media(prefers-reduced-motion:reduce) { .ai-spinner { animation: none !important; } }
+
+/* 종합 분석의 근거와 이력을 작은 화면 안에 배치한다. */
+.life-ai-result { overflow-wrap: anywhere; }
+.life-ai-result h5 { margin: 16px 0 7px; font-size: 15px; }
+.life-ai-result p { white-space: pre-wrap; }
+.life-ai-result select { max-width: 100%; min-height: 44px; }
+.life-ai-result label { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.health-analysis-meta, .health-analysis-source { color: #475569; font-size: 13px; }
+.health-analysis-finding { border-left: 3px solid #93c5fd; margin-top: 10px; padding: 8px 12px; background: #eff6ff; }
+.health-analysis-source button { display: block; margin-top: 6px; min-height: 44px; white-space: normal; }

@@ -603,8 +603,8 @@
             <div class="panel-head" style="padding:0 0 18px;margin-bottom:18px">
               <div class="chart-title-row">
                 <div>
-                  <h3>생활 패턴 분석</h3>
-                  <span id="aiAnalysisSubText">어르신을 선택하면 AI 생활 패턴 분석을 확인합니다.</span>
+                  <h3>건강 종합 분석</h3>
+                  <span id="aiAnalysisSubText">어르신을 선택하면 AI 건강 종합 분석을 확인합니다.</span>
                 </div>
                 <select class="chart-person-select" id="aiAnalysisUserSelect" onchange="updateLifePatternAnalysis(this.value)"></select>
               </div>
@@ -1087,11 +1087,6 @@ async function loadEldersData() {
             setCheckupAnalysisText(descEl, savedCheckupAiDesc);
           }
         }
-        const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
-        if (savedLifeAiDesc) {
-          setLifePatternAnalysisText(u.id, savedLifeAiDesc);
-          setLifePatternAIButtons(u.id, false, true);
-        }
       });
     }
   } catch (err) {
@@ -1335,11 +1330,11 @@ function updateLifePatternAnalysis(index){
 
   const action = getRecommendedAction(u);
   const r = risk[u.risk] || risk.safe;
-  if (sub) sub.innerText = `${u.name} 어르신의 생활 패턴 분석입니다. 위험도가 높은 순서로 정렬됩니다.`;
+  if (sub) sub.innerText = `${u.name} 어르신의 건강 종합 분석입니다. 위험도가 높은 순서로 정렬됩니다.`;
 
   aiList.innerHTML = `
     <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
-      <h4>${u.name} 어르신 패턴 분석</h4>
+      <h4>${u.name} 어르신 시스템 생활패턴 지표</h4>
       <div class="analysis-actions-v2">
         <span class="badge ${r[1]}">우선도: ${r[0]}</span>
       </div>
@@ -1349,21 +1344,15 @@ function updateLifePatternAnalysis(index){
         <button class="mini-btn danger" onclick="openFeedback(${u.id}, '${u.name}', '${action.actionType}')">조치 결과 작성</button>
       </div>
       <div class="life-ai-result" data-life-ai-user-id="${u.id}">
-        <b>AI 생활 패턴 분석</b>
-        AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+        <b>AI 건강 종합 분석</b>
+        AI 분석 버튼을 누르면 개인정보를 제외한 확정 검진·생활 기록·등록 질환의 종합 결과가 표시됩니다.
       </div>
-      <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송됩니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+      <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목과 정규화된 등록 질환을 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않습니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
       <div class="ai-actions-v2" style="margin-top:10px;">
         <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
       </div>
     </div>
   `;
-
-  const savedLifeAiDesc = sessionStorage.getItem(`life_ai_desc_${u.id}`);
-  if (savedLifeAiDesc) {
-    setLifePatternAnalysisText(u.id, savedLifeAiDesc);
-    setLifePatternAIButtons(u.id, false, true);
-  }
 }
 
 function isHealthUnrecorded(u) {
@@ -1960,15 +1949,15 @@ function renderTable(){
 
               <div class="ai-panel-v2" style="border-left-color:${r[2]}">
                 <div class="ai-panel-head-v2">
-                  <h4>🤖 AI 생활 패턴 분석</h4>
-                  <span class="ai-type-badge">개인 패턴 기반</span>
+                  <h4>시스템 생활패턴 지표</h4>
+                  <span class="ai-type-badge">기존 위험점수 기준</span>
                 </div>
                 <p id="ai-desc-${u.id}">${u.desc}</p>
                 <div class="life-ai-result" data-life-ai-user-id="${u.id}">
-                  <b>AI 생활 패턴 분석</b>
-                  AI 분석 버튼을 누르면 개인정보를 제외한 생활 패턴 요약 결과가 표시됩니다.
+                  <b>AI 건강 종합 분석</b>
+                  AI 분석 버튼을 누르면 개인정보를 제외한 확정 검진·생활 기록·등록 질환의 종합 결과가 표시됩니다.
                 </div>
-                <p class="ai-notice-v2">외부 AI에는 이름, 전화번호, 주소를 제외한 생활 패턴 요약만 전송되며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+                <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목과 정규화된 등록 질환을 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않으며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
                 <div class="ai-actions-v2">
                   <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>
