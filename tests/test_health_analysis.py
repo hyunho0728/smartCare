@@ -94,6 +94,8 @@ class InputTests(unittest.TestCase):
 class ProviderTests(unittest.TestCase):
     def setUp(self):
         self.snapshot = service.build_input(user(), [health()], [], [document()], NOW)
+        for target in ('record_attempt', 'finish_attempt'):
+            mock = patch('services.ai_service.' + target, return_value=1); mock.start(); self.addCleanup(mock.stop)
 
     def call(self, text=None, failure=None):
         with patch.dict(os.environ, {'GEMINI_API_KEY': 'fake'}), patch.object(service.genai, 'Client') as client:
@@ -107,7 +109,7 @@ class ProviderTests(unittest.TestCase):
         kwargs = client.return_value.models.generate_content.call_args.kwargs
         self.assertEqual(kwargs['config']['response_mime_type'], 'application/json')
         self.assertIs(kwargs['config']['response_schema'], service.Report)
-        self.assertEqual(client.call_args.kwargs['http_options']['timeout'], 60000)
+        self.assertEqual(client.call_args.kwargs['http_options'].timeout, 60000)
         self.assertIn('data', kwargs['contents'][0])
         for secret in ('비밀이름', '비밀주소', '비밀병원', '010-1234-5678', 'raw_text', 'patient_name'):
             self.assertNotIn(secret, kwargs['contents'][0])
@@ -144,7 +146,7 @@ class ApiTests(unittest.TestCase):
         self.fixture.tearDown()
 
     def post(self):
-        with patch('routes.social_worker.analyze', side_effect=lambda snapshot: report(snapshot['sources'][0]['ref'])):
+        with patch('routes.social_worker.analyze', side_effect=lambda snapshot, model=None: report(snapshot['sources'][0]['ref'])):
             return self.client.post('/api/admin/elders/1/life-pattern-ai')
 
     def test_save_history_reload_and_snapshot(self):
@@ -183,7 +185,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/admin/elders/1/health-analysis').status_code, 401)
 
     def test_ownership_changes_during_analysis(self):
-        def changed(snapshot):
+        def changed(snapshot, model=None):
             db.session.get(User, 1).worker_id = None; db.session.commit()
             return report()
         with patch('routes.social_worker.analyze', side_effect=changed):

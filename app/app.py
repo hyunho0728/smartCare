@@ -15,6 +15,8 @@ from routes.social_worker import worker_bp
 from routes.user import user_bp
 from routes.checkup import checkup_bp
 from routes.auth import auth_bp
+from routes.ai import ai_bp
+from services.ai_service import ensure_checkup_model_columns
 from services.auth_service import current_role, DESTINATIONS
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -60,6 +62,7 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 db.init_app(app)
 with app.app_context():
     db.create_all()
+    ensure_checkup_model_columns(db.engine)
     try:
         from sqlalchemy import text
         with db.engine.connect() as conn:
@@ -73,6 +76,7 @@ app.register_blueprint(worker_bp)
 app.register_blueprint(user_bp)
 app.register_blueprint(checkup_bp)
 app.register_blueprint(auth_bp)
+app.register_blueprint(ai_bp)
 
 # ==========================================
 # 공통 스케줄러 & 유틸리티

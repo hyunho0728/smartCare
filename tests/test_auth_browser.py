@@ -31,15 +31,17 @@ class AuthBrowserTests(unittest.TestCase):
                       'checkup_docs': [], 'score_breakdown': [], 'action_history': [], 'scores_7days': [80]*7}
         app.view_functions['worker.api_get_elders'] = lambda: jsonify(success=True, data=[copy.deepcopy(self.elder)], unassigned=[], alert_history=[])
         self.ai_calls = 0; self.ai_fail = False
+        self.used_models = []
         user = db.session.get(User, 1); user.has_underlying_disease = True; user.note = '고혈압'; db.session.commit()
         extracted = {'is_checkup': True, 'patient_name': '가상어르신', 'institution': '가상기관', 'checkup_date': '2026-10-01',
                      'items': [{'name': '공복혈당', 'value': '110', 'unit': 'mg/dL', 'reference_range': '<100',
                                 'raw_text': '공복혈당 110', 'page': 1, 'unreadable': False}]}
-        db.session.add(CheckupDocument(doc_id=1, user_id=1, file_path='/static/test.pdf'))
+        db.session.add(CheckupDocument(doc_id=1, user_id=1, file_path='/static/normal.pdf'))
         db.session.add(CheckupResult(doc_id=1, extraction=extracted, confirmed_result=extracted,
                                      confirmed_revision=1, confirmed_by=1))
         db.session.commit()
-        def ai(snapshot):
+        def ai(snapshot, model=None):
+            self.used_models.append(model)
             self.ai_calls += 1; time.sleep(1.5)
             if self.ai_fail: raise HealthAnalysisError('테스트 분석 실패')
             return {'summary': '저장된 AI 결과', 'findings': [{'title': '등록 정보 확인', 'detail': '기록을 확인하세요.', 'source_refs': [s['ref'] for s in snapshot['sources']]}],
@@ -196,6 +198,67 @@ class AuthBrowserTests(unittest.TestCase):
         self.login('user'); page.locator('#screen-main.active').wait_for()
         page.evaluate("fetch('/api/auth/logout',{method:'POST'})")
         page.wait_for_url(self.url + '/login', timeout=10000)
+        self.assertFalse(self.errors)
+
+    def test_ai_model_panel_selection_pending_and_checkup(self):
+        page = self.page; self.login()
+        page.locator('#tbody .main-row').wait_for()
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        page.locator('#ai-model-open').click()
+        panel = page.locator('#ai-model-settings'); panel.locator('[data-ai-usage] .ai-usage-card').first.wait_for()
+        self.assertEqual(panel.locator('.ai-usage-card').count(), 4)
+        self.assertIn('앱 호출 기준 예상치', panel.inner_text())
+        for model in ('gemini-3.8-flash', 'gemini-3.6-flash', 'gemini-2.5-flash', 'gemini-3.5-flash-lite'):
+            panel.locator('select').select_option(model)
+            self.assertEqual(page.evaluate("localStorage.getItem('smartcare_ai_model')"), model)
+        for width in (360, 390, 768, 1280, 1440):
+            page.set_viewport_size({'width': width, 'height': 1000})
+            self.assertTrue(panel.evaluate('el => el.scrollWidth <= el.clientWidth'))
+            if width in (390, 1440): page.screenshot(path=str(OUTPUT / f'ai_models_{width}.png'))
+        panel.locator('select').select_option('gemini-3.8-flash')
+        panel.locator('[data-ai-close]').click()
+        button = page.locator('#ai-analysis-list [data-life-ai-button-id="1"]')
+        page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
+        button.click(); page.locator('#ai-analysis-list .ai-spinner').wait_for()
+        page.locator('#ai-model-open').click(); panel.locator('select').select_option('gemini-2.5-flash'); panel.locator('[data-ai-close]').click()
+        page.locator('#ai-analysis-list').filter(has_text='저장된 AI 결과').wait_for()
+        self.assertEqual(self.used_models, ['gemini-3.8-flash'])
+        self.assertIn('분석에 사용한 모델: Gemini 3.8 Flash', page.locator('#ai-analysis-list').inner_text())
+        page.reload(); page.locator('#tbody .main-row').wait_for(state='attached')
+        page.locator('#ai-model-open').click(); self.assertEqual(panel.locator('select').input_value(), 'gemini-2.5-flash')
+        panel.locator('[data-ai-usage] .ai-usage-card').first.wait_for()
+        before = panel.locator('[data-ai-status]').inner_text()
+        page.route('**/api/admin/ai/usage', lambda route: route.fulfill(status=503, content_type='application/json', body='{"success":false,"message":"offline"}'))
+        panel.locator('[data-ai-refresh]').click(); panel.locator('[data-ai-error]').filter(has_text='갱신 실패').wait_for()
+        self.assertEqual(panel.locator('[data-ai-status]').inner_text(), before)
+        self.assertEqual(panel.locator('.ai-usage-card').count(), 4)
+        page.unroute('**/api/admin/ai/usage'); panel.locator('[data-ai-close]').click()
+        usage = page.request.get(self.url + '/api/admin/ai/usage').json()
+        usage['models'][0]['unknown_token_calls'] = 1; usage['models'][0]['remaining']['tpm'] = None
+        import json
+        page.route('**/api/admin/ai/usage', lambda route: route.fulfill(status=200, content_type='application/json', body=json.dumps(usage)))
+        page.locator('#ai-model-open').click()
+        panel.locator('.ai-usage-card').first.filter(has_text='확인 불가').wait_for()
+        self.assertEqual(panel.locator('.ai-usage-card').first.locator('progress').count(), 2)
+        panel.locator('[data-ai-close]').click(); page.unroute('**/api/admin/ai/usage')
+        page.evaluate('openCheckupReview(1)')
+        review = page.locator('#checkup-review'); review.locator('[data-items] tr').first.wait_for()
+        review.get_by_role('button', name='모델 선택·사용량').click()
+        panel.locator('select').select_option('gemini-3.5-flash-lite'); panel.locator('[data-ai-close]').click()
+        from test_checkup import result
+        recorded = []
+        def extract(path, model=None):
+            recorded.append(model); time.sleep(1.5); return result('가상어르신')
+        with patch('routes.checkup.extract_document', side_effect=extract):
+            review.locator('[data-analyze]').click(); review.locator('.ai-spinner').wait_for()
+            self.assertIn('Gemini 3.5 Flash Lite', review.locator('[data-status]').inner_text())
+            review.locator('[data-model-used]').filter(has_text='gemini-3.5-flash-lite').wait_for()
+        self.assertEqual(recorded, ['gemini-3.5-flash-lite'])
+        review.locator('[data-close]').click()
+        page.evaluate("localStorage.setItem('smartcare_ai_model','invalid-model')")
+        page.reload(); page.locator('#ai-model-open').click()
+        page.wait_for_function("document.querySelector('#ai-model-settings select').options.length === 4")
+        self.assertEqual(panel.locator('select').input_value(), 'gemini-3.6-flash')
         self.assertFalse(self.errors)
 
 

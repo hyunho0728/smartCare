@@ -11,6 +11,7 @@ from pypdf import PdfReader
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from google import genai
 from google.genai import types
+from services.ai_service import generate_content, resolve_model, AIError
 
 MAX_BYTES = 15 * 1024 * 1024
 MAX_PAGES = 10
@@ -122,7 +123,7 @@ def provider_schema():
     }, required=['is_checkup', 'patient_name', 'checkup_date', 'institution', 'items'])
 
 
-def extract_document(path):
+def extract_document(path, model=None):
     key = os.getenv("GEMINI_API_KEY")
     if not key:
         raise CheckupError("Gemini API 키가 설정되지 않았습니다.", 503)
@@ -132,13 +133,9 @@ def extract_document(path):
     except FileNotFoundError as exc:
         raise CheckupError("문서 원본 파일을 찾을 수 없습니다.", 404) from exc
     try:
-        with genai.Client(api_key=key, http_options=types.HttpOptions(
-            timeout=90000,
-            retry_options=types.HttpRetryOptions(attempts=3, initial_delay=2, max_delay=4,
-                                                http_status_codes=[500, 502, 503, 504]),
-        )) as client:
-            response = client.models.generate_content(
-                model=os.getenv("GEMINI_CHECKUP_MODEL", "gemini-3.6-flash"),
+        response = generate_content(
+                model=resolve_model(model, os.getenv('GEMINI_CHECKUP_MODEL', 'gemini-3.6-flash')),
+                feature='checkup', timeout=90000, attempts=3,
                 contents=[PROMPT, types.Part.from_bytes(data=data, mime_type=mime)],
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json", response_schema=provider_schema(),
@@ -152,12 +149,14 @@ def extract_document(path):
         return result
     except CheckupError:
         raise
+    except AIError as exc:
+        raise CheckupError(str(exc), exc.status) from exc
     except Exception as exc:
         code = getattr(exc, 'code', None)
         if code == 429:
             raise CheckupError("AI 요청 한도를 초과했습니다. 잠시 후 다시 시도하거나 Gemini 할당량을 확인해주세요.", 429) from exc
-        if code in (401, 403):
-            raise CheckupError("Gemini API 키 또는 사용 권한을 확인해주세요.", 503) from exc
+        if code in (400, 401, 403, 404):
+            raise CheckupError("선택한 모델·Gemini API 키·사용 권한을 확인해주세요.", 503) from exc
         raise CheckupError("AI 판독에 실패했습니다. 시간 초과 또는 서비스 상태를 확인하고 다시 시도해주세요.", 502) from exc
 
 

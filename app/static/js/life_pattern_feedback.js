@@ -29,8 +29,10 @@
     document.querySelectorAll(`[data-life-ai-user-id="${id}"]`).forEach(panel => {
       panel.replaceChildren(); panel.setAttribute('aria-busy', String(state.pending || state.loading));
       panel.append(element('b', 'AI 건강 종합 분석'));
+      window.AIModels?.mount(panel);
       if (state.record) {
         const record = state.record, snapshot = record.input_snapshot, report = record.result;
+        panel.append(element('p', `분석에 사용한 모델: ${window.AIModels?.label(record.model) || record.model || '기록 없음'}`, 'health-analysis-meta'));
         panel.append(element('p', `분석 시각: ${dateText(record.analyzed_at)} · 과거 자료를 기준으로 작성된 참고 결과입니다.`, 'health-analysis-meta'));
         panel.append(element('p', `생활 기록 범위: ${dateText(snapshot.window_start)} ~ ${dateText(snapshot.window_end)}`, 'health-analysis-meta'));
         const label = element('label', '분석 이력 ');
@@ -71,7 +73,7 @@
       if (state.pending || state.loading) {
         const status = element('div', undefined, 'ai-loading'); status.setAttribute('role', 'status'); status.setAttribute('aria-live', 'polite');
         const spinner = element('span', undefined, 'ai-spinner'); spinner.setAttribute('aria-hidden', 'true');
-        status.append(spinner, document.createTextNode(state.pending ? 'AI 분석 중… 완료까지 시간이 걸릴 수 있습니다.' : '저장된 분석을 불러오는 중…')); panel.append(status);
+        status.append(spinner, document.createTextNode(state.pending ? `AI 분석 중… ${window.AIModels?.label(state.pendingModel) || state.pendingModel || ''} · 완료까지 시간이 걸릴 수 있습니다.` : '저장된 분석을 불러오는 중…')); panel.append(status);
       }
       if (state.error) {
         const error = element('p', state.error, 'ai-error'); error.setAttribute('role', 'alert'); panel.append(error);
@@ -112,15 +114,19 @@
   window.setLifePatternAIButtons = id => render(id);
   window.analyzeLifePatternAI = async (id, elderName) => {
     const state = stateFor(id); if (state.pending || state.loading) return;
+    let model;
+    try { model = window.AIModels ? await window.AIModels.getModel() : 'gemini-3.6-flash'; }
+    catch (error) { state.error = message(error); render(id); return; }
+    if (state.pending || state.loading) return;
     if (!confirm(`${elderName} 어르신의 최근 30일 생활·접속 기록, 확정된 검진 항목, 정규화된 등록 질환을 Gemini로 전송해 분석합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않습니다.\n\n계속 진행하시겠습니까?`)) return;
-    state.pending = true; state.error = ''; render(id);
+    state.pending = true; state.pendingModel = model; state.error = ''; render(id);
     try {
-      const body = await request(`/api/admin/elders/${id}/life-pattern-ai`, {method: 'POST'});
+      const body = await request(`/api/admin/elders/${id}/life-pattern-ai`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({model})});
       state.record = body;
       state.history = [{analysis_id: body.analysis_id, analyzed_at: body.analyzed_at}, ...state.history.filter(h => h.analysis_id !== body.analysis_id)].slice(0, 20);
       state.loaded = true;
     } catch (error) { state.error = message(error); }
-    finally { state.pending = false; render(id); }
+    finally { state.pending = false; render(id); window.AIModels?.usageChanged(); }
   };
   new MutationObserver(records => {
     if (records.some(record => Array.from(record.addedNodes).some(node => node.nodeType === 1 &&

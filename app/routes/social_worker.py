@@ -8,6 +8,7 @@ from services.social_worker_ai_service import (
 from services.auth_service import select_role, current_role, role_redirect
 
 from services.health_analysis_service import build_input, analyze, summarize, MODEL, HealthAnalysisError
+from services.ai_service import resolve_model, AIError
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -718,23 +719,30 @@ def api_analyze_life_pattern(user_id):
     """기존 주소/analysis 응답을 유지하는 건강 종합 분석."""
     try:
         user, worker_id = _analysis_target(user_id)
+        body = request.get_json(silent=True)
+        if request.data and not isinstance(body, dict):
+            raise HealthAnalysisError('요청 형식을 확인해주세요.', 400)
+        if isinstance(body, dict) and 'model' in body and body['model'] is None:
+            raise HealthAnalysisError('모델을 선택해주세요.', 400)
+        model = resolve_model(body.get('model') if body else None)
         now = datetime.datetime.now()
         start = now - datetime.timedelta(days=30)
         health = HealthStatus.query.filter(HealthStatus.user_id == user_id, HealthStatus.recorded_at >= start, HealthStatus.recorded_at <= now).all()
         logins = LoginHistory.query.filter(LoginHistory.user_id == user_id, LoginHistory.auth_time >= start, LoginHistory.auth_time <= now).all()
         documents = db.session.query(CheckupDocument, CheckupResult).join(CheckupResult, CheckupResult.doc_id == CheckupDocument.doc_id).filter(CheckupDocument.user_id == user_id).all()
         snapshot = build_input(user, health, logins, documents, now)
-        result = analyze(snapshot)
+        db.session.rollback()
+        result = analyze(snapshot, model=model)
         # 응답 대기 중 담당자 또는 활성 상태가 바뀌면 저장하지 않는다.
         db.session.refresh(user)
         if user.worker_id != worker_id or not user.is_active:
             raise HealthAnalysisError('담당 대상자 정보가 변경되었습니다. 다시 확인해주세요.', 403)
-        record = HealthAnalysis(user_id=user_id, worker_id=worker_id, model=MODEL,
+        record = HealthAnalysis(user_id=user_id, worker_id=worker_id, model=model,
                                 input_snapshot=snapshot, result=result, summary=summarize(result))
         db.session.add(record)
         db.session.commit()
         return jsonify(success=True, **_health_analysis_json(record))
-    except HealthAnalysisError as error:
+    except (HealthAnalysisError, AIError) as error:
         db.session.rollback()
         return jsonify(success=False, message=str(error)), error.status
     except Exception:

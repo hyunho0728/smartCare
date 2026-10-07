@@ -13,6 +13,8 @@ from models.models import db, User, Worker, LoginHistory
 from routes.auth import auth_bp
 from routes.user import user_bp
 from routes.social_worker import worker_bp
+from routes.ai import ai_bp
+from routes.checkup import checkup_bp
 from services.auth_service import current_role, DESTINATIONS
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -20,9 +22,9 @@ ROOT = Path(__file__).resolve().parents[1]
 
 def build_test_app():
     app = Flask(__name__, template_folder=str(ROOT / 'app/templates'), static_folder=str(ROOT / 'app/static'))
-    app.config.update(TESTING=True, SECRET_KEY='test', SQLALCHEMY_DATABASE_URI='sqlite://')
+    app.config.update(TESTING=True, SECRET_KEY='test', SQLALCHEMY_DATABASE_URI='sqlite://', UPLOAD_FOLDER=str(ROOT / 'tests/fixtures/checkups'))
     db.init_app(app)
-    for blueprint in (auth_bp, user_bp, worker_bp): app.register_blueprint(blueprint)
+    for blueprint in (auth_bp, user_bp, worker_bp, ai_bp, checkup_bp): app.register_blueprint(blueprint)
     @app.get('/')
     def index(): return redirect(DESTINATIONS.get(current_role(), '/login'))
     return app

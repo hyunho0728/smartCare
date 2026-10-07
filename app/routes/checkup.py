@@ -10,6 +10,7 @@ from services.checkup_service import (
     summarize, validate_extraction,
 )
 from pydantic import ValidationError
+from services.ai_service import resolve_model, AIError
 
 checkup_bp = Blueprint('checkup', __name__)
 
@@ -47,6 +48,7 @@ def result_payload(record, user):
         'confirmed_at': record.confirmed_at.isoformat() if record.confirmed_at else None,
         'confirmed_by': record.confirmed_by,
         'identity_verified': record.identity_verified,
+        'extraction_model': record.extraction_model, 'confirmed_model': record.confirmed_model,
     }
 
 
@@ -59,11 +61,20 @@ def checkup_error(error):
 @checkup_bp.route('/api/admin/checkup/analyze/<int:doc_id>', methods=['POST'])
 def analyze_checkup(doc_id):
     doc, user, _ = owned_document(doc_id)
+    body = request.get_json(silent=True)
+    if request.data and not isinstance(body, dict):
+        raise CheckupError('요청 형식을 확인해주세요.', 400)
+    if isinstance(body, dict) and 'model' in body and body['model'] is None:
+        raise CheckupError('모델을 선택해주세요.', 400)
+    try:
+        model = resolve_model(body.get('model') if body else None, os.getenv('GEMINI_CHECKUP_MODEL', 'gemini-3.6-flash'))
+    except AIError as error:
+        raise CheckupError(str(error), error.status) from error
     # HTTP 대기 중 DB 트랜잭션을 열어두지 않는다.
     expected_worker = user.worker_id
     path = os.path.join(current_app.config['UPLOAD_FOLDER'], os.path.basename(doc.file_path))
     db.session.rollback()
-    extraction = extract_document(path)
+    extraction = extract_document(path, model=model)
     # 네트워크 호출 사이 담당자가 바뀌었을 경우 다시 검사한다.
     doc, user, _ = owned_document(doc_id)
     if user.worker_id != expected_worker:
@@ -77,6 +88,7 @@ def analyze_checkup(doc_id):
             record.extraction = extraction
             record.revision += 1
             record.analyzed_at = datetime.datetime.now()
+        record.extraction_model = model
         db.session.commit()
         payload = result_payload(record, user)
         payload['document_name'] = doc.original_name or '건강검진표'
@@ -147,6 +159,7 @@ def confirm_checkup(doc_id):
     record.confirmed_revision = record.revision
     record.confirmed_by = worker_id
     record.confirmed_at = datetime.datetime.now()
+    record.confirmed_model = record.extraction_model
     record.identity_verified = identity_verified
     try:
         db.session.commit()

@@ -50,7 +50,7 @@ class BrowserTests(unittest.TestCase):
         page = self.page; page.goto(self.url); page.get_by_text('Review', exact=True).click()
         page.wait_for_function("document.querySelector('[data-status]').textContent.includes('AI')")
         data = fixtures.result(); data['items'][0]['raw_text'] = '<script>window.injected=true</script>'
-        def extraction(_): time.sleep(1); return copy.deepcopy(data)
+        def extraction(_, model=None): time.sleep(1); return copy.deepcopy(data)
         with patch('routes.checkup.extract_document', side_effect=extraction) as mocked:
             page.locator('[data-analyze]').click()
             page.wait_for_function("document.querySelector('[data-analyze]').disabled")

@@ -113,6 +113,8 @@ class CheckupResult(db.Model):
     confirmed_at = db.Column(db.DateTime, nullable=True)
     confirmed_by = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id'), nullable=True)
     identity_verified = db.Column(db.Boolean, nullable=False, default=False)
+    extraction_model = db.Column(db.String(100), nullable=True)
+    confirmed_model = db.Column(db.String(100), nullable=True)
 
 
 # 8. 긴급 호출 알림 모델
@@ -126,6 +128,18 @@ class HealthAnalysis(db.Model):
     input_snapshot = db.Column(db.JSON, nullable=False)
     result = db.Column(db.JSON, nullable=False)
     summary = db.Column(db.Text, nullable=False)
+
+
+class AIUsage(db.Model):
+    __tablename__ = 'AI_USAGE'
+    usage_id = db.Column(db.BigInteger().with_variant(db.Integer, 'sqlite'), primary_key=True, autoincrement=True)
+    scope = db.Column(db.String(100), nullable=False, index=True)
+    model = db.Column(db.String(100), nullable=False, index=True)
+    feature = db.Column(db.String(30), nullable=False)
+    started_at = db.Column(db.DateTime, nullable=False, index=True)  # UTC
+    status = db.Column(db.String(20), nullable=False, default='pending')
+    input_tokens = db.Column(db.Integer, nullable=True)
+    error_code = db.Column(db.Integer, nullable=True)
 
 
 class EmergencyAlert(db.Model):

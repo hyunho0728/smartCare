@@ -4,6 +4,7 @@ import os
 import time
 from google import genai
 from sklearn.ensemble import IsolationForest
+from services.ai_service import generate_content, resolve_model, AIError
 
 
 class LifePatternAIError(Exception):
@@ -546,12 +547,11 @@ def analyze_life_pattern_with_gemini(user, health_history, login_history):
         "분석 데이터:\n" + "\n".join(pattern_lines)
     )
 
-    client = genai.Client(api_key=api_key, http_options={'timeout': 60000})
     max_retries = 3
     for attempt in range(max_retries):
         try:
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
+            response = generate_content(
+                model=resolve_model(), feature='legacy_life_pattern',
                 contents=[prompt]
             )
             if not response.text or not response.text.strip():
@@ -559,6 +559,8 @@ def analyze_life_pattern_with_gemini(user, health_history, login_history):
             return response.text
         except LifePatternAIError:
             raise
+        except AIError as e:
+            raise LifePatternAIError(str(e), e.status) from e
         except Exception as e:
             if "503" in str(e) and attempt < max_retries - 1:
                 time.sleep(2)

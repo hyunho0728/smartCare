@@ -7,6 +7,7 @@
   dialog.innerHTML = `
     <header><h2>건강검진표 판독·확인</h2><button type="button" data-close>닫기</button></header>
     <p data-status role="status" aria-live="polite"></p>
+    <div data-model-control></div><p data-model-used></p>
     <div class="checkup-review-grid"><section data-original></section><section>
       <button type="button" data-analyze>AI 분석 / 다시 분석</button>
       <div data-editor hidden>
@@ -24,6 +25,7 @@
     </section></div>`;
   document.body.append(dialog);
   const find = attr => dialog.querySelector(`[data-${attr}]`);
+  window.AIModels?.mount(find('model-control'));
   const status = text => {
     const target = find('status'); target.replaceChildren();
     if (dialog.getAttribute('aria-busy') === 'true') {
@@ -56,6 +58,7 @@
   function render(state, result) {
     if (active !== state) return;
     state.result = result;
+    find('model-used').textContent = `판독 모델: ${result.extraction_model || '기록 없음'} · 확정 당시 모델: ${result.confirmed_model || '기록 없음'}`;
     find('editor').hidden = !result.extraction;
     find('metadata').replaceChildren(); find('items').replaceChildren();
     find('issues').replaceChildren(); find('confirmed').replaceChildren();
@@ -116,6 +119,7 @@
       return;
     }
     const state = {docId, result: null}; active = state;
+    find('model-used').textContent = '';
     find('editor').hidden = true; find('confirmed').replaceChildren(); find('original').replaceChildren();
     const originalUrl = `/api/admin/checkup/${docId}/original`;
     const frame = document.createElement('iframe'); frame.src = originalUrl; frame.title = '건강검진표 원본';
@@ -132,12 +136,16 @@
   async function analyze() {
     const state = active;
     if (!state || pending.has(state.docId)) return;
-    pending.add(state.docId); busy(true); status('AI 분석 중... 완료까지 시간이 걸릴 수 있습니다.');
+    let model;
+    try { model = window.AIModels ? await window.AIModels.getModel() : 'gemini-3.6-flash'; }
+    catch (error) { status(error.message); return; }
+    if (active !== state || pending.has(state.docId)) return;
+    pending.add(state.docId); busy(true); status(`AI 분석 중... ${window.AIModels?.label(model) || model} · 완료까지 시간이 걸릴 수 있습니다.`);
     try {
-      const result = await api(`/api/admin/checkup/analyze/${state.docId}`, {method: 'POST'});
+      const result = await api(`/api/admin/checkup/analyze/${state.docId}`, {method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({model})});
       render(state, result);
     } catch (error) { if (active === state) status(`${error.message} 기존 저장 결과는 유지됩니다.`); }
-    finally { pending.delete(state.docId); if (active === state) busy(false); }
+    finally { pending.delete(state.docId); if (active === state) busy(false); window.AIModels?.usageChanged(); }
   }
   async function confirm() {
     const state = active;

@@ -5,6 +5,7 @@ import os
 import re
 from google import genai
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
+from services.ai_service import generate_content, resolve_model, AIError
 
 MODEL = 'gemini-3.6-flash'
 
@@ -205,7 +206,7 @@ def build_input(user, health_history, login_history, documents, now=None):
             'documents': selected, 'sources': sources, 'limitations': list(dict.fromkeys(warnings))}
 
 
-def analyze(snapshot):
+def analyze(snapshot, model=None):
     api_key = os.getenv('GEMINI_API_KEY')
     if not api_key:
         raise HealthAnalysisError('Gemini API 키가 설정되지 않았습니다. 설정을 확인해주세요.', 503)
@@ -222,8 +223,7 @@ def analyze(snapshot):
               '권장 행동은 안부·기록·원본 확인 또는 의료진 상담 확인에 한정하세요. 한국어로 응답하세요.\n'
               + json.dumps(payload, ensure_ascii=False))
     try:
-        client = genai.Client(api_key=api_key, http_options={'timeout': 60000})
-        response = client.models.generate_content(model=MODEL, contents=[prompt],
+        response = generate_content(model=resolve_model(model), feature='health_analysis', contents=[prompt],
             config={'response_mime_type': 'application/json', 'response_schema': Report})
         if not response.text or not response.text.strip():
             raise HealthAnalysisError('AI 분석 결과가 비어 있습니다. 다시 시도해주세요.')
@@ -237,11 +237,15 @@ def analyze(snapshot):
         return result
     except HealthAnalysisError:
         raise
+    except AIError as error:
+        raise HealthAnalysisError(str(error), error.status) from error
     except (ValidationError, ValueError) as error:
         raise HealthAnalysisError('AI 분석 결과 JSON 형식이 올바르지 않습니다. 다시 시도해주세요.') from error
     except Exception as error:
         if getattr(error, 'code', None) == 429:
             raise HealthAnalysisError('AI 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.', 429) from error
+        if getattr(error, 'code', None) in (400, 401, 403, 404):
+            raise HealthAnalysisError('선택한 AI 모델을 사용할 수 없습니다. 모델·API 키·사용 권한을 확인해주세요.', 503) from error
         raise HealthAnalysisError('AI 건강 종합 분석에 실패했습니다. 잠시 후 다시 시도해주세요.') from error
 
 

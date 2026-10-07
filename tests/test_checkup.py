@@ -31,6 +31,11 @@ def result(name='가상김어르신'):
 
 
 class DocumentTests(unittest.TestCase):
+    def setUp(self):
+        for target in ('record_attempt', 'finish_attempt'):
+            mock = patch('services.ai_service.' + target, return_value=1); mock.start(); self.addCleanup(mock.stop)
+        mock = patch('services.ai_service.time.sleep'); mock.start(); self.addCleanup(mock.stop)
+
     def image(self, fmt='JPEG', exif=None):
         output = io.BytesIO()
         options = {'exif': exif} if exif else {}

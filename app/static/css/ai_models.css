@@ -1,0 +1,15 @@
+#ai-model-settings { width: min(940px, 96vw); max-height: 90dvh; overflow: auto; border: 1px solid #cbd5e1; border-radius: 18px; padding: 24px; color: #172033; }
+#ai-model-settings::backdrop { background: #0008; }
+#ai-model-settings header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#ai-model-settings h2 { font-size: 20px; }
+#ai-model-settings p, #ai-model-settings label { display: block; margin: 12px 0; line-height: 1.6; overflow-wrap: anywhere; }
+#ai-model-settings button, #ai-model-settings select, .ai-model-control button { min-height: 44px; padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 8px; background: white; color: #172033; font: inherit; }
+#ai-model-settings select { max-width: 100%; }
+#ai-model-settings [data-ai-usage] { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 14px; margin-top: 14px; }
+.ai-usage-card { border: 1px solid #dbeafe; border-radius: 12px; padding: 16px; background: #f8fafc; }
+.ai-usage-card h3 { font-size: 17px; }
+.ai-usage-card progress { display: block; width: 100%; height: 10px; accent-color: #2563eb; }
+.ai-usage-notice { background: #eff6ff; padding: 12px; border-radius: 8px; }
+.ai-usage-exceeded, #ai-model-settings [data-ai-error] { color: #b91c1c; }
+.ai-model-control { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 12px 0; font-size: 13px; }
+@media(max-width:768px) { #ai-model-settings { padding: 16px; } #ai-model-settings [data-ai-usage] { grid-template-columns: 1fr; } #dashboard .tools { flex-wrap: wrap; } }
