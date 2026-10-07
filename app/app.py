@@ -18,11 +18,14 @@ from routes.auth import auth_bp
 from routes.ai import ai_bp
 from services.ai_service import ensure_checkup_model_columns
 from services.auth_service import current_role, DESTINATIONS
+from services.status_alert_service import register_runner, start_local_runner
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
 
 app = Flask(__name__)
+app.config['STATUS_ALERT_AUTO_START'] = os.getenv('STATUS_ALERT_AUTO_START', '1') != '0'
+register_runner(app)
 app.secret_key = "smartcare-secret-key-replace-with-env"
 
 # ==========================================
@@ -185,5 +188,7 @@ def start_localtunnel():
             print(f"Localtunnel 실행 실패: {e}")
 
 if __name__ == '__main__':
+    if os.environ.get('WERKZEUG_RUN_MAIN') == 'true':
+        start_local_runner(app)
     threading.Thread(target=start_localtunnel, daemon=True).start()
     app.run(host='0.0.0.0', port=5000, debug=True)

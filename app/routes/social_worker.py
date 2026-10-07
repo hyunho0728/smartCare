@@ -1,7 +1,10 @@
 import os
 import datetime
+from sqlalchemy import update
 from flask import Blueprint, render_template, request, jsonify, session, current_app
 from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument, CheckupResult, HealthAnalysis, EmergencyAlert
+from models.models import StatusAlert, StatusAlertState
+from services.status_alert_service import reset_baseline, check_user_safely
 from services.social_worker_ai_service import (
     evaluate_and_record_risk,
     calculate_risk,
@@ -455,8 +458,14 @@ def api_assign_elder():
         return jsonify({"success": False, "message": "대상자를 찾을 수 없습니다."}), 404
 
     try:
+        changed_worker = user.worker_id != current_worker_id
         user.worker_id = current_worker_id
+        db.session.flush()
+        if changed_worker:
+            reset_baseline(user.user_id)
         db.session.commit()
+        if changed_worker:
+            check_user_safely(user.user_id)
         return jsonify({"success": True, "message": f"'{user.name}' 어르신이 배정되었습니다."})
     except Exception as e:
         db.session.rollback()
@@ -627,6 +636,8 @@ def api_admin_delete_elder(user_id):
         user.is_active = False
         user.worker_id = None
         user.session_token = None
+        db.session.flush()
+        reset_baseline(user.user_id)
         db.session.commit()
         return jsonify({"success": True, "message": f"'{user.name}' 어르신이 삭제되었습니다."})
     except Exception as e:
@@ -697,6 +708,94 @@ def api_delete_checkup(doc_id):
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"삭제 실패: {str(e)}"}), 500
+
+def _status_alert_query():
+    if current_role() != 'worker':
+        raise HealthAnalysisError('사회복지사 로그인이 필요합니다.', 401)
+    worker = Worker.query.filter_by(login_id=session['admin_id']).first()
+    return StatusAlert.query.join(User, User.user_id == StatusAlert.user_id).filter(
+        StatusAlert.worker_id == worker.worker_id, User.worker_id == worker.worker_id,
+        User.is_active.is_(True))
+
+
+def _status_alert_json(alert, detail=False):
+    user = db.session.get(User, alert.user_id)
+    snapshot = alert.snapshot
+    previous, current = snapshot['previous']['status'], snapshot['current']['status']
+    result = {'alert_id': alert.alert_id, 'user_id': alert.user_id, 'user_name': user.name,
+        'detected_at': alert.detected_at.isoformat(), 'is_read': alert.is_read,
+        'read_at': alert.read_at.isoformat() if alert.read_at else None,
+        'previous_status': previous, 'current_status': current,
+        'score_difference': current['score'] - previous['score'], 'changes': snapshot['changes']}
+    if detail:
+        result['snapshot'] = snapshot
+    return result
+
+
+@worker_bp.route('/api/admin/status-alerts', methods=['GET'])
+def api_status_alerts():
+    try:
+        query = _status_alert_query()
+        unread = query.filter(StatusAlert.is_read.is_(False)).count()
+        unread_alerts = query.filter(StatusAlert.is_read.is_(False)).order_by(
+            StatusAlert.detected_at.desc(), StatusAlert.alert_id.desc()).limit(100).all()
+        if request.args.get('unread_only', '').lower() in ('1', 'true', 'yes'):
+            query = query.filter(StatusAlert.is_read.is_(False))
+        alerts = query.order_by(StatusAlert.detected_at.desc(), StatusAlert.alert_id.desc()).limit(100).all()
+        runner = db.session.get(StatusAlertState, 'background')
+        return jsonify(success=True, data=[_status_alert_json(a) for a in alerts],
+            unread_data=[_status_alert_json(a) for a in unread_alerts], unread_count=unread,
+            last_background_success_at=(runner.snapshot or {}).get('last_success_at') if runner else None,
+            queried_at=datetime.datetime.now().isoformat())
+    except HealthAnalysisError as exc:
+        return jsonify(success=False, message=str(exc)), exc.status
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('상태 변화 알림 조회 실패')
+        return jsonify(success=False, message='상태 변화 알림을 조회하지 못했습니다.'), 500
+
+
+@worker_bp.route('/api/admin/status-alerts/<int:alert_id>', methods=['GET'])
+def api_status_alert_detail(alert_id):
+    try:
+        alert = _status_alert_query().filter(StatusAlert.alert_id == alert_id).first()
+        if not alert:
+            return jsonify(success=False, message='알림을 찾을 수 없거나 현재 담당 대상자가 아닙니다.'), 404
+        return jsonify(success=True, data=_status_alert_json(alert, detail=True))
+    except HealthAnalysisError as exc:
+        return jsonify(success=False, message=str(exc)), exc.status
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('상태 변화 알림 상세 조회 실패')
+        return jsonify(success=False, message='알림 상세를 조회하지 못했습니다.'), 500
+
+
+@worker_bp.route('/api/admin/status-alerts/<int:alert_id>/read', methods=['POST'])
+def api_status_alert_read(alert_id):
+    try:
+        alert = _status_alert_query().filter(StatusAlert.alert_id == alert_id).first()
+        if not alert:
+            return jsonify(success=False, message='알림을 찾을 수 없거나 현재 담당 대상자가 아닙니다.'), 404
+        owned = db.session.execute(update(User).where(User.user_id == alert.user_id,
+            User.worker_id == alert.worker_id, User.is_active.is_(True)).values(
+                worker_id=User.worker_id, updated_at=User.updated_at))
+        if not owned.rowcount:
+            db.session.rollback()
+            return jsonify(success=False, message='현재 담당 대상자가 아닙니다.'), 404
+        db.session.refresh(alert)
+        if not alert.is_read:
+            alert.is_read = True
+            alert.read_at = datetime.datetime.now()
+            db.session.commit()
+        return jsonify(success=True, data=_status_alert_json(alert),
+            unread_count=_status_alert_query().filter(StatusAlert.is_read.is_(False)).count())
+    except HealthAnalysisError as exc:
+        return jsonify(success=False, message=str(exc)), exc.status
+    except Exception:
+        db.session.rollback()
+        current_app.logger.exception('상태 변화 알림 읽음 처리 실패')
+        return jsonify(success=False, message='읽음 처리에 실패했습니다. 다시 시도해주세요.'), 500
+
 
 def _analysis_target(user_id):
     if current_role() != 'worker':

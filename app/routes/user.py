@@ -8,6 +8,7 @@ from models.models import db, User, HealthStatus, LoginHistory, RiskAnalysis, Ch
 from services.social_worker_ai_service import evaluate_and_record_risk
 from services.checkup_service import prepare_document, CheckupError, MAX_BYTES
 from services.auth_service import select_role, current_role, role_redirect
+from services.status_alert_service import check_user_safely, reset_baseline
 
 user_bp = Blueprint('user', __name__)
 
@@ -194,6 +195,8 @@ def api_user_register():
             existing_user.note = disease_note
             existing_user.is_active = True
             existing_user.worker_id = None
+            db.session.flush()
+            reset_baseline(existing_user.user_id)
             db.session.commit()
             return jsonify({"success": True, "message": "회원가입이 완료되었습니다."})
 
@@ -286,6 +289,7 @@ def api_record_health():
         login_history = LoginHistory.query.filter_by(user_id=user_id)\
             .order_by(LoginHistory.auth_time.desc()).all()
 
+        check_user_safely(user_id)
         eval_res = evaluate_and_record_risk(user, health_history, login_history, db.session, RiskAnalysis)
 
         msg = "상태가 수정(UPDATE)되었습니다." if is_update else "상태가 성공적으로 저장(INSERT)되었습니다."

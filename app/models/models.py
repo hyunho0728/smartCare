@@ -3,6 +3,28 @@ from datetime import datetime
 
 db = SQLAlchemy()
 
+
+class StatusAlertState(db.Model):
+    __tablename__ = 'STATUS_ALERT_STATE'
+    state_key = db.Column(db.String(50), primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), unique=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id', ondelete='SET NULL'))
+    version = db.Column(db.Integer, nullable=False, default=1)
+    snapshot = db.Column(db.JSON)
+    checked_at = db.Column(db.DateTime, nullable=False, default=datetime.now)
+
+
+class StatusAlert(db.Model):
+    __tablename__ = 'STATUS_ALERT'
+    alert_id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    event_key = db.Column(db.String(100), nullable=False, unique=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('USER.user_id', ondelete='CASCADE'), nullable=False, index=True)
+    worker_id = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id', ondelete='CASCADE'), nullable=False, index=True)
+    snapshot = db.Column(db.JSON, nullable=False)
+    detected_at = db.Column(db.DateTime, nullable=False, index=True)
+    is_read = db.Column(db.Boolean, nullable=False, default=False)
+    read_at = db.Column(db.DateTime)
+
 # 1. 사회복지사 모델
 class Worker(db.Model):
     __tablename__ = 'SOCIAL_WORKER'

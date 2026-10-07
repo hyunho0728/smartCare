@@ -544,6 +544,13 @@
           </div>
 
           <aside>
+            <div class="panel status-alert-panel">
+              <div class="panel-head"><h3>최근 상태 변화 <span data-status-alert-count aria-label="미읽음 알림 수">0</span></h3></div>
+              <p class="status-alert-meta" data-status-alert-query></p>
+              <p class="status-alert-error" data-status-alert-error role="status"></p>
+              <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
+              <div data-status-alert-dashboard></div>
+            </div>
             <div class="panel">
               <div class="panel-head"><h3>최근 긴급호출 알림</h3></div>
               <div class="alert-list" id="alert-list"><p style="padding:15px;color:var(--muted);font-size:13px;">새로운 알림이 없습니다.</p></div>
@@ -638,10 +645,17 @@
             class="alert-tab-content active"
             id="recent-alert-content">
 
+            <h4>미읽음 상태 변화 알림</h4>
+            <p class="status-alert-meta" data-status-alert-query></p>
+            <p class="status-alert-error" data-status-alert-error role="status"></p>
+            <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
+            <div data-status-alert-recent></div>
+            <h4>현재 대상자 상태 · 상태 변화 알림과 별도</h4>
+
             <table class="table">
               <thead>
                 <tr>
-                  <th>발생 일시</th>
+                  <th>분석 기준 시각</th>
                   <th>대상자</th>
                   <th>연락처</th>
                   <th>위험 단계</th>
@@ -650,7 +664,7 @@
                 </tr>
               </thead>
 
-              <tbody id="alerts-record-tbody"></tbody>
+              <tbody id="current-status-tbody"></tbody>
             </table>
           </div>
 
@@ -688,28 +702,11 @@
             class="alert-tab-content"
             id="history-alert-content">
 
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>발생 일시</th>
-                  <th>대상자</th>
-                  <th>연락처</th>
-                  <th>위험 단계</th>
-                  <th>권장 조치</th>
-                  <th>조치</th>
-                </tr>
-              </thead>
-
-              <tbody id="alerts-history-tbody">
-                <tr>
-                  <td
-                    colspan="6"
-                    style="text-align:center;padding:30px;color:var(--muted);">
-                    저장된 알림 기록이 없습니다.
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+            <p class="status-alert-meta" data-status-alert-query></p>
+            <p class="status-alert-error" data-status-alert-error role="status"></p>
+            <button type="button" class="mini-btn" data-status-alert-refresh>알림 새로고침</button>
+            <p class="status-alert-meta">최근 100개 상태 변화 알림을 표시합니다.</p>
+            <div data-status-alert-history></div>
           </div>
 
           <!-- 조치 기록 -->
@@ -1503,7 +1500,7 @@ function renderOtherSections() {
     }
   }
 
-  const alertsTbody = document.getElementById('alerts-record-tbody');
+  const alertsTbody = document.getElementById('current-status-tbody');
   const alertsHistoryTbody = document.getElementById('alerts-history-tbody');
   if (alertsTbody) {
     const recentAlertList = users.filter(u => ['safe', 'watch', 'warn', 'danger'].includes(u.risk));
@@ -2348,5 +2345,7 @@ function setCheckupAnalysisText(targetEl, text) {
 <script src="{{ url_for('static', filename='js/health_trends.js') }}"></script>
 <script src="{{ url_for('static', filename='js/life_pattern_feedback.js') }}"></script>
 <script src="{{ url_for('static', filename='js/admin_responsive.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/status_alerts.css') }}">
+<script src="{{ url_for('static', filename='js/status_alerts.js') }}"></script>
 </body>
 </html>
