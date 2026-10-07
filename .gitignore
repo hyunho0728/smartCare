@@ -61,6 +61,22 @@ venv.bak/
 app/static/uploads/
 **/uploads/
 
+# 이미지 및 PDF는 로컬에 보관하고 Git 업로드에서 제외 (대소문자 모두)
+*.[pP][nN][gG]
+*.[jJ][pP][gG]
+*.[jJ][pP][eE][gG]
+*.[wW][eE][bB][pP]
+*.[gG][iI][fF]
+*.[bB][mM][pP]
+*.[aA][vV][iI][fF]
+*.[hH][eE][iI][cC]
+*.[hH][eE][iI][fF]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[sS][vV][gG]
+*.[iI][cC][oO]
+*.[pP][dD][fF]
+
 # ==========================================
 # IDE & 에디터 (VS Code, JetBrains, etc.)
 # ==========================================
