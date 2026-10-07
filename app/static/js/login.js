@@ -9,6 +9,14 @@
   const submit = document.getElementById('login-submit');
   const register = document.getElementById('register-link');
   let pending = false;
+  function formatPhone() {
+    const digits = phone.value.replace(/\D/g, '').slice(0, 11);
+    phone.value = digits.length > 7
+      ? `${digits.slice(0, 3)}-${digits.slice(3, 7)}-${digits.slice(7)}`
+      : digits.length > 3 ? `${digits.slice(0, 3)}-${digits.slice(3)}` : digits;
+  }
+  phone.addEventListener('input', formatPhone);
+  phone.addEventListener('change', formatPhone);
   function configure() {
     const worker = role.checked;
     document.getElementById('user-fields').hidden = worker;
@@ -27,6 +35,7 @@
   form.addEventListener('submit', async event => {
     event.preventDefault(); if (pending) return;
     const worker = role.checked;
+    if (!worker) formatPhone();
     const payload = worker ? {admin_id: id.value.trim(), password: password.value} : {phone_number: phone.value.trim()};
     if (!worker && phone.value.replace(/\D/g, '').length < 9) {
       error.textContent = '전화번호를 올바르게 입력해주세요.'; return;
