@@ -36,7 +36,9 @@ def health(days=1):
 def report(ref='s1'):
     return {'summary': '생활 기록과 검진·등록 정보를 함께 확인하세요.',
             'findings': [{'title': '근거 확인', 'detail': '원본과 기록을 확인하세요.', 'source_refs': [ref]}],
-            'recommended_actions': ['안부와 기록을 확인하세요.'], 'limitations': ['진단이 아닌 확인 보조입니다.']}
+            'recommended_actions': ['안부와 기록을 확인하세요.'], 'limitations': ['진단이 아닌 확인 보조입니다.'],
+            'priority_actions': [{'action': '연락 확인', 'reason': '기록과 안부 확인이 필요합니다.',
+                                  'source_refs': [ref], 'priority': '우선 확인'}]}
 
 
 class InputTests(unittest.TestCase):

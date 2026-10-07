@@ -3,6 +3,7 @@ import datetime as dt
 import json
 import os
 import re
+from typing import Literal
 from google import genai
 from google.genai import types
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -24,12 +25,21 @@ class Finding(BaseModel):
     source_refs: list[str] = Field(min_length=1, max_length=20)
 
 
+class PriorityAction(BaseModel):
+    model_config = ConfigDict(extra='forbid')
+    action: Literal['연락 확인', '생활·측정 기록 확인', '검진 원본 확인', '기존 의료 상담 여부 확인']
+    reason: str = Field(min_length=1, max_length=1500)
+    source_refs: list[str] = Field(min_length=1, max_length=20)
+    priority: Literal['우선 확인', '일반 확인']
+
+
 class Report(BaseModel):
     model_config = ConfigDict(extra='forbid')
     summary: str = Field(min_length=1, max_length=2000)
     findings: list[Finding] = Field(max_length=12)
     recommended_actions: list[str] = Field(max_length=8)
     limitations: list[str] = Field(max_length=12)
+    priority_actions: list[PriorityAction] = Field(min_length=1, max_length=8)
 
 
 def provider_schema():
@@ -42,10 +52,16 @@ def provider_schema():
     finding = types.Schema(type='OBJECT', properties={
         'title': string(), 'detail': string(), 'source_refs': strings(),
     }, required=['title', 'detail', 'source_refs'])
+    action = types.Schema(type='OBJECT', properties={
+        'action': types.Schema(type='STRING', enum=['연락 확인', '생활·측정 기록 확인', '검진 원본 확인', '기존 의료 상담 여부 확인']),
+        'reason': string(), 'source_refs': strings(),
+        'priority': types.Schema(type='STRING', enum=['우선 확인', '일반 확인']),
+    }, required=['action', 'reason', 'source_refs', 'priority'])
     return types.Schema(type='OBJECT', properties={
         'summary': string(), 'findings': types.Schema(type='ARRAY', items=finding),
         'recommended_actions': strings(), 'limitations': strings(),
-    }, required=['summary', 'findings', 'recommended_actions', 'limitations'])
+        'priority_actions': types.Schema(type='ARRAY', items=action),
+    }, required=['summary', 'findings', 'recommended_actions', 'limitations', 'priority_actions'])
 
 
 # 값/단위/참고범위도 허용된 문자만 전달해 OCR 자유 문자열의 개인정보 유출을 막는다.
@@ -155,13 +171,14 @@ def build_input(user, health_history, login_history, documents, now=None):
 
     health = [r for r in health_history if r.recorded_at and start <= r.recorded_at <= now]
     logins = [r for r in login_history if r.auth_time and start <= r.auth_time <= now]
-    for row in sorted(health, key=lambda r: r.recorded_at):
+    for row in sorted(health, key=lambda r: (r.recorded_at, getattr(r, 'status_id', 0) or 0)):
         data = {'recorded_at': row.recorded_at.isoformat(), 'period': '최근7일' if row.recorded_at >= now - dt.timedelta(days=7) else '이전23일',
                 'condition_level': row.condition_level,
                 'meals': {meal: getattr(row, meal + '_status') if getattr(row, meal + '_status') in ('완료', '예정', '결식') else None
                           for meal in ('breakfast', 'lunch', 'dinner')},
                 'blood_pressure': safe_measurement(row.blood_pressure), 'blood_sugar': row.blood_sugar}
-        add('생활기록', data)
+        add('생활기록', data, record_id=getattr(row, 'status_id', None),
+            record_date=(getattr(row, 'target_date', None) or row.recorded_at.date()).isoformat())
     if logins:
         add('접속기록', {'recent_7d_count': sum(r.auth_time >= now - dt.timedelta(days=7) for r in logins),
                        'previous_23d_count': sum(r.auth_time < now - dt.timedelta(days=7) for r in logins),
@@ -238,6 +255,11 @@ def analyze(snapshot, model=None):
               '검진일과 생활 기록일이 다름에 유의하고, 누락·오래된 기록·상충 값을 정상으로 가정하지 마세요. '
               '단위나 참고범위가 없으면 정상/이상을 확정하지 마세요. 모든 확인 사항에는 제공된 source ref를 연결하세요. '
               '권장 행동은 안부·기록·원본 확인 또는 의료진 상담 확인에 한정하세요. 한국어로 응답하세요.\n'
+              '서버가 제공한 시스템점수와 변화값을 사용하며 점수 산정 근거와 건강 확인 근거를 구분하세요. '
+              '최근7일/이전23일은 기간과 표본 수가 다릅니다. 숫자 증감을 호전·악화로 단정하지 마세요. '
+              '같은 자료로 재분석했다면 새 건강 변화로 표현하지 마세요. '
+              'priority_actions에는 행동, 이유, source_refs, 우선 확인/일반 확인 순서를 넣으세요. '
+              '이 순서는 위험등급이 아닙니다. recommended_actions도 동일한 확인 행동만 설명하세요.\n'
               + json.dumps(payload, ensure_ascii=False))
     try:
         response = generate_content(model=resolve_model(model), feature='health_analysis', contents=[prompt],
@@ -247,10 +269,13 @@ def analyze(snapshot, model=None):
             raise HealthAnalysisError('AI 분석 결과가 비어 있습니다. 다시 시도해주세요.')
         result = Report.model_validate_json(response.text).model_dump()
         valid_refs = {s['ref'] for s in snapshot['sources']}
-        if any(not set(f['source_refs']).issubset(valid_refs) for f in result['findings']):
+        if any(not set(f['source_refs']).issubset(valid_refs) for f in result['findings'] + result['priority_actions']):
             raise HealthAnalysisError('AI가 존재하지 않는 근거를 반환했습니다. 다시 분석해주세요.')
         if not result['summary'].strip() or any(not x.strip() for x in result['recommended_actions'] + result['limitations']):
             raise HealthAnalysisError('AI 분석 결과 형식이 올바르지 않습니다. 다시 시도해주세요.')
+        if any(not f['title'].strip() or not f['detail'].strip() for f in result['findings']) or any(not a['reason'].strip() for a in result['priority_actions']):
+            raise HealthAnalysisError('AI 확인 사항 또는 행동의 설명이 비어 있습니다.')
+        result['priority_actions'].sort(key=lambda action: action['priority'] != '우선 확인')
         result['limitations'] = list(dict.fromkeys(snapshot['limitations'] + result['limitations']))
         return result
     except HealthAnalysisError:
@@ -273,5 +298,6 @@ def summarize(result):
     lines = [result['summary']]
     lines += [f"확인 사항: {f['title']} — {f['detail']}" for f in result['findings']]
     lines += [f'권장 확인: {x}' for x in result['recommended_actions']]
+    lines += [f"{a['priority']}: {a['action']} — {a['reason']}" for a in result.get('priority_actions', [])]
     lines += [f'판단 한계: {x}' for x in result['limitations']]
     return '\n'.join(lines)

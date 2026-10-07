@@ -1335,6 +1335,7 @@ function updateLifePatternAnalysis(index){
   aiList.innerHTML = `
     <div class="analysis-box ${u.risk === 'danger' ? 'danger' : ''}">
       <h4>${u.name} 어르신 시스템 생활패턴 지표</h4>
+      <p class="health-analysis-meta">현재 목록 상태: ${r[0]} · ${u.score}점 · 기준 시각 ${u.status_as_of ? u.status_as_of.replace('T', ' ').slice(0, 19) : '기록 없음'} · 점수는 높을수록 안전합니다.</p>
       <div class="analysis-actions-v2">
         <span class="badge ${r[1]}">우선도: ${r[0]}</span>
       </div>
@@ -1347,7 +1348,7 @@ function updateLifePatternAnalysis(index){
         <b>AI 건강 종합 분석</b>
         AI 분석 버튼을 누르면 개인정보를 제외한 확정 검진·생활 기록·등록 질환의 종합 결과가 표시됩니다.
       </div>
-      <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목과 정규화된 등록 질환을 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않습니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+      <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목, 정규화된 등록 질환, 시스템 점수와 서버가 계산한 변화 자료를 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않습니다. AI 분석은 복지사 판단을 보조하는 참고 자료이며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
       <div class="ai-actions-v2" style="margin-top:10px;">
         <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
       </div>
@@ -1957,7 +1958,8 @@ function renderTable(){
                   <b>AI 건강 종합 분석</b>
                   AI 분석 버튼을 누르면 개인정보를 제외한 확정 검진·생활 기록·등록 질환의 종합 결과가 표시됩니다.
                 </div>
-                <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목과 정규화된 등록 질환을 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않으며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
+                <p class="health-analysis-meta">현재 목록 상태: ${r[0]} · ${u.score}점 · 기준 시각 ${u.status_as_of ? u.status_as_of.replace('T', ' ').slice(0, 19) : '기록 없음'} · 점수는 높을수록 안전합니다.</p>
+                <p class="ai-notice-v2">외부 AI에는 최근 30일 생활·접속 기록, 확정 검진 항목, 정규화된 등록 질환, 시스템 점수와 서버가 계산한 변화 자료를 전송합니다. 이름·전화번호·주소·기관명·원문·자유 메모는 전송하지 않으며, 긴급 조치 여부는 복지사가 최종 확인합니다.</p>
                 <div class="ai-actions-v2">
                   <button class="mini-btn" data-life-ai-button-id="${u.id}" onclick="analyzeLifePatternAI(${u.id}, '${u.name}')">AI 분석</button>
                   <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">연락처 복사</button>

@@ -160,9 +160,9 @@ def _result_from_analysis(record, score_breakdown=None, confidence=None, evidenc
     }
 
 
-def calculate_risk(user, health_history, login_history):
+def calculate_risk(user, health_history, login_history, now=None):
     """위험 점수, 분석 근거, 신뢰도를 계산합니다. DB 저장은 하지 않습니다."""
-    now = datetime.datetime.now()
+    now = now or datetime.datetime.now()
     latest_health = health_history[0] if health_history else None
     latest_recorded_at = latest_health.recorded_at if latest_health and latest_health.recorded_at else None
     elapsed_days = None

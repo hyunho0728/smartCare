@@ -70,3 +70,7 @@
 .health-analysis-meta, .health-analysis-source { color: #475569; font-size: 13px; }
 .health-analysis-finding { border-left: 3px solid #93c5fd; margin-top: 10px; padding: 8px 12px; background: #eff6ff; }
 .health-analysis-source button { display: block; margin-top: 6px; min-height: 44px; white-space: normal; }
+.health-status-card, .health-comparison-card, .health-priority-card { margin: 10px 0; padding: 12px; border: 1px solid #dbe7f6; border-radius: 12px; max-width: 100%; min-width: 0; }
+.health-status-card { background: #f8fafc; }
+.health-priority-card { border-left: 4px solid #2563eb; }
+.health-reanalysis-note { padding: 12px; background: #fff7ed; border: 1px solid #fed7aa; border-radius: 12px; }

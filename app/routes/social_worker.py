@@ -4,11 +4,13 @@ from flask import Blueprint, render_template, request, jsonify, session, current
 from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument, CheckupResult, HealthAnalysis, EmergencyAlert
 from services.social_worker_ai_service import (
     evaluate_and_record_risk,
+    calculate_risk,
 )
 from services.auth_service import select_role, current_role, role_redirect
 
 from services.health_analysis_service import build_input, analyze, summarize, MODEL, HealthAnalysisError
 from services.ai_service import resolve_model, AIError
+from services.health_comparison_service import system_status, enrich_snapshot, material_signature
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -294,6 +296,7 @@ def api_get_elders():
             "pattern_insights": pattern_insights,
             "risk": risk_level,
             "alert_time": latest_risk.analyzed_at.strftime("%Y-%m-%d %H:%M") if latest_risk and latest_risk.analyzed_at else "-",
+            "status_as_of": latest_risk.analyzed_at.isoformat() if latest_risk and latest_risk.analyzed_at else None,
             "last": display_last_time,
             "lastInput": last_input_str,
             "created_at": u.created_at.strftime("%Y-%m-%d") if u.created_at else "-",
@@ -706,12 +709,23 @@ def _analysis_target(user_id):
     return user, worker.worker_id
 
 
-def _health_analysis_json(record):
+def _health_analysis_json(record, current_snapshot=None):
     if not record:
         return None
-    return {'analysis_id': record.analysis_id, 'analyzed_at': record.analyzed_at.isoformat(),
+    data = {'analysis_id': record.analysis_id, 'analyzed_at': record.analyzed_at.isoformat(),
             'model': record.model, 'analysis': record.summary, 'result': record.result,
             'input_snapshot': record.input_snapshot}
+    if current_snapshot is not None:
+        data['needs_reanalysis'] = material_signature(record.input_snapshot) != material_signature(current_snapshot)
+    return data
+
+
+def _health_context(user, now):
+    # 기존 점수 계산은 전체 이력을 사용한다. 외부 전송은 build_input의 최근 30일로 제한한다.
+    health = HealthStatus.query.filter(HealthStatus.user_id == user.user_id, HealthStatus.recorded_at <= now).order_by(HealthStatus.recorded_at.desc(), HealthStatus.status_id.desc()).all()
+    logins = LoginHistory.query.filter(LoginHistory.user_id == user.user_id, LoginHistory.auth_time <= now).order_by(LoginHistory.auth_time.desc(), LoginHistory.history_id.desc()).all()
+    documents = db.session.query(CheckupDocument, CheckupResult).join(CheckupResult, CheckupResult.doc_id == CheckupDocument.doc_id).filter(CheckupDocument.user_id == user.user_id).all()
+    return health, logins, documents
 
 
 @worker_bp.route('/api/admin/elders/<int:user_id>/life-pattern-ai', methods=['POST'])
@@ -726,11 +740,11 @@ def api_analyze_life_pattern(user_id):
             raise HealthAnalysisError('모델을 선택해주세요.', 400)
         model = resolve_model(body.get('model') if body else None)
         now = datetime.datetime.now()
-        start = now - datetime.timedelta(days=30)
-        health = HealthStatus.query.filter(HealthStatus.user_id == user_id, HealthStatus.recorded_at >= start, HealthStatus.recorded_at <= now).all()
-        logins = LoginHistory.query.filter(LoginHistory.user_id == user_id, LoginHistory.auth_time >= start, LoginHistory.auth_time <= now).all()
-        documents = db.session.query(CheckupDocument, CheckupResult).join(CheckupResult, CheckupResult.doc_id == CheckupDocument.doc_id).filter(CheckupDocument.user_id == user_id).all()
+        health, logins, documents = _health_context(user, now)
         snapshot = build_input(user, health, logins, documents, now)
+        status = system_status(calculate_risk(user, health, logins, now=now), now)
+        previous = HealthAnalysis.query.filter_by(user_id=user_id).order_by(HealthAnalysis.analyzed_at.desc(), HealthAnalysis.analysis_id.desc()).first()
+        enrich_snapshot(snapshot, status, previous, [row.auth_time for row in logins])
         db.session.rollback()
         result = analyze(snapshot, model=model)
         # 응답 대기 중 담당자 또는 활성 상태가 바뀌면 저장하지 않는다.
@@ -739,9 +753,19 @@ def api_analyze_life_pattern(user_id):
             raise HealthAnalysisError('담당 대상자 정보가 변경되었습니다. 다시 확인해주세요.', 403)
         record = HealthAnalysis(user_id=user_id, worker_id=worker_id, model=model,
                                 input_snapshot=snapshot, result=result, summary=summarize(result))
+        # 완료 중 입력이 바뀌었을 수 있으므로 현재 자료와 다시 대조한다.
+        current_now = datetime.datetime.now()
+        current_health, current_logins, current_docs = _health_context(user, current_now)
+        try:
+            current_snapshot = build_input(user, current_health, current_logins, current_docs, current_now)
+        except HealthAnalysisError as error:
+            if error.status != 422:
+                raise
+            current_snapshot = {}
+        current_status = system_status(calculate_risk(user, current_health, current_logins, now=current_now), current_now)
         db.session.add(record)
         db.session.commit()
-        return jsonify(success=True, **_health_analysis_json(record))
+        return jsonify(success=True, **_health_analysis_json(record, current_snapshot), current_status=current_status)
     except (HealthAnalysisError, AIError) as error:
         db.session.rollback()
         return jsonify(success=False, message=str(error)), error.status
@@ -754,7 +778,7 @@ def api_analyze_life_pattern(user_id):
 @worker_bp.route('/api/admin/elders/<int:user_id>/health-analysis', methods=['GET'])
 def api_get_health_analysis(user_id):
     try:
-        _analysis_target(user_id)
+        user, _ = _analysis_target(user_id)
         query = HealthAnalysis.query.filter_by(user_id=user_id)
         history = query.order_by(HealthAnalysis.analyzed_at.desc(), HealthAnalysis.analysis_id.desc()).limit(20).all()
         selected = history[0] if history else None
@@ -765,8 +789,24 @@ def api_get_health_analysis(user_id):
             selected = query.filter_by(analysis_id=analysis_id).first()
             if not selected:
                 raise HealthAnalysisError('분석 이력을 찾을 수 없습니다.', 404)
-        return jsonify(success=True, latest=_health_analysis_json(history[0] if history else None),
-                       selected=_health_analysis_json(selected),
+        now = datetime.datetime.now()
+        health, logins, documents = _health_context(user, now)
+        try:
+            current_snapshot = build_input(user, health, logins, documents, now)
+        except HealthAnalysisError as error:
+            if error.status != 422:
+                raise
+            current_snapshot = {}
+        current_status_error = None
+        try:
+            current_status = system_status(calculate_risk(user, health, logins, now=now), now)
+        except Exception:
+            # 조회용 현재 계산이 실패해도 과거의 성공 결과는 열람할 수 있게 한다.
+            current_status = None
+            current_status_error = '현재 시스템 상태를 계산하지 못했습니다. 저장된 분석 당시 결과를 표시합니다.'
+            current_app.logger.exception('현재 시스템 상태 조회 계산 실패')
+        return jsonify(success=True, latest=_health_analysis_json(history[0] if history else None, current_snapshot),
+                       selected=_health_analysis_json(selected, current_snapshot), current_status=current_status, current_status_error=current_status_error,
                        history=[{'analysis_id': r.analysis_id, 'analyzed_at': r.analyzed_at.isoformat()} for r in history])
     except HealthAnalysisError as error:
         return jsonify(success=False, message=str(error)), error.status

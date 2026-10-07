@@ -1,5 +1,6 @@
 """실제 템플릿의 통합 로그인·반응형·AI 요청 상태 회귀 테스트."""
 import copy
+import datetime as dt
 import threading
 import time
 import unittest
@@ -8,7 +9,7 @@ from unittest.mock import patch
 from flask import jsonify
 from werkzeug.serving import make_server
 import test_auth as fixtures
-from models.models import db, User, CheckupDocument, CheckupResult
+from models.models import db, User, HealthStatus, HealthAnalysis, CheckupDocument, CheckupResult
 from services.health_analysis_service import HealthAnalysisError
 try:
     from playwright.sync_api import sync_playwright
@@ -45,7 +46,9 @@ class AuthBrowserTests(unittest.TestCase):
             self.ai_calls += 1; time.sleep(1.5)
             if self.ai_fail: raise HealthAnalysisError('테스트 분석 실패')
             return {'summary': '저장된 AI 결과', 'findings': [{'title': '등록 정보 확인', 'detail': '기록을 확인하세요.', 'source_refs': [s['ref'] for s in snapshot['sources']]}],
-                    'recommended_actions': ['안부 확인'], 'limitations': snapshot['limitations']}
+                    'recommended_actions': ['안부 확인'], 'limitations': snapshot['limitations'],
+                    'priority_actions': [{'action': '연락 확인', 'reason': '기록과 안부를 확인하세요.',
+                                          'source_refs': [snapshot['sources'][0]['ref']], 'priority': '우선 확인'}]}
         self.ai_patch = patch('routes.social_worker.analyze', side_effect=ai); self.ai_patch.start()
         self.server = make_server('127.0.0.1', 0, app)
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True); self.thread.start()
@@ -198,6 +201,60 @@ class AuthBrowserTests(unittest.TestCase):
         self.login('user'); page.locator('#screen-main.active').wait_for()
         page.evaluate("fetch('/api/auth/logout',{method:'POST'})")
         page.wait_for_url(self.url + '/login', timeout=10000)
+        self.assertFalse(self.errors)
+
+    def test_health_comparison_state_changes_and_legacy_mobile(self):
+        now = dt.datetime.now()
+        for index, days, sugar in [(1, 10, 100), (2, 1, 120)]:
+            at = now - dt.timedelta(days=days)
+            db.session.add(HealthStatus(status_id=index, user_id=1, target_date=at.date(), recorded_at=at,
+                condition_level=3, breakfast_status='완료', lunch_status='완료' if index == 1 else '결식',
+                dinner_status='예정', blood_pressure='120/80', blood_sugar=sugar))
+        # 확정된 과거 검진을 하나 추가하여 실제 비교 UI를 검사한다.
+        old = copy.deepcopy(db.session.query(CheckupResult).first().confirmed_result)
+        old['checkup_date'] = '2025-10-01'; old['items'][0]['value'] = '100'
+        db.session.add(CheckupDocument(doc_id=2, user_id=1, file_path='/static/normal.pdf'))
+        db.session.add(CheckupResult(doc_id=2, extraction=old, confirmed_result=old, confirmed_revision=1, confirmed_by=1))
+        db.session.commit()
+        page = self.page; self.login()
+        page.locator('#tbody .main-row').wait_for()
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        panel = page.locator('#ai-analysis-list [data-life-ai-user-id="1"]')
+        button = page.locator('#ai-analysis-list [data-life-ai-button-id="1"]')
+        page.wait_for_function("!document.querySelector('#ai-analysis-list [data-life-ai-button-id]').disabled")
+        button.click(); panel.locator('.ai-spinner').wait_for()
+        page.evaluate("analyzeLifePatternAI(1,'가상어르신')")
+        panel.filter(has_text='저장된 AI 결과').wait_for()
+        self.assertEqual(self.ai_calls, 1)
+        for expected in ('분석 당시 상태', '현재 조회 상태', '점수는 높을수록 안전', '우선 확인: 연락 확인',
+                         '첫 분석', '생활 기간 비교', '표본 1', '수치 차이: +10'):
+            self.assertIn(expected, panel.inner_text())
+        for width in (360, 390, 768, 1280, 1440):
+            page.set_viewport_size({'width': width, 'height': 1000}); self.no_overflow()
+            self.assertTrue(panel.evaluate('el => el.scrollWidth <= el.clientWidth'))
+            if width in (390, 1440): page.screenshot(path=str(OUTPUT / f'health_comparison_{width}.png'))
+        button.click()
+        panel.filter(has_text='같은 자료로 재분석').wait_for()
+        self.assertEqual(self.ai_calls, 2)
+        db.session.expire_all()
+        record = db.session.query(CheckupResult).filter_by(doc_id=1).first()
+        record.confirmed_revision += 1; db.session.commit()
+        panel.get_by_role('button', name='현재 자료·저장 결과 새로고침').click()
+        panel.locator('.health-reanalysis-note').wait_for()
+        self.assertIn('재확정되었다면', panel.inner_text())
+        page.evaluate('window.openCheckupReview = id => { window.openedReviewId = id; }')
+        panel.get_by_role('button', name='검진표 1 · 1페이지 원본 확인', exact=True).first.click()
+        self.assertEqual(page.evaluate('window.openedReviewId'), 1)
+        db.session.expire_all()
+        legacy = db.session.query(HealthAnalysis).order_by(HealthAnalysis.analysis_id.desc()).first()
+        data = copy.deepcopy(legacy.input_snapshot)
+        for key in ('version', 'system_status', 'comparisons', 'previous_analysis_id'): data.pop(key, None)
+        result = copy.deepcopy(legacy.result); result.pop('priority_actions')
+        legacy.input_snapshot = data; legacy.result = result; db.session.commit()
+        page.reload(); page.locator('#tbody .main-row').wait_for(state='attached')
+        page.evaluate("nav('analysis',document.querySelector('.nav button[onclick*=analysis]'))")
+        panel.filter(has_text='이 분석에는 비교 정보가 저장되지 않았습니다.').wait_for()
+        self.assertIn('이전 형식의 결과', panel.inner_text()); self.no_overflow()
         self.assertFalse(self.errors)
 
     def test_ai_model_panel_selection_pending_and_checkup(self):
