@@ -1,0 +1,19 @@
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100dvh; display: grid; place-items: center; padding: 20px; background: linear-gradient(135deg, #edf4ff, #f7f9fd); color: #172033; font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', system-ui, sans-serif; }
+.login-card { width: min(100%, 440px); background: #fff; padding: 32px; border-radius: 24px; box-shadow: 0 20px 60px #17203320; }
+.login-logo { display: grid; place-items: center; width: 64px; height: 64px; background: #2563eb; color: white; border-radius: 20px; font-size: 32px; margin: 0 auto 20px; }
+h1, #role-description { text-align: center; }
+h1 { font-size: 28px; margin: 0 0 10px; }
+#role-description { color: #64748b; margin-bottom: 24px; }
+label { display: block; margin: 16px 0 8px; font-weight: 700; }
+input:not([type=checkbox]) { width: 100%; min-height: 50px; border: 1px solid #94a3b8; border-radius: 12px; padding: 12px; font-size: 17px; }
+.role-option { display: flex; gap: 10px; align-items: center; min-height: 48px; cursor: pointer; background: #eff6ff; padding: 12px; border-radius: 12px; }
+input[type=checkbox] { width: 22px; height: 22px; accent-color: #2563eb; }
+button { width: 100%; min-height: 52px; border: none; border-radius: 12px; background: #2563eb; color: #fff; font-size: 18px; font-weight: bold; cursor: pointer; }
+button:disabled { opacity: .65; cursor: wait; }
+#login-error { color: #b91c1c; }
+#login-status { color: #475569; }
+#register-link { display: block; text-align: center; padding: 16px 0; color: #1d4ed8; }
+:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
+[hidden] { display: none !important; }
+@media(max-width:400px) { .login-card { padding: 24px; } }

@@ -1,0 +1,62 @@
+.mobile-menu-toggle, .mobile-menu-backdrop { display: none; }
+.modal { max-width: 100%; max-height: 90dvh; overflow-y: auto; }
+.login-card { max-width: 100%; }
+.info-card-v2 b, .action-text, .analysis-box, .alert-item { overflow-wrap: anywhere; }
+.chart svg, .mini-chart-v2 svg { max-width: 100%; }
+.ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: #1d4ed8; }
+.ai-error { color: #b91c1c; padding: 8px 0; }
+.table-scroll { overflow-x: auto; }
+@media(max-width:768px) {
+  .layout, .layout.collapsed, .layout:not(.sidebar-expanded) { display: block; }
+  .main { padding: 16px 12px 30px; }
+  .mobile-menu-toggle { display: inline-flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 12px; background: white; color: #172033; font: inherit; cursor: pointer; }
+  .mobile-menu-backdrop.open { display: block; position: fixed; inset: 0; background: #0007; border: none; z-index: 70; }
+  .layout .sidebar { display: none; position: fixed; left: 0; top: 0; width: min(280px, 85vw); height: 100dvh; z-index: 71; overflow-y: auto; }
+  .layout.mobile-menu-open .sidebar { display: flex; padding: 20px 16px; align-items: stretch; }
+  .layout.mobile-menu-open .brand-text, .layout.mobile-menu-open .nav-text, .layout.mobile-menu-open .worker b, .layout.mobile-menu-open .worker p, .layout.mobile-menu-open .worker-btn-text { display: block; }
+  .layout.mobile-menu-open .brand { flex-direction: row; align-items: center; justify-content: flex-start; }
+  .layout.mobile-menu-open .sidebar-toggle { position: absolute; top: 8px; right: 0; width: 44px; height: 44px; }
+  .layout.mobile-menu-open .nav { align-items: stretch; }
+  .layout.mobile-menu-open .nav button { width: 100%; justify-content: flex-start; padding: 0 12px; gap: 12px; }
+  .layout.mobile-menu-open .nav button .nav-icon { margin: 0; width: 24px; }
+  .layout.mobile-menu-open .worker { display: block; padding: 12px; }
+  .layout.mobile-menu-open .worker button { width: 100%; gap: 10px; }
+  .topbar { flex-wrap: wrap; align-items: flex-start; gap: 14px; }
+  .title { flex: 1; min-width: 0; }
+  .title h1 { font-size: 23px; }
+  .title p { font-size: 13px; }
+  .tools { width: 100%; flex-wrap: wrap; justify-content: flex-start; }
+  .search { flex: 1; width: auto; min-width: 100px; }
+  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .kpi p { white-space: normal; }
+  .panel-head, .detail-title-v2, .detail-status-v2, .ai-panel-head-v2, .chart-title-row { flex-wrap: wrap; gap: 10px; }
+  .panel-head { padding: 16px 12px; }
+  .detail-wrap.v2 { padding: 12px; }
+  .detail-dashboard-v2, .quick-grid-v2, .form-grid { grid-template-columns: minmax(0,1fr); }
+  .info-card-v2, .elder-profile-v2, .detail-right-v2, .analysis, .grid { min-width: 0; }
+  .modal-bg { padding: 12px; }
+  .modal-head, .modal-body { padding: 16px; }
+  .login { padding: 16px; }
+  .login-card { padding: 24px; }
+  .btn, .mini-btn, .chip, .close, .alert-tab, .icon-alert { min-height: 44px; min-width: 44px; }
+  .badge { max-width: 100%; white-space: normal; }
+  .checkup-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
+  .checkup-del-btn { min-width: 44px; min-height: 44px; }
+  .chart { padding: 16px 12px; }
+  .chart-person-select { max-width: 100%; min-height: 44px; }
+  .table { min-width: 620px; }
+  .table.elder-cards { display: block; min-width: 0; }
+  .elder-cards thead { display: none; }
+  .elder-cards tbody { display: block; }
+  .elder-cards .main-row { display: block; padding: 10px; margin: 12px; border: 1px solid #dbe7f6; border-radius: 16px; }
+  .elder-cards .main-row td { display: flex; align-items: center; gap: 12px; padding: 8px 0; border: 0; white-space: normal !important; overflow-wrap: anywhere; }
+  .elder-cards .main-row td::before { content: attr(data-label); flex: 0 0 60px; color: #64748b; font-size: 12px; font-weight: 700; }
+  .elder-cards .main-row td:first-child::before { display: none; }
+  .elder-cards .main-row td > * { min-width: 0; }
+  .elder-cards .detail-row.open { display: block; }
+  .elder-cards .detail-row > td { display: block; padding: 0; }
+  .elder-cards tr:not(.main-row):not(.detail-row) { display: block; }
+  .elder-cards tr:not(.main-row):not(.detail-row) td { display: block; }
+  .analysis-box, .alert-card, .action-card { max-width: 100%; }
+}
+@media(prefers-reduced-motion:reduce) { .ai-spinner { animation: none !important; } }

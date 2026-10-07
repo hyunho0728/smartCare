@@ -101,6 +101,20 @@ class CheckupDocument(db.Model):
     original_name = db.Column(db.String(255), nullable=True)    # 원본 파일명
     uploaded_at = db.Column(db.DateTime, default=datetime.now, nullable=False, index=True)
 
+class CheckupResult(db.Model):
+    __tablename__ = 'CHECKUP_RESULT'
+    result_id = db.Column(db.BigInteger().with_variant(db.Integer, 'sqlite'), primary_key=True, autoincrement=True)
+    doc_id = db.Column(db.BigInteger, db.ForeignKey('CHECKUP_DOCUMENT.doc_id', ondelete='CASCADE'), nullable=False, unique=True)
+    extraction = db.Column(db.JSON, nullable=False)
+    confirmed_result = db.Column(db.JSON, nullable=True)
+    revision = db.Column(db.Integer, nullable=False, default=1)
+    confirmed_revision = db.Column(db.Integer, nullable=True)
+    analyzed_at = db.Column(db.DateTime, default=datetime.now, nullable=False)
+    confirmed_at = db.Column(db.DateTime, nullable=True)
+    confirmed_by = db.Column(db.Integer, db.ForeignKey('SOCIAL_WORKER.worker_id'), nullable=True)
+    identity_verified = db.Column(db.Boolean, nullable=False, default=False)
+
+
 # 8. 긴급 호출 알림 모델
 class EmergencyAlert(db.Model):
     __tablename__ = 'EMERGENCY_ALERT'

@@ -4,9 +4,10 @@ from flask import Blueprint, render_template, request, jsonify, session, current
 from models.models import db, Worker, User, HealthStatus, LoginHistory, RiskAnalysis, PostManagement, CheckupDocument, EmergencyAlert
 from services.social_worker_ai_service import (
     evaluate_and_record_risk,
-    analyze_checkup_document_with_gemini,
     analyze_life_pattern_with_gemini,
+    LifePatternAIError,
 )
+from services.auth_service import select_role, current_role, role_redirect
 
 worker_bp = Blueprint('worker', __name__)
 
@@ -67,7 +68,14 @@ def build_daily_risk_scores(risk_records, today=None):
 @worker_bp.route('/admin')
 def admin_view():
     """사회복지사 관리자 화면"""
-    return render_template('admin_web.html')
+    return role_redirect('worker') or render_template('admin_web.html', registration_mode=False)
+
+
+@worker_bp.route('/register/worker')
+def worker_registration_view():
+    if current_role():
+        return role_redirect(None)
+    return render_template('admin_web.html', registration_mode=True)
 
 # --- 관리자 인증 및 계정 API ---
 @worker_bp.route('/api/admin/login', methods=['POST'])
@@ -84,6 +92,7 @@ def api_admin_login():
     if not worker or worker.password != password:
         return jsonify({"success": False, "message": "아이디 또는 비밀번호가 올바르지 않습니다."}), 401
 
+    select_role('worker')
     session['admin_id'] = worker.login_id
     session['admin_worker_id'] = worker.worker_id
     session['admin_name'] = worker.name
@@ -142,7 +151,7 @@ def api_admin_logout():
 def api_admin_check_session():
     """관리자 세션 검증"""
     admin_login_id = session.get('admin_id')
-    if not admin_login_id:
+    if current_role() != 'worker':
         return jsonify({"is_logged_in": False})
     
     worker = Worker.query.filter_by(login_id=admin_login_id).first()
@@ -684,40 +693,6 @@ def api_delete_checkup(doc_id):
         db.session.rollback()
         return jsonify({"success": False, "message": f"삭제 실패: {str(e)}"}), 500
 
-@worker_bp.route('/api/admin/checkup/analyze/<int:doc_id>', methods=['POST'])
-def api_analyze_checkup(doc_id):
-    """업로드된 검진표 문서를 Gemini AI로 판독 분석"""
-    current_worker_id = session.get('admin_worker_id')
-    if not current_worker_id:
-        admin_login_id = session.get('admin_id')
-        if admin_login_id:
-            worker = Worker.query.filter_by(login_id=admin_login_id).first()
-            if worker:
-                current_worker_id = worker.worker_id
-
-    if not current_worker_id:
-        return jsonify({"success": False, "message": "로그인이 필요합니다."}), 401
-
-    doc = CheckupDocument.query.get(doc_id)
-    if not doc:
-        return jsonify({"success": False, "message": "해당 문서를 찾을 수 없습니다."}), 404
-
-    try:
-        filename = os.path.basename(doc.file_path)
-        local_file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        if not os.path.exists(local_file_path):
-            return jsonify({"success": False, "message": "서버에 파일이 존재하지 않습니다."}), 404
-
-        analysis_result = analyze_checkup_document_with_gemini(local_file_path)
-        return jsonify({
-            "success": True,
-            "analysis": analysis_result,
-            "document_name": doc.original_name or "건강검진표"
-        })
-    except Exception as e:
-        return jsonify({"success": False, "message": f"AI 분석 실패: {str(e)}"}), 500
-
-
 @worker_bp.route('/api/admin/elders/<int:user_id>/life-pattern-ai', methods=['POST'])
 def api_analyze_life_pattern(user_id):
     """어르신 생활 패턴 데이터를 개인정보 없이 Gemini AI로 분석"""
@@ -754,5 +729,8 @@ def api_analyze_life_pattern(user_id):
             "success": True,
             "analysis": analysis_result
         })
-    except Exception as e:
-        return jsonify({"success": False, "message": f"AI 생활 패턴 분석 실패: {str(e)}"}), 500
+    except LifePatternAIError as e:
+        return jsonify(success=False, message=str(e)), e.status
+    except Exception:
+        current_app.logger.exception("생활 패턴 분석 실패")
+        return jsonify(success=False, message="AI 생활 패턴 분석에 실패했습니다. 다시 시도해주세요."), 500

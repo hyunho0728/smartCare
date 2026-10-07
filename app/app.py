@@ -13,6 +13,9 @@ from services.social_worker_ai_service import evaluate_and_record_risk
 # 작업자별 Blueprint 임포트
 from routes.social_worker import worker_bp
 from routes.user import user_bp
+from routes.checkup import checkup_bp
+from routes.auth import auth_bp
+from services.auth_service import current_role, DESTINATIONS
 
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
 load_dotenv(os.path.join(os.path.dirname(BASE_DIR), ".env"))
@@ -68,6 +71,8 @@ with app.app_context():
 # Blueprint 등록
 app.register_blueprint(worker_bp)
 app.register_blueprint(user_bp)
+app.register_blueprint(checkup_bp)
+app.register_blueprint(auth_bp)
 
 # ==========================================
 # 공통 스케줄러 & 유틸리티
@@ -133,10 +138,8 @@ def is_mobile_request():
 # ==========================================
 @app.route('/')
 def index():
-    """접속 환경(모바일/PC)에 따라 첫 화면 자동 분기"""
-    if is_mobile_request():
-        return render_template('user_web.html')
-    return render_template('admin_web.html')
+    """기기와 관계없이 로그인된 역할의 화면으로 이동한다."""
+    return redirect(DESTINATIONS.get(current_role(), '/login'))
 
 # ==========================================
 # LocalTunnel 터널링 실행 스레드

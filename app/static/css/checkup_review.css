@@ -1,0 +1,22 @@
+#checkup-review { box-sizing: border-box; width: min(1400px, 95vw); max-width: 95vw; max-height: 92vh; padding: 18px; border: 1px solid #cbd5e1; border-radius: 12px; overflow: auto; color: #1e293b; }
+#checkup-review::backdrop { background: #0008; }
+#checkup-review header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+#checkup-review h2 { margin: 0; font-size: 20px; }
+#checkup-review button { min-height: 44px; padding: 10px; cursor: pointer; margin: 6px 0; }
+#checkup-review button:disabled { opacity: .5; cursor: wait; }
+.checkup-review-grid { display: grid; grid-template-columns: minmax(280px, 40%) minmax(0, 1fr); gap: 18px; }
+.checkup-review-grid > section { min-width: 0; }
+#checkup-review iframe { box-sizing: border-box; width: 100%; height: 65vh; border: 1px solid #cbd5e1; margin-top: 12px; }
+#checkup-review label { display: block; margin: 10px 0; }
+#checkup-review [data-metadata] input { display: block; width: 95%; }
+#checkup-review input[type=text] { padding: 6px; border: 1px solid #94a3b8; border-radius: 4px; box-sizing: border-box; }
+#checkup-review [data-issues] { color: #92400e; padding-left: 20px; }
+.checkup-table-scroll { overflow-x: auto; }
+#checkup-review table { border-collapse: collapse; min-width: 720px; width: 100%; }
+#checkup-review th, #checkup-review td { border: 1px solid #cbd5e1; padding: 6px; font-size: 12px; }
+#checkup-review td input[type=text] { width: 100%; min-width: 90px; }
+#checkup-review [data-status] { background: #eff6ff; padding: 12px; }
+@media (max-width: 850px) { .checkup-review-grid { grid-template-columns: minmax(0, 1fr); } #checkup-review iframe { height: 45vh; } }
+.ai-spinner { display: inline-block !important; flex-shrink: 0; width: 18px; height: 18px; margin-right: 8px; border: 3px solid #bfdbfe; border-top-color: #2563eb; border-radius: 50%; animation: ai-spin .8s linear infinite; vertical-align: middle; }
+@keyframes ai-spin { to { transform: rotate(360deg); } }
+@media(prefers-reduced-motion:reduce) { .ai-spinner { animation: none; } }

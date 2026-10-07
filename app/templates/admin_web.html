@@ -368,26 +368,8 @@
 </style>
 </head>
 <body>
-<section class="login" id="login">
-  <div class="login-card">
-    <div class="login-logo">👩‍💼</div>
-    <h1>CareLink Pro</h1>
-    <p>사회복지사 전용 독거노인 건강 모니터링 시스템</p>
+<p id="session-status" hidden role="alert">서버에 연결할 수 없습니다. 새로고침해주세요.</p>
 
-    <label class="label">아이디</label>
-    <input class="input" id="loginId" placeholder="아이디를 입력하세요">
-
-    <label class="label">비밀번호</label>
-    <input class="input" id="loginPw" type="password" placeholder="비밀번호를 입력하세요">
-
-    <button class="btn primary full" onclick="login()">로그인</button>
-
-    <div class="signup-link">
-      아직 계정이 없나요?
-      <button onclick="showSignup()">회원가입</button>
-    </div>
-  </div>
-</section>
 
 <section class="login" id="signup" style="display:none;">
   <div class="login-card signup-card">
@@ -471,9 +453,11 @@
         </button>
       </div>
     </aside>
+    <button class="mobile-menu-backdrop" id="mobile-menu-backdrop" type="button" tabindex="-1" aria-label="메뉴 닫기"></button>
 
     <main class="main">
       <div class="topbar">
+        <button class="mobile-menu-toggle" id="mobile-menu-toggle" type="button" aria-controls="mainSidebar" aria-expanded="false">☰ 메뉴</button>
         <div class="title">
           <h1 id="pageTitle">실시간 모니터링 현황판</h1>
           <p id="pageDesc">담당 어르신의 건강 상태, 식사 여부, 위험 알림을 한 화면에서 확인합니다.</p>
@@ -908,6 +892,7 @@
 
 
 <script>
+const registrationMode = {{ registration_mode|default(false)|tojson }};
 let users = [];
 let unassignedUsers = [];
 let alertHistory = [];
@@ -1021,13 +1006,10 @@ function fallbackCopyText(name, text) {
 }
 
 function showSignup(){
-  document.getElementById('login').style.display='none';
+
   document.getElementById('signup').style.display='flex';
 }
-function showLogin(){
-  document.getElementById('signup').style.display='none';
-  document.getElementById('login').style.display='flex';
-}
+function showLogin(){ window.location.assign('/login'); }
 
 async function signupDone(){
   const name = document.getElementById('signupName')?.value.trim();
@@ -1066,62 +1048,15 @@ async function signupDone(){
   }
 }
 
-async function login(){
-  const admin_id = document.getElementById('loginId')?.value.trim();
-  const password = document.getElementById('loginPw')?.value.trim();
-
-  if (!admin_id || !password) {
-    toast('아이디와 비밀번호를 모두 입력해 주세요.');
-    return;
-  }
-
-  try {
-    const res = await fetch('/api/admin/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ admin_id, password })
-    });
-    const result = await res.json();
-
-    if (result.success) {
-      const workerBox = document.querySelector('.worker b');
-      const workerDesc = document.querySelector('.worker p');
-      if (workerBox) workerBox.innerText = `${result.admin.name} 복지사`;
-      if (workerDesc) workerDesc.innerHTML = `${result.admin.region} 담당<br>실시간 모니터링`;
-
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-      await loadEldersData();
-      startEmergencyPolling();
-      startElderDataPolling();
-    } else {
-      toast(result.message || '아이디 또는 비밀번호가 일치하지 않습니다.');
-    }
-  } catch (err) {
-    toast('서버와의 통신에 실패했습니다.');
-  }
-}
-
-// 기존 코드 수정
 async function logout(){
-  stopEmergencyPolling();
-  stopElderDataPolling();
-  await fetch('/api/admin/logout', { method: 'POST' });
-  
-  // ➕ [추가] 로그아웃 시 스토리지 정리
-  sessionStorage.removeItem('activeTab');
-  sessionStorage.removeItem('openDetailIndex');
-  sessionStorage.removeItem('openDetailUserId');
-  sessionStorage.removeItem('life_ai_selected_user_id');
-
-  document.getElementById('dashboard').style.display = 'none';
-  document.getElementById('login').style.display = 'flex';
-  document.getElementById('loginId').value = '';
-  document.getElementById('loginPw').value = '';
+  try {
+    const response = await fetch('/api/auth/logout', {method: 'POST'});
+    if (!response.ok) throw new Error('Logout failed');
+    stopEmergencyPolling(); stopElderDataPolling(); sessionStorage.clear();
+    window.location.replace('/login');
+  } catch (error) { toast(error.message); }
 }
 
-// 기존 함수 내부 하단에 추가
-/* 서버로부터 담당 및 미배정 어르신 목록을 불러오고 KPI, 테이블, 차트 및 저장된 아코디언/AI 분석 상태를 복원합니다. */
 async function loadEldersData() {
   try {
     const res = await fetch('/api/admin/elders');
@@ -1838,10 +1773,11 @@ function renderTable(){
     const docs = u.checkup_docs || [];
     const checkupDocsHtml = docs.length > 0 
       ? docs.map(d => `
-          <div class="checkup-thumb-wrap" onclick="openImageViewer('${d.file_path}', '${u.name} 어르신 검진표 (${d.uploaded_at})')">
+          <div class="checkup-thumb-wrap" onclick="openCheckupReview(${d.doc_id})">
             <button class="checkup-del-btn" title="사진 삭제" onclick="event.stopPropagation(); deleteCheckupDoc(${d.doc_id})">×</button>
             <button class="mini-btn" title="검진표 AI 분석" style="position:absolute;bottom:22px;left:4px;right:4px;background:rgba(37,99,235,0.9);color:#fff;border:none;padding:2px 0;font-size:11px;z-index:2;" onclick="event.stopPropagation(); analyzeCheckupDoc(${d.doc_id}, '${u.name}', ${u.id})">검진표 AI</button>
-            <img class="checkup-thumb" src="${d.file_path}" alt="검진표 썸네일">
+            ${/\.pdf$/i.test(d.file_path) ? '<div class="checkup-thumb" style="display:grid;place-items:center">PDF 원본</div>' : `<img class="checkup-thumb" src="${d.file_path}" alt="검진표 썸네일">`}
+            <button class="mini-btn" style="position:absolute;top:3px;left:3px;z-index:2" onclick="event.stopPropagation(); openCheckupReview(${d.doc_id})">결과 확인</button>
             <div class="checkup-thumb-date">${d.uploaded_at.split(' ')[0]}</div>
           </div>
         `).join('')
@@ -2179,48 +2115,22 @@ async function addElder() {
 
 // 기존 함수 내부 수정
 async function checkSessionOnLoad() {
+  if (registrationMode) { showSignup(); return; }
   try {
     const res = await fetch('/api/admin/check-session');
     const result = await res.json();
-
-    if (result.is_logged_in && result.admin) {
-      const workerBox = document.querySelector('.worker b');
-      const workerDesc = document.querySelector('.worker p');
-      if (workerBox) workerBox.innerText = `${result.admin.name} 복지사`;
-      if (workerDesc) workerDesc.innerHTML = `${result.admin.region} 담당<br>실시간 모니터링`;
-
-      document.getElementById('login').style.display = 'none';
-      document.getElementById('signup').style.display = 'none';
-      document.getElementById('dashboard').style.display = 'block';
-
-      // ➕ [추가] 새로고침 시 저장된 탭 상태 복원
-      const savedTab = sessionStorage.getItem('activeTab');
-      if (savedTab && savedTab !== 'live') {
-        const targetBtn = Array.from(document.querySelectorAll('.nav button')).find(b => b.getAttribute('onclick')?.includes(`'${savedTab}'`));
-        if (targetBtn) {
-          nav(savedTab, targetBtn);
-        }
-      }
-
-      await loadEldersData();
-      startEmergencyPolling();
-      startElderDataPolling();
-    } else {
-      document.getElementById('dashboard').style.display = 'none';
-      document.getElementById('signup').style.display = 'none';
-      document.getElementById('login').style.display = 'flex';
-      stopEmergencyPolling();
-      stopElderDataPolling();
-      
-      // ➕ [추가] 로그아웃/세션 없음 상태일 때 스토리지 초기화
-      sessionStorage.removeItem('activeTab');
-      sessionStorage.removeItem('openDetailIndex');
-      sessionStorage.removeItem('openDetailUserId');
-      sessionStorage.removeItem('life_ai_selected_user_id');
-    }
-  } catch (err) {
-    console.error('세션 확인 실패:', err);
-  }
+    if (!result.is_logged_in || !result.admin) { window.location.replace('/login'); return; }
+    const workerBox = document.querySelector('.worker b');
+    const workerDesc = document.querySelector('.worker p');
+    if (workerBox) workerBox.textContent = result.admin.name;
+    if (workerDesc) workerDesc.textContent = result.admin.region;
+    document.getElementById('signup').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    const savedTab = sessionStorage.getItem('activeTab');
+    const targetBtn = Array.from(document.querySelectorAll('.nav button')).find(b => b.getAttribute('onclick')?.includes("'" + savedTab + "'"));
+    if (savedTab && targetBtn) nav(savedTab, targetBtn);
+    await loadEldersData(); startEmergencyPolling(); startElderDataPolling();
+  } catch (error) { document.getElementById('session-status').hidden = false; }
 }
 
 window.addEventListener('DOMContentLoaded', checkSessionOnLoad);
@@ -2229,10 +2139,10 @@ window.addEventListener('DOMContentLoaded', checkSessionOnLoad);
 function toggle(i) {
   const detailRow = document.getElementById('detail-' + i);
   if (!detailRow) return;
-  
+
   const isOpen = detailRow.classList.toggle('open');
   const detailUserId = detailRow.dataset.userId;
-  
+
   // ➕ [추가] 아코디언 열림/닫힘 상태 저장
   if (isOpen && detailUserId) {
     sessionStorage.setItem('openDetailUserId', detailUserId);
@@ -2326,7 +2236,7 @@ async function downloadCurrentImageView() {
     const response = await fetch(imagePath);
     const blob = await response.blob();
     const blobUrl = window.URL.createObjectURL(blob);
-    
+
     const a = document.createElement('a');
     a.href = blobUrl;
     a.download = fileName;
@@ -2458,80 +2368,11 @@ function setCheckupAnalysisText(targetEl, text) {
   targetEl.querySelector('span').textContent = text;
 }
 
-function setLifePatternAnalysisText(userId, text) {
-  document.querySelectorAll(`[data-life-ai-user-id="${userId}"]`).forEach(targetEl => {
-    targetEl.innerHTML = '<b>AI 생활 패턴 분석</b><span></span>';
-    targetEl.querySelector('span').textContent = text;
-  });
-}
-
-function setLifePatternAIButtons(userId, isLoading, hasResult = false) {
-  document.querySelectorAll(`[data-life-ai-button-id="${userId}"]`).forEach(button => {
-    button.disabled = isLoading;
-    button.innerText = isLoading ? '분석 중...' : (hasResult ? '재분석' : 'AI 분석');
-  });
-}
-
-/* 개인정보를 제외한 생활 패턴 요약 데이터를 Gemini AI로 분석 요청합니다. */
-async function analyzeLifePatternAI(userId, elderName) {
-  const confirmed = confirm(
-    `${elderName} 어르신의 이름, 전화번호, 주소를 제외한 생활 패턴 요약 데이터를 Gemini로 전송해 분석합니다.\n\n계속 진행하시겠습니까?`
-  );
-  if (!confirmed) return;
-
-  setLifePatternAIButtons(userId, true);
-  setLifePatternAnalysisText(userId, `${elderName} 어르신의 생활 패턴을 Gemini AI가 분석 중입니다...`);
-
-  try {
-    const res = await fetch(`/api/admin/elders/${userId}/life-pattern-ai`, {
-      method: 'POST'
-    });
-    const result = await res.json();
-
-    if (result.success) {
-      setLifePatternAnalysisText(userId, result.analysis);
-      sessionStorage.setItem(`life_ai_desc_${userId}`, result.analysis);
-      setLifePatternAIButtons(userId, false, true);
-    } else {
-      setLifePatternAnalysisText(userId, result.message || 'AI 생활 패턴 분석에 실패했습니다.');
-      setLifePatternAIButtons(userId, false);
-    }
-  } catch (err) {
-    setLifePatternAnalysisText(userId, '서버와의 통신에 실패했습니다.');
-    setLifePatternAIButtons(userId, false);
-  }
-}
-
-/* 선택한 건강검진표 사진을 Gemini AI로 분석 요청하고 결과를 검진표 섹션에 출력하며 새로고침 대비로 sessionStorage에 저장합니다. */
-async function analyzeCheckupDoc(docId, elderName, userId) {
-  const descEl = document.getElementById(`checkup-ai-desc-${userId}`);
-  if (descEl) {
-    setCheckupAnalysisText(descEl, `${elderName} 어르신의 건강검진표를 Gemini AI가 정밀 분석 중입니다...`);
-  }
-
-  try {
-    const res = await fetch(`/api/admin/checkup/analyze/${docId}`, {
-      method: 'POST'
-    });
-    const result = await res.json();
-
-    if (descEl) {
-      if (result.success) {
-        setCheckupAnalysisText(descEl, result.analysis);
-        
-        // 검진표 AI 분석 결과를 sessionStorage에 저장 (새로고침 대비)
-        sessionStorage.setItem(`checkup_ai_desc_${userId}`, result.analysis);
-      } else {
-        setCheckupAnalysisText(descEl, result.message || "AI 분석에 실패했습니다.");
-      }
-    }
-  } catch (err) {
-    if (descEl) {
-      setCheckupAnalysisText(descEl, "서버와의 통신에 실패했습니다.");
-    }
-  }
-}
-
 </script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/checkup_review.css') }}">
+<script src="{{ url_for('static', filename='js/checkup_review.js') }}"></script>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_responsive.css') }}">
+<script src="{{ url_for('static', filename='js/life_pattern_feedback.js') }}"></script>
+<script src="{{ url_for('static', filename='js/admin_responsive.js') }}"></script>
 </body>
 </html>

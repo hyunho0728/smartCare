@@ -6,8 +6,15 @@ import datetime
 from flask import Blueprint, render_template, request, jsonify, session, current_app
 from models.models import db, User, HealthStatus, LoginHistory, RiskAnalysis, CheckupDocument
 from services.social_worker_ai_service import evaluate_and_record_risk
+from services.checkup_service import prepare_document, CheckupError, MAX_BYTES
+from services.auth_service import select_role, current_role, role_redirect
 
 user_bp = Blueprint('user', __name__)
+
+
+@user_bp.errorhandler(413)
+def checkup_upload_too_large(error):
+    return jsonify(success=False, message="파일은 최대 15MB까지 등록할 수 있습니다."), 413
 
 # --- 내부 유틸 함수 ---
 def extract_numbers(text):
@@ -29,7 +36,14 @@ def format_phone_display(phone_str):
 @user_bp.route('/user')
 def user_view():
     """사용자(어르신) 전용 모바일 웹 화면"""
-    return render_template('user_web.html')
+    return role_redirect('user') or render_template('user_web.html', registration_mode=False)
+
+
+@user_bp.route('/register/user')
+def user_registration_view():
+    if current_role():
+        return role_redirect(None)
+    return render_template('user_web.html', registration_mode=True)
 
 # --- 사용자 인증 및 세션 API ---
 @user_bp.route('/api/user/login', methods=['POST'])
@@ -62,7 +76,9 @@ def api_user_login():
         db.session.commit()
     except Exception:
         db.session.rollback()
+        return jsonify(success=False, message="로그인 정보를 저장하지 못했습니다. 다시 시도해주세요."), 500
 
+    select_role('user')
     session['user_id'] = user.user_id
     session['user_phone'] = phone_clean
     session['user_token'] = token
@@ -111,7 +127,7 @@ def api_user_check_session():
     user_id = session.get('user_id')
     user_token = session.get('user_token')
 
-    if not user_id:
+    if current_role() != 'user':
         return jsonify({"valid": False, "message": "세션 없음"})
 
     user = User.query.get(user_id)
@@ -290,6 +306,7 @@ def api_record_health():
 @user_bp.route('/api/user/checkup/upload', methods=['POST'])
 def api_upload_checkup():
     """사용자 검진표 사진 업로드"""
+    request.max_content_length = MAX_BYTES + 1024 * 1024
     user_id = session.get('user_id')
     
     if not user_id:
@@ -310,13 +327,12 @@ def api_upload_checkup():
         return jsonify({"success": False, "message": "선택된 파일이 없습니다."}), 400
 
     try:
-        ext = os.path.splitext(file.filename)[1].lower()
-        if ext not in ['.jpg', '.jpeg', '.png', '.webp', '.pdf']:
-            return jsonify({"success": False, "message": "지원되지 않는 파일 형식입니다. (이미지 또는 PDF 전용)"}), 400
+        data, _, ext, _ = prepare_document(file.stream.read(MAX_BYTES + 1), file.filename)
 
         filename = f"{uuid.uuid4().hex}{ext}"
         save_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
-        file.save(save_path)
+        with open(save_path, 'wb') as target:
+            target.write(data)
 
         web_path = f"/static/uploads/checkups/{filename}"
 
@@ -334,6 +350,9 @@ def api_upload_checkup():
             "message": "검진표가 등록되었습니다.",
             "file_path": web_path
         })
+    except CheckupError as e:
+        db.session.rollback()
+        return jsonify({"success": False, "message": str(e)}), e.status
     except Exception as e:
         db.session.rollback()
         return jsonify({"success": False, "message": f"업로드 실패: {str(e)}"}), 500

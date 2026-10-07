@@ -1,11 +1,15 @@
 import numpy as np
 import datetime
 import os
-import mimetypes
 import time
 from google import genai
-from google.genai import types
 from sklearn.ensemble import IsolationForest
+
+
+class LifePatternAIError(Exception):
+    def __init__(self, message, status=502):
+        super().__init__(message)
+        self.status = status
 
 
 DISEASE_PENALTY_RULES = [
@@ -487,7 +491,7 @@ def analyze_life_pattern_with_gemini(user, health_history, login_history):
     """
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        return "Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."
+        raise LifePatternAIError("Gemini API 키가 설정되지 않았습니다. 설정을 확인해주세요.", 503)
 
     risk_result = calculate_risk(user, health_history, login_history)
     latest_health = health_history[0] if health_history else None
@@ -542,7 +546,7 @@ def analyze_life_pattern_with_gemini(user, health_history, login_history):
         "분석 데이터:\n" + "\n".join(pattern_lines)
     )
 
-    client = genai.Client(api_key=api_key)
+    client = genai.Client(api_key=api_key, http_options={'timeout': 60000})
     max_retries = 3
     for attempt in range(max_retries):
         try:
@@ -550,59 +554,21 @@ def analyze_life_pattern_with_gemini(user, health_history, login_history):
                 model='gemini-3.6-flash',
                 contents=[prompt]
             )
+            if not response.text or not response.text.strip():
+                raise LifePatternAIError("AI 분석 결과가 비어 있습니다. 다시 시도해주세요.")
             return response.text
+        except LifePatternAIError:
+            raise
         except Exception as e:
             if "503" in str(e) and attempt < max_retries - 1:
                 time.sleep(2)
                 continue
-            return f"AI 생활 패턴 분석 중 오류가 발생했습니다: {str(e)}"
+            if getattr(e, 'code', None) == 429:
+                raise LifePatternAIError("AI 요청 한도를 초과했습니다. 잠시 후 다시 시도해주세요.", 429) from e
+            raise LifePatternAIError("AI 생활 패턴 분석에 실패했습니다. 잠시 후 다시 시도해주세요.") from e
 
 
 def analyze_checkup_document_with_gemini(image_path):
-    """Gemini 멀티모달 모델을 사용하여 업로드된 건강검진표 이미지를 분석하고 이상 수치를 요약합니다."""
-    api_key = os.getenv("GEMINI_API_KEY")
-    if not api_key:
-        return "Gemini API 키가 설정되지 않았습니다. .env 파일을 확인해주세요."
-
-    if not os.path.exists(image_path):
-        return "분석할 이미지 파일이 존재하지 않습니다."
-
-    client = genai.Client(api_key=api_key)
-    
-    mime_type, _ = mimetypes.guess_type(image_path)
-    if not mime_type:
-        mime_type = "image/jpeg"
-
-    with open(image_path, "rb") as f:
-        image_bytes = f.read()
-
-    image_part = types.Part.from_bytes(
-        data=image_bytes,
-        mime_type=mime_type
-    )
-
-    prompt = (
-        "이 문서는 독거 어르신의 건강검진표 또는 처방전 이미지입니다. "
-        "사회복지사가 빠르게 파악할 수 있도록 다음 양식에 맞춰 매우 간결하게 요약해주세요. "
-        '만약 건강검진표가 아닌 것 같다면 "건강검진표가 아닙니다"라고 작성해주세요.'
-        "절대 마크다운 볼드체 기호(**)를 사용하지 마세요.\n\n"
-        "1. 시급한 주의 수치 (고위험): 당장 조치가 필요한 항목만 1~2줄로 요약\n"
-        "2. 관찰 필요 항목: 혈당, 콜레스테롤 등 주의가 필요한 항목\n"
-        "3. 복지사 권장 조치: 병원 동행, 식단 안내 등 구체적 행동 2가지 이내\n\n"
-        "불필요한 서론이나 긴 설명은 생략하고 핵심 위주로 작성해주세요."
-    )
-
-    # 503 일시적 오류 대비 최대 3회 재시도 로직
-    max_retries = 3
-    for attempt in range(max_retries):
-        try:
-            response = client.models.generate_content(
-                model='gemini-3.6-flash',
-                contents=[prompt, image_part]
-            )
-            return response.text
-        except Exception as e:
-            if "503" in str(e) and attempt < max_retries - 1:
-                time.sleep(2)  # 2초 대기 후 재시도
-                continue
-            return f"AI 이미지 분석 중 오류가 발생했습니다: {str(e)}"
+    """Compatibility summary API; extraction failures propagate to the caller."""
+    from services.checkup_service import extract_document, summarize
+    return summarize(extract_document(image_path))
