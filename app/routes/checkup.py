@@ -7,7 +7,7 @@ from sqlalchemy.exc import IntegrityError
 from models.models import db, User, Worker, CheckupDocument, CheckupResult
 from services.checkup_service import (
     CheckupError, Extraction, extract_document, parse_extraction,
-    summarize, validate_extraction,
+    summarize, validate_extraction, merge_diseases,
 )
 from pydantic import ValidationError
 from services.ai_service import resolve_model, AIError
@@ -39,6 +39,7 @@ def owned_document(doc_id):
 def result_payload(record, user):
     return {
         'success': True, 'doc_id': record.doc_id,
+        'current_disease': user.note or ('기저질환 있음' if user.has_underlying_disease else '없음'),
         'analysis': summarize(record.extraction),
         'extraction': record.extraction,
         'validation_issues': validate_extraction(record.extraction, user.name),
@@ -106,7 +107,8 @@ def get_checkup_result(doc_id):
     doc, user, _ = owned_document(doc_id)
     record = CheckupResult.query.filter_by(doc_id=doc_id).first()
     if not record:
-        return jsonify(success=True, doc_id=doc_id, extraction=None, confirmed_result=None)
+        return jsonify(success=True, doc_id=doc_id, extraction=None, confirmed_result=None,
+                       current_disease=user.note or ('기저질환 있음' if user.has_underlying_disease else '없음'))
     return jsonify(result_payload(record, user))
 
 
@@ -144,6 +146,21 @@ def confirm_checkup(doc_id):
         for item, source in zip(result['items'], original)
     ):
         raise CheckupError("원문과 페이지 번호는 변경할 수 없습니다.")
+    original_diseases = record.extraction.get('diseases', [])
+    if len(result['diseases']) != len(original_diseases) or any(
+        item['raw_text'] != source['raw_text'] or item['page'] != source['page']
+        for item, source in zip(result['diseases'], original_diseases)
+    ):
+        raise CheckupError("질환 근거 원문과 페이지 번호는 변경할 수 없습니다.")
+    selected = body.get('selected_disease_indices', [])
+    if not isinstance(selected, list) or len(selected) > len(original_diseases) or any(
+        type(index) is not int or not 0 <= index < len(original_diseases) for index in selected
+    ) or len(set(selected)) != len(selected):
+        raise CheckupError("추가할 질환 선택을 확인해주세요.")
+    for disease in result['diseases']:
+        disease['name'] = disease['name'].strip()
+        if not disease['name']:
+            raise CheckupError("질환명을 입력해주세요.")
     for item in result['items']:
         if item['unreadable']:
             item['value'] = None
@@ -155,6 +172,13 @@ def confirm_checkup(doc_id):
         raise CheckupError("문서 이름을 수정하거나 담당 대상 확인을 체크해주세요.")
     if issues and body.get('issues_reviewed') is not True:
         raise CheckupError("표시된 확인 필요 사항을 원본과 대조하고 확인해주세요.")
+    # 서로 다른 검진표에서 동시에 추가해도 기존 목록을 덮어쓰지 않는다.
+    user = User.query.filter_by(user_id=user.user_id).populate_existing().with_for_update().one()
+    if user.worker_id != worker_id:
+        raise CheckupError("담당자가 변경되었습니다. 다시 확인해주세요.", 409)
+    if selected:
+        user.note, _ = merge_diseases(user.note, [result['diseases'][i]['name'] for i in selected])
+        user.has_underlying_disease = True
     record.confirmed_result = result
     record.confirmed_revision = record.revision
     record.confirmed_by = worker_id

@@ -1,5 +1,6 @@
 """선택적 브라우저 회귀 테스트: playwright와 로컬 Chrome이 있을 때 실행."""
 import copy
+import tempfile
 import threading
 import time
 import unittest
@@ -75,7 +76,35 @@ class BrowserTests(unittest.TestCase):
         frame = page.locator('[data-original] iframe').bounding_box()
         modal = page.locator('#checkup-review').bounding_box()
         self.assertLessEqual(frame['x'] + frame['width'], modal['x'] + modal['width'])
-        page.screenshot(path=str(Path(__file__).parent / 'fixtures' / 'checkups' / 'review_mobile_preview.png'))
+        page.screenshot(path=str(Path(tempfile.gettempdir()) / 'smartcare_checkup_mobile_preview.png'))
+        self.assertFalse(self.errors)
+
+    def test_select_edit_disease_and_refresh_event(self):
+        data = self.fixture.disease_result()
+        data['diseases'][0]['raw_text'] = '<img src=x onerror="window.injected=true">'
+        self.fixture.analyze(data)
+        page = self.page; page.goto(self.url)
+        page.evaluate("window.refreshCount = 0; window.addEventListener('checkup-confirmed', () => window.refreshCount++)")
+        page.get_by_text('Review', exact=True).click()
+        page.locator('.checkup-disease-row').first.wait_for()
+        self.assertEqual(page.locator('[data-diseases] input:checked').count(), 0)
+        self.assertEqual(page.locator('[data-current-disease]').inner_text(), '없음')
+        page.locator('.checkup-disease-row').nth(1).locator('input[type=text]').fill('고 혈 압')
+        page.locator('.checkup-disease-row').nth(1).locator('input[type=checkbox]').check()
+        page.locator('[data-confirm]').click()
+        page.wait_for_function("document.querySelector('[data-current-disease]').textContent === '고 혈 압'")
+        self.assertEqual(page.evaluate('window.refreshCount'), 1)
+        self.assertIsNone(page.evaluate('window.injected'))
+        self.assertEqual(page.locator('[data-diseases] input:checked').count(), 0)
+        page.reload(); page.get_by_text('Review', exact=True).click()
+        page.wait_for_function("document.querySelector('[data-current-disease]').textContent === '고 혈 압'")
+        page.set_viewport_size({'width': 390, 'height': 844})
+        self.assertTrue(page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'))
+        page.locator('[data-disease-section]').scroll_into_view_if_needed()
+        for row in page.locator('.checkup-disease-row').all():
+            bounds = row.bounding_box()
+            self.assertLessEqual(bounds['x'] + bounds['width'], 390)
+        page.screenshot(path=str(Path(tempfile.gettempdir()) / 'smartcare_checkup_diseases_mobile.png'))
         self.assertFalse(self.errors)
 
 

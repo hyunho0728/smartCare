@@ -35,6 +35,13 @@ class ExamItem(BaseModel):
     unreadable: bool = False
 
 
+class DiseaseCandidate(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    name: str = Field(min_length=1, max_length=100)
+    raw_text: str = Field(min_length=1, max_length=1000)
+    page: int = Field(ge=1, le=MAX_PAGES)
+
+
 class Extraction(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     is_checkup: bool
@@ -42,6 +49,7 @@ class Extraction(BaseModel):
     checkup_date: str | None = Field(default=None, max_length=100)
     institution: str | None = Field(default=None, max_length=200)
     items: list[ExamItem] = Field(max_length=200)
+    diseases: list[DiseaseCandidate] = Field(default_factory=list, max_length=100)
 
 
 def prepare_document(data, filename):
@@ -105,6 +113,9 @@ PROMPT = """일반건강검진 결과통보서에서 보이는 사실만 추출�
 환자의 실제 결과와 참고범위를 혼동하지 마세요. 소수점, 부등호, 단위, 양성/음성을 그대로 보존하세요.
 문서에 없는 수치/단위/참고범위는 null, 읽을 수 없는 결과는 value=null, unreadable=true입니다.
 raw_text는 해당 행의 보이는 원문, page는 1부터 시작하는 실제 페이지 번호입니다.
+환자 본인의 현재 기저질환 또는 진단·치료 중이라고 명시된 질환만 diseases에 추출하세요.
+질환명 name, 근거 원문 raw_text, 실제 페이지 page를 기록하고 없으면 diseases=[]입니다.
+수치에 따른 질환 추정, 의심 소견, 가족력, 부정된 질환, 과거에 완치된 질환은 제외하세요.
 없거나 가려진 개인정보를 추측하지 마세요. 질환 진단이나 응급도 판단은 하지 마세요."""
 
 
@@ -116,11 +127,16 @@ def provider_schema():
         'reference_range': text(), 'raw_text': types.Schema(type='STRING'),
         'page': types.Schema(type='INTEGER'), 'unreadable': types.Schema(type='BOOLEAN'),
     }, required=['name', 'value', 'unit', 'reference_range', 'raw_text', 'page', 'unreadable'])
+    disease = types.Schema(type='OBJECT', properties={
+        'name': types.Schema(type='STRING'), 'raw_text': types.Schema(type='STRING'),
+        'page': types.Schema(type='INTEGER'),
+    }, required=['name', 'raw_text', 'page'])
     return types.Schema(type='OBJECT', properties={
         'is_checkup': types.Schema(type='BOOLEAN'), 'patient_name': text(),
         'checkup_date': text(), 'institution': text(),
         'items': types.Schema(type='ARRAY', items=item),
-    }, required=['is_checkup', 'patient_name', 'checkup_date', 'institution', 'items'])
+        'diseases': types.Schema(type='ARRAY', items=disease),
+    }, required=['is_checkup', 'patient_name', 'checkup_date', 'institution', 'items', 'diseases'])
 
 
 def extract_document(path, model=None):
@@ -144,7 +160,7 @@ def extract_document(path, model=None):
                 ),
             )
         result = parse_extraction(response.text)
-        if any(item["page"] > pages for item in result["items"]):
+        if any(item["page"] > pages for item in result["items"] + result["diseases"]):
             raise CheckupError("AI 결과의 페이지 번호가 원본과 다릅니다. 재분석해주세요.", 502)
         return result
     except CheckupError:
@@ -222,3 +238,30 @@ def validate_extraction(result, expected_name):
 def summarize(result):
     unreadable = sum(item["unreadable"] or not item["value"] for item in result["items"])
     return f"검사 항목 {len(result['items'])}개 추출 · 판독 불가/누락 {unreadable}개. 원본 대조 후 확정해주세요."
+
+
+def merge_diseases(note, candidates):
+    """기존 자유 입력을 보존하고 이름과 기존 별칭으로 중복을 처리한다."""
+    from services.health_analysis_service import DISEASES, normalized
+
+    def key(name):
+        value = normalized(name)
+        return next((label for label, aliases in DISEASES.items()
+                     if value in {normalized(alias) for alias in aliases}), value)
+
+    existing = note or ''
+    known = {key(part) for part in re.split(r'[,/·;\n]+', existing) if part.strip()}
+    # 자유 입력 문장에 등록된 질환도 기존 분석 규칙으로 확인한다.
+    from services.health_analysis_service import registered_diseases
+    known.update(registered_diseases(existing))
+    added = []
+    for name in candidates:
+        name = name.strip()
+        disease_key = key(name)
+        if disease_key not in known:
+            added.append(name)
+            known.add(disease_key)
+    if not added:
+        return existing, added
+    base = '' if existing.strip() == '없음' else existing
+    return base + (', ' if base else '') + ', '.join(added), added

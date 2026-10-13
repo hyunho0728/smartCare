@@ -1103,6 +1103,13 @@ async function logout(){
   } catch (error) { toast(error.message); }
 }
 
+function escapeDiseaseText(value) {
+  const element = document.createElement('span');
+  element.textContent = value || '없음';
+  return element.innerHTML;
+}
+window.addEventListener('checkup-confirmed', () => loadEldersData());
+
 async function loadEldersData() {
   try {
     const res = await fetch('/api/admin/elders');
@@ -1488,7 +1495,7 @@ function renderOtherSections() {
           <td>${u.age}세</td>
           <td>${u.phone}</td>
           <td>${u.address || '-'}</td>
-          <td>${u.disease && u.disease !== '없음' ? `<span class="badge b-yellow">${u.disease}</span>` : '<span class="badge b-green">없음</span>'}</td>
+          <td>${u.disease && u.disease !== '없음' ? `<span class="badge b-yellow">${escapeDiseaseText(u.disease)}</span>` : '<span class="badge b-green">없음</span>'}</td>
           <td>${u.created_at || '-'}</td>
           <td>
             <div class="actions">
@@ -1562,7 +1569,7 @@ function renderOtherSections() {
           <td><b>${u.name}</b></td>
           <td>${u.age}세</td>
           <td>${u.address || '-'}</td>
-          <td>${u.disease || '없음'}</td>
+          <td>${escapeDiseaseText(u.disease)}</td>
           <td>
             <button class="mini-btn" style="background:var(--blue);color:white;border:none;" onclick="assignElder(${u.id}, '${u.name}')">담당 배정</button>
           </td>
@@ -1796,7 +1803,7 @@ function renderTable(){
 
     const breakdownHtml = normalizeScoreBreakdown(u.score_breakdown).map(b => `
       <span class="score-tag ${b.type}">
-        <span>${b.item}</span>
+        <span>${escapeDiseaseText(b.item)}</span>
         <b>${b.score}</b>
       </span>
     `).join('');
@@ -1902,7 +1909,7 @@ function renderTable(){
                 <div class="info-card-v2"><span>주소</span><b>${u.address || '주소 미입력'}</b></div>
                 <div class="info-card-v2"><span>전화번호</span><b>${u.phone}</b></div>
                 <div class="info-card-v2"><span>보호자 연락처</span><b>${u.emergency_contact || '보호자 미등록'}</b></div>
-                <div class="info-card-v2"><span>기저질환</span><b>${u.disease || '없음'}</b></div>
+                <div class="info-card-v2"><span>기저질환</span><b>${escapeDiseaseText(u.disease)}</b></div>
                 <div class="info-card-v2">
                   <span>오늘 식사 여부</span>
                   <div class="meal-inline" style="margin-top:4px;">

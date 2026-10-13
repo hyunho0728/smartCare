@@ -7,6 +7,7 @@
   dialog.innerHTML = `
     <header><h2>건강검진표 판독·확인</h2><button type="button" data-close>닫기</button></header>
     <p data-status role="status" aria-live="polite"></p>
+    <p>현재 기저질환: <span data-current-disease></span></p>
     <div data-model-control></div><p data-model-used></p>
     <div class="checkup-review-grid"><section data-original></section><section>
       <button type="button" data-analyze>AI 분석 / 다시 분석</button>
@@ -17,6 +18,11 @@
         <div class="checkup-table-scroll"><table><thead><tr>
           <th>검사 항목</th><th>결과</th><th>단위</th><th>참고범위</th><th>판독 불가</th><th>원문 / 페이지</th>
         </tr></thead><tbody data-items></tbody></table></div>
+        <section data-disease-section>
+          <h3>검진표에 명시된 기저질환</h3>
+          <p>원본과 대조한 뒤 추가할 질환을 선택해주세요. 선택한 질환은 확정·저장할 때 현재 목록에 추가됩니다.</p>
+          <div data-diseases></div>
+        </section>
         <label><input type="checkbox" data-identity> 원본의 담당 대상이 이 어르신임을 확인했습니다.</label>
         <label><input type="checkbox" data-reviewed> 확인 필요 사항을 포함해 원본과 대조했습니다.</label>
         <button type="button" data-confirm>수정 결과 확정·저장</button>
@@ -58,10 +64,12 @@
   function render(state, result) {
     if (active !== state) return;
     state.result = result;
+    find('current-disease').textContent = result.current_disease || '없음';
     find('model-used').textContent = `판독 모델: ${result.extraction_model || '기록 없음'} · 확정 당시 모델: ${result.confirmed_model || '기록 없음'}`;
     find('editor').hidden = !result.extraction;
     find('metadata').replaceChildren(); find('items').replaceChildren();
     find('issues').replaceChildren(); find('confirmed').replaceChildren();
+    find('diseases').replaceChildren(); state.diseases = [];
     find('identity').checked = false; find('reviewed').checked = false;
     if (!result.extraction) { status('저장된 판독 결과가 없습니다. AI 분석을 실행해주세요.'); return; }
     const sameRevision = result.confirmed_revision === result.revision;
@@ -92,6 +100,18 @@
       tr.append(source); find('items').append(tr);
       return {fields, unreadable, source: result.extraction.items[index]};
     });
+    state.diseases = (draft.diseases || []).map((disease, index) => {
+      const row = document.createElement('div'); row.className = 'checkup-disease-row';
+      const label = document.createElement('label');
+      const selected = document.createElement('input'); selected.type = 'checkbox';
+      selected.setAttribute('aria-label', `${disease.name} 현재 목록에 추가`);
+      label.append(selected, document.createTextNode(' 현재 목록에 추가'));
+      const name = input(disease.name, `기저질환 ${index + 1} 질환명`, 100);
+      const source = document.createElement('p'); source.textContent = `${disease.raw_text} (${disease.page}쪽)`;
+      row.append(label, name, source); find('diseases').append(row);
+      return {name, selected, source: result.extraction.diseases[index]};
+    });
+    if (!state.diseases.length) find('diseases').textContent = '추출된 기저질환이 없습니다. 기존 검진표는 재분석하면 질환 후보를 확인할 수 있습니다.';
     if (result.confirmed_result) {
       const title = document.createElement('h3');
       title.textContent = `저장된 확정 결과 · ${result.confirmed_at} · 담당자 #${result.confirmed_by}`;
@@ -124,7 +144,7 @@
       return;
     }
     const state = {docId, result: null, expectedRevision: options.expectedRevision}; active = state;
-    find('model-used').textContent = '';
+    find('model-used').textContent = ''; find('current-disease').textContent = '불러오는 중...';
     find('editor').hidden = true; find('confirmed').replaceChildren(); find('original').replaceChildren();
     const originalUrl = `/api/admin/checkup/${docId}/original`;
     const frame = document.createElement('iframe'); frame.src = originalUrl; frame.title = '건강검진표 원본';
@@ -161,14 +181,18 @@
       ...source, name: fields.name.value.trim(), value: unreadable.checked ? null : nullable(fields.value),
       unit: nullable(fields.unit), reference_range: nullable(fields.reference_range), unreadable: unreadable.checked,
     }));
+    result.diseases = state.diseases.map(({name, source}) => ({...source, name: name.value.trim()}));
+    const selectedDiseaseIndices = state.diseases.flatMap(({selected}, index) => selected.checked ? [index] : []);
     state.saving = true; busy(true); status('확정 결과 저장 중...');
     try {
       const saved = await api(`/api/admin/checkup/${state.docId}/confirm`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({revision: state.result.revision, result,
+          selected_disease_indices: selectedDiseaseIndices,
           identity_verified: find('identity').checked, issues_reviewed: find('reviewed').checked}),
       });
-      render(state, saved); if (active === state) status('확정 결과를 저장했습니다.');
+      render(state, saved); if (active === state) status(selectedDiseaseIndices.length ? '확정 결과를 저장하고 선택한 질환을 현재 목록에 반영했습니다.' : '확정 결과를 저장했습니다.');
+      window.dispatchEvent(new CustomEvent('checkup-confirmed'));
     } catch (error) { if (active === state) status(error.message); }
     finally { state.saving = false; if (active === state) busy(false); }
   }

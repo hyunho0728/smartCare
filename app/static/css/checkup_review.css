@@ -20,3 +20,7 @@
 .ai-spinner { display: inline-block !important; flex-shrink: 0; width: 18px; height: 18px; margin-right: 8px; border: 3px solid #bfdbfe; border-top-color: #2563eb; border-radius: 50%; animation: ai-spin .8s linear infinite; vertical-align: middle; }
 @keyframes ai-spin { to { transform: rotate(360deg); } }
 @media(prefers-reduced-motion:reduce) { .ai-spinner { animation: none; } }
+
+#checkup-review .checkup-disease-row { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin: 8px 0; }
+#checkup-review .checkup-disease-row input[type=text] { width: 100%; }
+#checkup-review .checkup-disease-row p { overflow-wrap: anywhere; }

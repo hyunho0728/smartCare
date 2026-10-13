@@ -22,7 +22,7 @@ from services.checkup_service import (
 
 def result(name='가상김어르신'):
     return {'is_checkup': True, 'patient_name': name, 'checkup_date': '2026-09-01',
-            'institution': '가상검진센터', 'items': [
+            'institution': '가상검진센터', 'diseases': [], 'items': [
                 {'name': '공복혈당', 'value': '98', 'unit': 'mg/dL', 'reference_range': '70~99',
                  'raw_text': '공복혈당 98 mg/dL 70~99', 'page': 1, 'unreadable': False},
                 {'name': '시력(좌)', 'value': '0.7', 'unit': None, 'reference_range': None,
@@ -201,6 +201,84 @@ class ApiTests(unittest.TestCase):
         data = result('다른이름'); self.analyze(data)
         self.assertEqual(self.confirm(data).status_code, 400)
         self.assertEqual(self.confirm(data, identity_verified=True).status_code, 200)
+
+    def disease_result(self):
+        data = result()
+        data['diseases'] = [
+            {'name': '당뇨병', 'raw_text': '당뇨 치료 중', 'page': 1},
+            {'name': '고혈압', 'raw_text': '고혈압 진단', 'page': 1},
+            {'name': '천식', 'raw_text': '천식 치료 중', 'page': 1},
+        ]
+        return data
+
+    def test_disease_selection_edit_merge_and_reanalysis(self):
+        user = db.session.get(User, 1)
+        user.note = '당뇨, 기타 메모'; user.has_underlying_disease = True
+        db.session.commit()
+        data = self.disease_result(); self.analyze(data)
+        edited = copy.deepcopy(data); edited['diseases'][1]['name'] = ' 고 혈 압 '
+        saved = self.confirm(edited, selected_disease_indices=[0, 1])
+        self.assertEqual(saved.status_code, 200)
+        self.assertEqual(saved.json['current_disease'], '당뇨, 기타 메모, 고 혈 압')
+        self.assertEqual(saved.json['confirmed_result']['diseases'][1]['name'], '고 혈 압')
+        self.assertEqual(self.confirm(edited, selected_disease_indices=[0, 1]).json['current_disease'],
+                         '당뇨, 기타 메모, 고 혈 압')
+        self.assertEqual(self.analyze().json['current_disease'], '당뇨, 기타 메모, 고 혈 압')
+        self.assertEqual(self.confirm(data, selected_disease_indices=[2]).status_code, 409)
+
+    def test_unselected_and_first_disease(self):
+        data = self.disease_result(); self.analyze(data)
+        self.assertEqual(self.confirm(data).status_code, 200)
+        self.assertFalse(db.session.get(User, 1).has_underlying_disease)
+        saved = self.confirm(data, selected_disease_indices=[2])
+        self.assertEqual(saved.json['current_disease'], '천식')
+        self.assertTrue(db.session.get(User, 1).has_underlying_disease)
+
+    def test_invalid_selection_and_disease_source(self):
+        data = self.disease_result(); self.analyze(data)
+        for selected in (None, {}, '0', [True], [-1], [3], [0, 0], [[0]]):
+            with self.subTest(selected=selected):
+                self.assertEqual(self.confirm(data, selected_disease_indices=selected).status_code, 400)
+        for field, value in [('raw_text', '변조'), ('page', 2), ('name', '   ')]:
+            edited = copy.deepcopy(data); edited['diseases'][0][field] = value
+            self.assertEqual(self.confirm(edited, selected_disease_indices=[0]).status_code, 400)
+        edited = copy.deepcopy(data); edited['diseases'].pop()
+        self.assertEqual(self.confirm(edited).status_code, 400)
+        self.assertIsNone(db.session.get(User, 1).note)
+
+    def test_disease_transaction_rollback(self):
+        data = self.disease_result(); self.analyze(data)
+        with patch.object(db.session, 'commit', side_effect=RuntimeError('save failed')):
+            self.assertEqual(self.confirm(data, selected_disease_indices=[0]).status_code, 500)
+        self.assertIsNone(db.session.get(User, 1).note)
+        self.assertFalse(db.session.get(User, 1).has_underlying_disease)
+        self.assertIsNone(CheckupResult.query.one().confirmed_result)
+
+    def test_legacy_result_without_diseases(self):
+        data = result(); data.pop('diseases'); self.analyze(data)
+        self.assertEqual(self.confirm(data).status_code, 200)
+        self.assertEqual(self.client.get('/api/admin/checkup/1/result').json['confirmed_result']['diseases'], [])
+
+    def test_duplicate_candidates_aliases_and_none_marker(self):
+        from services.checkup_service import merge_diseases
+        self.assertEqual(merge_diseases('없음', ['천식', '천 식']), ('천식', ['천식']))
+        self.assertEqual(merge_diseases('고지혈증', ['이상지질혈증']), ('고지혈증', []))
+        self.assertEqual(merge_diseases('희귀질환·기타 메모', ['희귀 질환']), ('희귀질환·기타 메모', []))
+        self.assertEqual(merge_diseases('당뇨 없음', ['당뇨병']), ('당뇨 없음, 당뇨병', ['당뇨병']))
+
+    def test_disease_schema_and_actual_page_validation(self):
+        from services.checkup_service import extract_document, provider_schema, PROMPT
+        from unittest.mock import MagicMock
+        self.assertIn('diseases', provider_schema().required)
+        self.assertIn('가족력', PROMPT)
+        data = self.disease_result(); data['diseases'][0]['page'] = 2
+        response = MagicMock(text=json.dumps(data))
+        with patch.dict(os.environ, {'GEMINI_API_KEY': 'fake-test-key'}), patch(
+            'services.checkup_service.generate_content', return_value=response
+        ):
+            with self.assertRaises(CheckupError) as raised:
+                extract_document(str(Path(__file__).parent / 'fixtures' / 'checkups' / 'normal.pdf'))
+            self.assertEqual(raised.exception.status, 502)
 
     def test_unreadable_and_review(self):
         self.analyze()
