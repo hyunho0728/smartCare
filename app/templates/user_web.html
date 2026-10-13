@@ -107,6 +107,14 @@
             box-shadow: var(--shadow);
         }
 
+        #screen-reg-disease { overflow-y: auto; justify-content: flex-start; }
+        #screen-reg-disease > * { flex-shrink: 0; }
+        .disease-choices { border: 0; min-width: 0; }
+        .disease-choices label { display: flex; align-items: center; gap: 12px; min-height: 48px; padding: 8px; font-size: 20px; cursor: pointer; }
+        .disease-choices input { width: 26px; height: 26px; flex-shrink: 0; accent-color: var(--primary); }
+        .disease-help { color: var(--sub); margin-bottom: 8px; }
+        #reg-disease-other[hidden] { display: none; }
+
         .label {
             display: block;
             font-size: clamp(17px, 2.2vh, 24px);
@@ -744,17 +752,18 @@
         <div class="auth-title">안내 (6/6)</div>
         <div class="auth-sub">가지고 계신 지병을 선택해주세요</div>
         <div class="auth-card">
-            <label class="label">기저질환</label>
-            <select class="select" id="reg-disease" onchange="checkDiseaseOther()">
-                <option value="없음">없음</option>
-                <option value="고혈압">고혈압</option>
-                <option value="당뇨">당뇨</option>
-                <option value="관절염">관절염</option>
-                <option value="심장질환">심장질환</option>
-                <option value="치매">치매</option>
-                <option value="기타">기타 (직접입력)</option>
-            </select>
-            <input class="input form-gap" id="reg-disease-other" type="text" placeholder="질환명을 입력하세요" style="display:none;">
+            <fieldset class="disease-choices" id="reg-disease" data-disease-selection data-other="reg-disease-other" aria-describedby="reg-disease-help">
+                <legend class="label">기저질환</legend>
+                <p class="disease-help" id="reg-disease-help">여러 개 선택할 수 있습니다.</p>
+                <label><input type="checkbox" value="없음" checked>없음</label>
+                <label><input type="checkbox" value="고혈압">고혈압</label>
+                <label><input type="checkbox" value="당뇨">당뇨</label>
+                <label><input type="checkbox" value="관절염">관절염</label>
+                <label><input type="checkbox" value="심장질환">심장질환</label>
+                <label><input type="checkbox" value="치매">치매</label>
+                <label><input type="checkbox" value="기타" aria-controls="reg-disease-other">기타 (직접입력)</label>
+            </fieldset>
+            <input class="input form-gap" id="reg-disease-other" type="text" aria-label="기타 질환명" placeholder="여러 질환은 쉼표로 구분해주세요" hidden>
             <div class="btn-row">
                 <button class="main-btn gray-btn" onclick="goTo('screen-reg-age')">이전</button>
                 <button class="main-btn green-btn" onclick="finishRegister()">등록 완료</button>
@@ -1090,6 +1099,7 @@
         </div>
     </div>
 
+    <script src="{{ url_for('static', filename='js/disease_selection.js') }}"></script>
     <script>
 const registrationMode = {{ registration_mode|default(false)|tojson }};
         let currentUserName = '어르신';
@@ -1398,9 +1408,7 @@ const registrationMode = {{ registration_mode|default(false)|tojson }};
             document.getElementById('reg-phone').value = '';
             document.getElementById('reg-address').value = '';
             document.getElementById('reg-age').value = '';
-            document.getElementById('reg-disease').value = '없음';
-            document.getElementById('reg-disease-other').value = '';
-            checkDiseaseOther();
+            window.DiseaseSelection.reset('reg-disease');
             goTo('screen-reg-privacy');
             speak('개인정보 동의 화면입니다.');
         }
@@ -1439,20 +1447,7 @@ const registrationMode = {{ registration_mode|default(false)|tojson }};
             else if (nextId === 'screen-reg-phone') speak('전화번호를 입력해주세요.');
             else if (nextId === 'screen-reg-address') speak('주소를 입력해주세요.');
             else if (nextId === 'screen-reg-age') speak('연세를 입력해주세요.');
-            else if (nextId === 'screen-reg-disease') speak('기저질환을 선택해주세요.');
-        }
-
-        function checkDiseaseOther() {
-            const select = document.getElementById('reg-disease');
-            const other = document.getElementById('reg-disease-other');
-            if (!select || !other) return;
-            if (select.value === '기타') {
-                other.style.display = 'block';
-                other.focus();
-            } else {
-                other.style.display = 'none';
-                other.value = '';
-            }
+            else if (nextId === 'screen-reg-disease') speak('기저질환을 선택해주세요. 여러 개 선택할 수 있습니다.');
         }
 
         async function finishRegister() {
@@ -1460,17 +1455,15 @@ const registrationMode = {{ registration_mode|default(false)|tojson }};
             const phone = document.getElementById('reg-phone').value.trim();
             const address = document.getElementById('reg-address').value.trim();
             const age = document.getElementById('reg-age').value.trim();
-            const diseaseSelect = document.getElementById('reg-disease').value;
-            const diseaseOther = document.getElementById('reg-disease-other').value.trim();
-
-            if (diseaseSelect === '기타' && !diseaseOther) {
-                showAlert('⚠️', '질환명을 직접 입력해주세요.');
-                speak('질환명을 직접 입력해주세요.');
+            let disease;
+            try { disease = window.DiseaseSelection.read('reg-disease'); }
+            catch (error) {
+                showAlert('⚠️', error.message);
+                speak(error.message);
                 return;
             }
-
-            const disease_note = diseaseSelect === '기타' ? diseaseOther : diseaseSelect;
-            const has_disease = diseaseSelect !== '없음';
+            const disease_note = disease.note;
+            const has_disease = disease.hasDisease;
 
             try {
                 const res = await fetch('/api/user/register', {

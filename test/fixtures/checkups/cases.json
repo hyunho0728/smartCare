@@ -169,6 +169,25 @@
         "관절염"
       ],
       "generation_instructions": "Patient 성명 가상이해솔; 나이 79세; 사용자 ID T10; 담당자 ID 가상; 검진일 2026-10-10; 과거병력 / 현재 기저질환 만성콩팥병, 관절염 (현재 치료 중).\nExact exam values: 신장 162 cm; 체중 61 kg; 허리둘레 86 cm; BMI 23.2; 혈압 138/84 mmHg; 공복혈당 103; 총콜레스테롤 198; HDL 50; LDL 119; 중성지방 145; 혈색소 11.8; AST 26; ALT 22; GTP 24; 크레아티닌 1.5; eGFR 43; 요단백 양성(1+).\nExact 소견 및 조치사항: 현재 기저질환: 만성콩팥병, 관절염. 가족력: 부 뇌졸중. 본인 뇌졸중 없음."
+    },
+    {
+      "filename": "11_kim_youngsook_hypertension.png",
+      "name": "김영숙",
+      "age": 74,
+      "user_id": 13,
+      "worker_id": 9,
+      "db_matched": false,
+      "current_disease_text": "고혈압 (치료 중)",
+      "checkup_date": "2026-10-01",
+      "synthetic_measurements": "신장 155.0 cm; 체중 56.0 kg; 허리둘레 79.0 cm; BMI 23.3; 혈압 118/76 mmHg; 공복혈당 94; 총콜레스테롤 185; HDL 58; LDL 103; 중성지방 120; 혈색소 12.8; AST 24; ALT 20; GTP 22; 크레아티닌 0.8; eGFR 76",
+      "notes_text": "기존 고혈압 치료 및 정기 진료 유지.",
+      "expected_diseases": [
+        "고혈압"
+      ],
+      "generation_instructions": "Edit the supplied Korean synthetic health checkup form. Change ONLY the underlying disease in these two places: top patient information cell currently \"관절염 (치료 중)\" must become \"고혈압 (치료 중)\"; bottom 소견 및 조치사항 currently \"기존 관절염 치료 및 정기 진료 유지.\" must become \"기존 고혈압 치료 및 정기 진료 유지.\". Preserve EVERYTHING ELSE exactly: name 김영숙, age 74세, user ID 13, worker ID 9, date 2026-10-01, every exam name/value/unit/reference including blood pressure 118/76, grayscale scan texture, table layout, dimensions, margins, fonts, clinic name, and 테스트용 · 실제 검진 결과 아님 notice. Do not add or remove rows or change test values. This is a fictitious test fixture variation, not a real medical record.",
+      "db_identity_matched": true,
+      "disease_is_synthetic_override": true,
+      "source_image": "01_kim_youngsook.png"
     }
   ]
 }

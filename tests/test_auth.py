@@ -139,6 +139,31 @@ class AuthTests(unittest.TestCase):
         self.assertEqual(response.status_code, 503)
         self.assertFalse(response.json['success'])
 
+    def test_multiple_diseases_registration_reactivation_and_proxy(self):
+        body = {'name': '복수질환어르신', 'phone_number': '01055556666', 'address': 'b', 'age': 78,
+                'has_disease': True, 'disease_note': '고혈압, 당뇨, 천식'}
+        self.assertEqual(self.client.post('/api/user/register', json=body).status_code, 200)
+        user = User.query.filter_by(phone_number=body['phone_number']).one()
+        self.assertTrue(user.has_underlying_disease)
+        self.assertEqual(user.note, body['disease_note'])
+        user.is_active = False; db.session.commit()
+        body['disease_note'] = '관절염, 천식'
+        self.assertEqual(self.client.post('/api/user/register', json=body).status_code, 200)
+        db.session.expire_all()
+        self.assertTrue(user.is_active)
+        self.assertTrue(user.has_underlying_disease)
+        self.assertEqual(user.note, body['disease_note'])
+        self.worker_login()
+        body.update(phone_number='01055557777', disease_note='고혈압, 당뇨병, 천식')
+        self.assertEqual(self.client.post('/api/admin/elders/register', json=body).status_code, 200)
+        proxy = User.query.filter_by(phone_number=body['phone_number']).one()
+        self.assertEqual(proxy.worker_id, 1)
+        self.assertTrue(proxy.has_underlying_disease)
+        self.assertEqual(proxy.note, body['disease_note'])
+        body.update(phone_number='01055558888', disease_note='없음')
+        self.assertEqual(self.client.post('/api/admin/elders/register', json=body).status_code, 200)
+        self.assertFalse(User.query.filter_by(phone_number=body['phone_number']).one().has_underlying_disease)
+
     def test_life_ai_quota_failure_is_not_success(self):
         from services.health_analysis_service import HealthAnalysisError
         self.worker_login()

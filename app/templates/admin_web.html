@@ -365,6 +365,11 @@
 .chart-title-row{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;flex-wrap:wrap;}
 .chart-person-select{height:38px;border:1.5px solid var(--line);border-radius:12px;background:#fff;padding:0 14px;font-weight:800;color:#172033;outline:none;cursor:pointer;}
 
+.disease-choices { border:0; padding:0; min-width:0; }
+.disease-choices label { display:flex; align-items:center; gap:10px; min-height:44px; padding:6px 0; cursor:pointer; }
+.disease-choices input[type=checkbox] { width:22px; height:22px; flex-shrink:0; accent-color:var(--primary); }
+.disease-help { color:var(--muted); margin-bottom:8px; }
+#newDiseaseOther[hidden] { display:none; }
 </style>
 </head>
 <body>
@@ -809,23 +814,24 @@
       <input class="input" id="newElderAddress" placeholder="예: 서울시 강남구 역삼동 123-4">
       <div class="form-grid">
         <div>
-          <label class="label">기저질환</label>
-          <select class="input" id="newElderDisease" onchange="handleDiseaseSelect()">
-            <option value="없음">없음</option>
-            <option value="고혈압">고혈압</option>
-            <option value="당뇨병">당뇨병</option>
-            <option value="관절염">관절염</option>
-            <option value="심혈관질환">심혈관질환</option>
-            <option value="치매 / 인지장애">치매 / 인지장애</option>
-            <option value="기타">기타</option>
-          </select>
+          <fieldset class="disease-choices" id="newElderDisease" data-disease-selection data-other="newDiseaseOther" aria-describedby="new-disease-help">
+            <legend class="label">기저질환</legend>
+            <p class="disease-help" id="new-disease-help">여러 개 선택할 수 있습니다.</p>
+            <label><input type="checkbox" value="없음" checked>없음</label>
+            <label><input type="checkbox" value="고혈압">고혈압</label>
+            <label><input type="checkbox" value="당뇨병">당뇨병</label>
+            <label><input type="checkbox" value="관절염">관절염</label>
+            <label><input type="checkbox" value="심혈관질환">심혈관질환</label>
+            <label><input type="checkbox" value="치매 / 인지장애">치매 / 인지장애</label>
+            <label><input type="checkbox" value="기타" aria-controls="newDiseaseOther">기타 (직접입력)</label>
+          </fieldset>
         </div>
         <div>
           <label class="label">비상 연락처 (보호자)</label>
           <input class="input" id="newElderEmergency" placeholder="010-9999-8888">
         </div>
       </div>
-      <input class="input form-gap" id="newDiseaseOther" placeholder="기타 질환명을 입력해주세요" style="display:none;margin-top:10px;">
+      <input class="input form-gap" id="newDiseaseOther" aria-label="기타 질환명" placeholder="여러 질환은 쉼표로 구분해주세요" style="margin-top:10px;" hidden>
       <div class="modal-actions" style="display:flex;gap:10px;justify-content:flex-end;margin-top:24px;">
         <button class="btn soft" onclick="closeModal('add')">취소</button>
         <button class="btn primary" onclick="addElder()">등록 완료</button>
@@ -877,6 +883,7 @@
 </div>
 
 
+<script src="{{ url_for('static', filename='js/disease_selection.js') }}"></script>
 <script>
 const registrationMode = {{ registration_mode|default(false)|tojson }};
 let users = [];
@@ -2030,33 +2037,15 @@ function updateMainChart(index){
   window.HealthTrends?.scan();
 }
 
-function handleDiseaseSelect() {
-  const disease = document.getElementById('newElderDisease')?.value;
-  const otherInput = document.getElementById('newDiseaseOther');
-  if (!otherInput) return;
-
-  if (disease === '기타') {
-    otherInput.style.display = 'block';
-    otherInput.focus();
-  } else {
-    otherInput.style.display = 'none';
-    otherInput.value = '';
-  }
-}
-
-function getSelectedDisease() {
-  const disease = document.getElementById('newElderDisease')?.value || '없음';
-  const other = document.getElementById('newDiseaseOther')?.value.trim();
-  return disease === '기타' ? (other || '기타') : disease;
-}
-
 async function addElder() {
   const name = document.getElementById('newElderName')?.value.trim();
   const age = document.getElementById('newElderAge')?.value.trim();
   const phone = document.getElementById('newElderPhone')?.value.trim();
   const address = document.getElementById('newElderAddress')?.value.trim();
   const emergency_contact = document.getElementById('newElderEmergency')?.value.trim();
-  const disease_note = getSelectedDisease();
+  let disease_note;
+  try { disease_note = window.DiseaseSelection.read('newElderDisease').note; }
+  catch (error) { toast(error.message); return; }
 
   if (!name || !age || !phone || !address) {
     toast('성함, 나이, 휴대폰 번호, 주소는 필수 입력 항목입니다.');
@@ -2087,9 +2076,7 @@ async function addElder() {
       document.getElementById('newElderPhone').value = '';
       document.getElementById('newElderAddress').value = '';
       document.getElementById('newElderEmergency').value = '';
-      document.getElementById('newElderDisease').value = '없음';
-      document.getElementById('newDiseaseOther').style.display = 'none';
-      document.getElementById('newDiseaseOther').value = '';
+      window.DiseaseSelection.reset('newElderDisease');
 
       await loadEldersData();
     } else {

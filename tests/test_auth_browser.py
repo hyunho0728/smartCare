@@ -2,6 +2,7 @@
 import copy
 import datetime as dt
 import threading
+import tempfile
 import time
 import unittest
 from pathlib import Path
@@ -253,6 +254,106 @@ class AuthBrowserTests(unittest.TestCase):
         self.login('user'); page.locator('#screen-main.active').wait_for()
         page.evaluate("fetch('/api/auth/logout',{method:'POST'})")
         page.wait_for_url(self.url + '/login', timeout=10000)
+        self.assertFalse(self.errors)
+
+    def test_user_registration_multiple_diseases_mobile(self):
+        page = self.page; page.set_viewport_size({'width': 360, 'height': 640})
+        page.goto(self.url + '/register/user')
+        page.evaluate('speak = () => {}')
+        page.locator('#privacy-agree').check()
+        page.locator('#screen-reg-privacy').get_by_role('button', name='다음', exact=True).click()
+        for step, value in [('name', '복수선택테스트'), ('phone', '01055556666'), ('address', '가상주소'), ('age', '78')]:
+            page.locator('#reg-' + step).fill(value)
+            page.locator('#screen-reg-' + step).get_by_role('button', name='다음', exact=True).click()
+        group = page.locator('#reg-disease')
+        none = group.locator('input[value="없음"]')
+        self.assertTrue(none.is_checked())
+        bp = group.locator('input[value="고혈압"]'); bp.focus(); bp.press('Space')
+        group.get_by_text('당뇨', exact=True).click()
+        self.assertFalse(none.is_checked())
+        none.check()
+        self.assertEqual(group.locator('input:checked').count(), 1)
+        none.uncheck()
+        page.locator('#screen-reg-disease').get_by_role('button', name='등록 완료').click()
+        self.assertIn('없음을 선택', page.locator('#modal-text').inner_text())
+        page.evaluate('closeModal()')
+        bp.check(); group.locator('input[value="기타"]').check()
+        page.locator('#screen-reg-disease').get_by_role('button', name='등록 완료').click()
+        self.assertIn('직접 입력', page.locator('#modal-text').inner_text())
+        page.evaluate('closeModal()')
+        page.locator('#reg-disease-other').fill(' 천식, 고혈압, , 천식 ')
+        page.locator('#screen-reg-disease').get_by_role('button', name='이전').click()
+        page.locator('#screen-reg-age').get_by_role('button', name='다음').click()
+        self.assertTrue(bp.is_checked())
+        self.assertEqual(page.locator('#reg-disease-other').input_value(), ' 천식, 고혈압, , 천식 ')
+        captured = []
+        def fail(route):
+            captured.append(route.request.post_data_json)
+            route.fulfill(status=500, json={'success': False, 'message': '테스트 저장 실패'})
+        page.route('**/api/user/register', fail)
+        submit = page.locator('#screen-reg-disease').get_by_role('button', name='등록 완료')
+        submit.click(); page.wait_for_function("document.querySelector('#modal-text').textContent.includes('테스트 저장 실패')")
+        self.assertEqual(captured[0]['disease_note'], '고혈압, 천식')
+        self.assertTrue(captured[0]['has_disease'])
+        self.assertTrue(bp.is_checked())
+        page.evaluate('closeModal()'); page.unroute('**/api/user/register', fail)
+        submit.click(); page.wait_for_function("document.querySelector('#modal-text').textContent.includes('등록이 완료')")
+        db.session.expire_all()
+        self.assertEqual(User.query.filter_by(phone_number='01055556666').one().note, '고혈압, 천식')
+        page.evaluate('closeModal()')
+        self.no_overflow(); submit.scroll_into_view_if_needed()
+        self.assertGreaterEqual(submit.bounding_box()['y'], 0)
+        page.locator('#reg-disease').screenshot(path=str(Path(tempfile.gettempdir()) / 'smartcare_user_diseases.png'))
+        page.evaluate('startRegister()')
+        self.assertTrue(none.is_checked())
+        self.assertEqual(group.locator('input:checked').count(), 1)
+        self.assertEqual(page.locator('#reg-disease-other').input_value(), '')
+        self.assertFalse(self.errors)
+
+    def test_proxy_registration_multiple_diseases_mobile(self):
+        page = self.page; self.login()
+        page.set_viewport_size({'width': 360, 'height': 640})
+        page.evaluate('openAdd()')
+        for field, value in [('Name', '대리등록테스트'), ('Age', '75'), ('Phone', '01055557777'), ('Address', '가상주소')]:
+            page.locator('#newElder' + field).fill(value)
+        group = page.locator('#newElderDisease')
+        self.assertTrue(group.locator('input[value="없음"]').is_checked())
+        submit = page.locator('#add').get_by_role('button', name='등록 완료')
+        group.locator('input[value="없음"]').uncheck()
+        with page.expect_event('dialog') as invalid:
+            submit.click()
+        self.assertIn('없음을 선택', invalid.value.message)
+        group.locator('input[value="고혈압"]').check()
+        group.locator('input[value="당뇨병"]').check()
+        group.locator('input[value="기타"]').check()
+        with page.expect_event('dialog') as invalid:
+            submit.click()
+        self.assertIn('직접 입력', invalid.value.message)
+        page.locator('#newDiseaseOther').fill(' 천식, 당뇨병, , 천식 ')
+        captured = []
+        def fail(route):
+            captured.append(route.request.post_data_json)
+            route.fulfill(status=500, json={'success': False, 'message': '테스트 저장 실패'})
+        page.route('**/api/admin/elders/register', fail)
+        with page.expect_event('dialog') as failed:
+            submit.click()
+        self.assertEqual(failed.value.message, '테스트 저장 실패')
+        self.assertEqual(captured[0]['disease_note'], '고혈압, 당뇨병, 천식')
+        self.assertEqual(group.locator('input:checked').count(), 3)
+        self.no_overflow()
+        group.screenshot(path=str(Path(tempfile.gettempdir()) / 'smartcare_proxy_diseases.png'))
+        page.unroute('**/api/admin/elders/register', fail)
+        submit.click(); page.wait_for_function("!document.querySelector('#add').classList.contains('show')")
+        db.session.expire_all()
+        user = User.query.filter_by(phone_number='01055557777').one()
+        self.assertEqual(user.note, '고혈압, 당뇨병, 천식')
+        self.assertTrue(user.has_underlying_disease)
+        self.assertEqual(user.worker_id, 1)
+        page.evaluate('openAdd()')
+        self.assertEqual(group.locator('input:checked').count(), 1)
+        self.assertTrue(group.locator('input[value="없음"]').is_checked())
+        self.assertTrue(page.locator('#newDiseaseOther').is_hidden())
+        self.assertEqual(page.locator('#newDiseaseOther').input_value(), '')
         self.assertFalse(self.errors)
 
     def test_background_refresh_keeps_reading_position_and_expanded_panels(self):
