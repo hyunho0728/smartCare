@@ -54,7 +54,7 @@ API:
 | `POST /api/admin/checkup/analyze/<doc_id>` | 추출 결과 저장; 기존 `analysis` 요약과 `extraction`, `validation_issues`, revision 반환 |
 | `GET /api/admin/checkup/<doc_id>/result` | 최신 추출/확정 결과, 확정자·시각 조회 |
 | `GET /api/admin/checkup/<doc_id>/original` | 담당자의 원본 대조 뷰어 |
-| `PUT /api/admin/checkup/<doc_id>/confirm` | `{revision, result, identity_verified, issues_reviewed}`로 수정·확정 |
+| `PUT /api/admin/checkup/<doc_id>/confirm` | `{revision, result, issues_reviewed}`로 수정·확정. 문서 이름과 담당 어르신 이름이 동일해야 저장 가능 |
 
 `result`는 추출 JSON과 같은 구조입니다. 원문/페이지 및 행 수는 수정하지 않으며 판독 불가 행은 `value=null`로 저장합니다. 재분석으로 revision이 바뀐 상태의 확정 요청은 409를 반환합니다. 미담당/미배정 문서의 분석·결과·확정·원본 API 접근은 403입니다.
 

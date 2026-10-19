@@ -167,9 +167,9 @@ def confirm_checkup(doc_id):
         elif not item['value'] or not item['value'].strip():
             raise CheckupError("빈 결과는 판독 불가로 표시해주세요.")
     issues = validate_extraction(result, user.name)
-    identity_verified = body.get('identity_verified') is True
-    if any(issue['code'] in ('missing_name', 'name_mismatch') for issue in issues) and not identity_verified:
-        raise CheckupError("문서 이름을 수정하거나 담당 대상 확인을 체크해주세요.")
+    name_issue = next((issue for issue in issues if issue['code'] in ('missing_name', 'name_mismatch')), None)
+    if name_issue:
+        raise CheckupError("문서 이름을 담당 어르신 이름과 동일하게 수정해주세요.")
     if issues and body.get('issues_reviewed') is not True:
         raise CheckupError("표시된 확인 필요 사항을 원본과 대조하고 확인해주세요.")
     # 서로 다른 검진표에서 동시에 추가해도 기존 목록을 덮어쓰지 않는다.
@@ -184,7 +184,7 @@ def confirm_checkup(doc_id):
     record.confirmed_by = worker_id
     record.confirmed_at = datetime.datetime.now()
     record.confirmed_model = record.extraction_model
-    record.identity_verified = identity_verified
+    record.identity_verified = True
     try:
         db.session.commit()
     except Exception:

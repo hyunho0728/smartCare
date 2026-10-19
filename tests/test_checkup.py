@@ -197,10 +197,12 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(response['confirmed_result'], edited)
         self.assertEqual(self.confirm().status_code, 409)
 
-    def test_name_mismatch_requires_confirmation(self):
+    def test_name_mismatch_requires_matching_name(self):
         data = result('다른이름'); self.analyze(data)
         self.assertEqual(self.confirm(data).status_code, 400)
-        self.assertEqual(self.confirm(data, identity_verified=True).status_code, 200)
+        self.assertEqual(self.confirm(data, identity_verified=True).status_code, 400)
+        edited = copy.deepcopy(data); edited['patient_name'] = '가상김어르신'
+        self.assertEqual(self.confirm(edited, identity_verified=True).status_code, 200)
 
     def disease_result(self):
         data = result()

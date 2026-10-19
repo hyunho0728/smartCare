@@ -23,7 +23,7 @@
           <p>원본과 대조한 뒤 추가할 질환을 선택해주세요. 선택한 질환은 확정·저장할 때 현재 목록에 추가됩니다.</p>
           <div data-diseases></div>
         </section>
-        <label><input type="checkbox" data-identity> 원본의 담당 대상이 이 어르신임을 확인했습니다.</label>
+        <p>문서 이름이 담당 어르신 이름과 동일해야 확정·저장할 수 있습니다.</p>
         <label><input type="checkbox" data-reviewed> 확인 필요 사항을 포함해 원본과 대조했습니다.</label>
         <button type="button" data-confirm>수정 결과 확정·저장</button>
       </div>
@@ -70,7 +70,7 @@
     find('metadata').replaceChildren(); find('items').replaceChildren();
     find('issues').replaceChildren(); find('confirmed').replaceChildren();
     find('diseases').replaceChildren(); state.diseases = [];
-    find('identity').checked = false; find('reviewed').checked = false;
+    find('reviewed').checked = false;
     if (!result.extraction) { status('저장된 판독 결과가 없습니다. AI 분석을 실행해주세요.'); return; }
     const sameRevision = result.confirmed_revision === result.revision;
     const draft = sameRevision && result.confirmed_result ? result.confirmed_result : result.extraction;
@@ -189,7 +189,7 @@
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({revision: state.result.revision, result,
           selected_disease_indices: selectedDiseaseIndices,
-          identity_verified: find('identity').checked, issues_reviewed: find('reviewed').checked}),
+          issues_reviewed: find('reviewed').checked}),
       });
       render(state, saved); if (active === state) status(selectedDiseaseIndices.length ? '확정 결과를 저장하고 선택한 질환을 현재 목록에 반영했습니다.' : '확정 결과를 저장했습니다.');
       window.dispatchEvent(new CustomEvent('checkup-confirmed'));
