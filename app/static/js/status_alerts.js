@@ -16,7 +16,7 @@
   };
   const navButton = document.querySelector('.nav button[onclick*="alerts"]');
   if (navButton) {
-    const badge = el('span', '0'); badge.hidden = true; badge.dataset.statusAlertCount = ''; badge.setAttribute('aria-label', '미읽음 알림 수'); navButton.append(badge);
+    const badge = el('span', '0'); badge.hidden = true; badge.dataset.statusAlertCount = ''; badge.setAttribute('aria-label', '읽지 않음 알림 수'); navButton.append(badge);
   }
   const notice = el('div', undefined, 'status-alert-notice'); notice.hidden = true;
   notice.setAttribute('role', 'status'); document.body.append(notice);
@@ -58,7 +58,7 @@
   function card(a, compact = false) {
     const node = el('article', undefined, `status-alert-card${a.is_read ? ' is-read' : ''}${compact ? ' is-compact' : ''}`);
     node.dataset.statusAlertId = a.alert_id;
-    node.append(el('h4', `${a.user_name} · ${a.is_read ? '읽음' : '미읽음'}`), el('strong', transition(a)),
+    node.append(el('h4', `${a.user_name} · ${a.is_read ? '읽음' : '읽지 않음'}`), el('strong', transition(a)),
       el('p', `감지 ${date(a.detected_at)}`, 'status-alert-meta'), el('p', cause(a)));
     const actions = el('div', undefined, 'status-alert-actions');
     actions.append(button('원인·관련 기록', () => open(a.alert_id)));
