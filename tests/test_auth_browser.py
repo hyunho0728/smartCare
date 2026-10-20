@@ -128,7 +128,9 @@ class AuthBrowserTests(unittest.TestCase):
             if not page.locator('.detail-row.open').count():
                 page.locator('#tbody .main-row').first.click()
             page.locator('.detail-row.open').wait_for(); self.no_overflow()
-            if width == 360: page.screenshot(path=str(OUTPUT / 'live_mobile.png'))
+            if width == 360:
+                self.assertNotIn('검진표 AI 분석 결과', page.locator('.detail-row.open').inner_text())
+                page.screenshot(path=str(OUTPUT / 'live_mobile.png'))
             if width <= 768:
                 page.locator('#mobile-menu-toggle').click()
                 self.assertEqual(page.locator('#mobile-menu-toggle').get_attribute('aria-expanded'), 'true')

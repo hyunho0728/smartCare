@@ -301,9 +301,6 @@
 .checkup-thumb-wrap:hover{transform:scale(1.04);border-color:var(--blue);}
 .checkup-thumb{width:100%;height:100%;object-fit:cover;}
 .checkup-thumb-date{position:absolute;bottom:0;left:0;right:0;background:rgba(15,23,42,.75);color:#fff;font-size:10px;text-align:center;padding:3px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-.checkup-ai-result{margin-top:12px;background:#fff;border:1px solid #dbe7f6;border-radius:12px;padding:12px;color:#475569;font-size:13px;line-height:1.6;word-break:keep-all;}
-.checkup-ai-result b{display:block;color:#1e293b;font-size:13px;margin-bottom:4px;}
-.checkup-ai-result span{display:block;white-space:pre-wrap;}
 .checkup-del-btn{
   position:absolute;
   top:4px;
@@ -1146,16 +1143,6 @@ async function loadEldersData() {
         // 새로고침 후 저장된 상세 창이 있다면 사용자 ID 기준으로 다시 열기
         restoreOpenDetailRow();
 
-        // 저장된 검진표 AI 분석 결과가 있다면 검진표 섹션에 복원
-        users.forEach(u => {
-          const savedCheckupAiDesc = sessionStorage.getItem(`checkup_ai_desc_${u.id}`);
-          if (savedCheckupAiDesc) {
-            const descEl = document.getElementById(`checkup-ai-desc-${u.id}`);
-            if (descEl) {
-              setCheckupAnalysisText(descEl, savedCheckupAiDesc);
-            }
-          }
-        });
       });
     }
   } catch (err) {
@@ -1952,10 +1939,6 @@ function renderTable(){
                 <div class="checkup-grid">
                   ${checkupDocsHtml}
                 </div>
-                <div class="checkup-ai-result" id="checkup-ai-desc-${u.id}">
-                  <b>검진표 AI 분석 결과</b>
-                  검진표 사진의 검진표 AI 버튼을 누르면 이곳에 분석 결과가 표시됩니다.
-                </div>
               </div>
             </div>
 
@@ -2352,11 +2335,6 @@ async function remoteLogoutElder(userId, name) {
   } catch (err) {
     toast('서버와의 통신에 실패했습니다.');
   }
-}
-
-function setCheckupAnalysisText(targetEl, text) {
-  targetEl.innerHTML = '<b>검진표 AI 분석 결과</b><span></span>';
-  targetEl.querySelector('span').textContent = text;
 }
 
 </script>
