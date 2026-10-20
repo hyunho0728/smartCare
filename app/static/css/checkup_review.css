@@ -24,3 +24,10 @@
 #checkup-review .checkup-disease-row { border: 1px solid #cbd5e1; border-radius: 6px; padding: 10px; margin: 8px 0; }
 #checkup-review .checkup-disease-row input[type=text] { width: 100%; }
 #checkup-review .checkup-disease-row p { overflow-wrap: anywhere; }
+#checkup-review .checkup-disease-status { display: inline-block; margin: 0 0 8px 8px; padding: 3px 7px; border-radius: 999px; font-size: 12px; font-weight: 700; }
+#checkup-review .checkup-disease-status.confirmed, #checkup-review .checkup-sync-ok { color: #166534; }
+#checkup-review .checkup-disease-status.confirmed { background: #dcfce7; }
+#checkup-review .checkup-disease-status.needs_review, #checkup-review .checkup-sync-warning { color: #92400e; }
+#checkup-review .checkup-disease-status.needs_review { background: #fef3c7; }
+#checkup-review [data-disease-diff] { margin-top: 10px; padding: 10px; border-radius: 6px; background: #f8fafc; }
+#checkup-review [data-disease-diff] p { margin: 3px 0; overflow-wrap: anywhere; }

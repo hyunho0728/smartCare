@@ -1,5 +1,6 @@
 """실제 DB/API 키 없이 검진표 파이프라인의 실패·보존·권한을 검사한다."""
 import copy
+import datetime
 import io
 import json
 import os
@@ -74,6 +75,8 @@ class DocumentTests(unittest.TestCase):
 
     def test_parser(self):
         self.assertEqual(parse_extraction(json.dumps(result()))['items'][1]['value'], '0.7')
+        legacy = result(); legacy['diseases'] = [{'name': '천식', 'raw_text': '천식', 'page': 1}]
+        self.assertEqual(parse_extraction(json.dumps(legacy))['diseases'][0]['status'], 'needs_review')
         for payload in ['invalid', '{}', json.dumps({**result(), 'is_checkup': False}),
                         json.dumps({**result(), 'items': []})]:
             with self.assertRaises(CheckupError): parse_extraction(payload)
@@ -207,9 +210,9 @@ class ApiTests(unittest.TestCase):
     def disease_result(self):
         data = result()
         data['diseases'] = [
-            {'name': '당뇨병', 'raw_text': '당뇨 치료 중', 'page': 1},
-            {'name': '고혈압', 'raw_text': '고혈압 진단', 'page': 1},
-            {'name': '천식', 'raw_text': '천식 치료 중', 'page': 1},
+            {'name': '당뇨병', 'raw_text': '당뇨 치료 중', 'page': 1, 'status': 'confirmed'},
+            {'name': '고혈압', 'raw_text': '고혈압 진단', 'page': 1, 'status': 'confirmed'},
+            {'name': '천식', 'raw_text': '천식', 'page': 1, 'status': 'needs_review'},
         ]
         return data
 
@@ -236,15 +239,93 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(saved.json['current_disease'], '천식')
         self.assertTrue(db.session.get(User, 1).has_underlying_disease)
 
+    def test_latest_checkup_replaces_selected_diseases(self):
+        user = db.session.get(User, 1)
+        user.note = '관절염, 당뇨'; user.has_underlying_disease = True
+        db.session.commit()
+        data = self.disease_result(); self.analyze(data)
+        saved = self.confirm(data, disease_update={'mode': 'replace', 'selected_indices': [0, 1]})
+        self.assertEqual(saved.status_code, 200)
+        self.assertTrue(saved.json['disease_sync']['applied'])
+        self.assertEqual(saved.json['current_disease'], '당뇨병, 고혈압')
+        self.assertEqual(db.session.get(User, 1).note, '당뇨병, 고혈압')
+
+    def test_empty_replacement_and_no_candidates_preserve_existing_disease(self):
+        user = db.session.get(User, 1)
+        user.note = '관절염'; user.has_underlying_disease = True
+        db.session.commit()
+        data = self.disease_result(); self.analyze(data)
+        saved = self.confirm(data, disease_update={'mode': 'replace', 'selected_indices': []})
+        self.assertFalse(saved.json['disease_sync']['applied'])
+        self.assertEqual(saved.json['current_disease'], '관절염')
+
+        CheckupResult.query.delete(); db.session.commit()
+        plain = result(); self.analyze(plain)
+        saved = self.confirm(plain, disease_update={'mode': 'replace', 'selected_indices': []})
+        self.assertFalse(saved.json['disease_sync']['applied'])
+        self.assertEqual(saved.json['current_disease'], '관절염')
+
+    def test_missing_checkup_date_preserves_existing_disease(self):
+        user = db.session.get(User, 1)
+        user.note = '관절염'; user.has_underlying_disease = True
+        db.session.commit()
+        data = self.disease_result(); data['checkup_date'] = None
+        self.analyze(data)
+        saved = self.confirm(data, disease_update={'mode': 'replace', 'selected_indices': [0]})
+        self.assertEqual(saved.status_code, 200)
+        self.assertFalse(saved.json['disease_sync']['applied'])
+        self.assertIsNone(saved.json['disease_sync']['checkup_date'])
+        self.assertEqual(saved.json['current_disease'], '관절염')
+
+    def test_older_checkup_saves_result_without_replacing_disease(self):
+        user = db.session.get(User, 1)
+        user.note = '관절염'; user.has_underlying_disease = True
+        newer = result(); newer['checkup_date'] = '2026-10-01'
+        doc = CheckupDocument(doc_id=2, user_id=1, file_path='newer.pdf', original_name='newer.pdf')
+        record = CheckupResult(doc_id=2, extraction=newer, confirmed_result=newer,
+                               revision=1, confirmed_revision=1, confirmed_at=datetime.datetime.now())
+        db.session.add_all([doc, record]); db.session.commit()
+
+        data = self.disease_result(); self.analyze(data)
+        analyzed = self.client.get('/api/admin/checkup/1/result').json
+        self.assertFalse(analyzed['disease_sync']['eligible'])
+        saved = self.confirm(data, disease_update={'mode': 'replace', 'selected_indices': [0, 1]})
+        self.assertEqual(saved.status_code, 200)
+        self.assertFalse(saved.json['disease_sync']['applied'])
+        self.assertEqual(saved.json['current_disease'], '관절염')
+        self.assertIsNotNone(CheckupResult.query.filter_by(doc_id=1).one().confirmed_result)
+
+    def test_same_date_checkup_can_replace_disease(self):
+        user = db.session.get(User, 1)
+        user.note = '관절염'; user.has_underlying_disease = True
+        same_date = result()
+        doc = CheckupDocument(doc_id=2, user_id=1, file_path='same.pdf', original_name='same.pdf')
+        record = CheckupResult(doc_id=2, extraction=same_date, confirmed_result=same_date,
+                               revision=1, confirmed_revision=1, confirmed_at=datetime.datetime.now())
+        db.session.add_all([doc, record]); db.session.commit()
+        data = self.disease_result(); self.analyze(data)
+        saved = self.confirm(data, disease_update={'mode': 'replace', 'selected_indices': [1]})
+        self.assertTrue(saved.json['disease_sync']['applied'])
+        self.assertEqual(saved.json['current_disease'], '고혈압')
+
     def test_invalid_selection_and_disease_source(self):
         data = self.disease_result(); self.analyze(data)
         for selected in (None, {}, '0', [True], [-1], [3], [0, 0], [[0]]):
             with self.subTest(selected=selected):
                 self.assertEqual(self.confirm(data, selected_disease_indices=selected).status_code, 400)
+        for update in ({}, {'mode': 'merge', 'selected_indices': [0]},
+                       {'mode': 'replace', 'selected_indices': None},
+                       {'mode': 'replace', 'selected_indices': [0], 'extra': True}):
+            with self.subTest(update=update):
+                self.assertEqual(self.confirm(data, disease_update=update).status_code, 400)
+        self.assertEqual(self.confirm(data, selected_disease_indices=[0],
+                                      disease_update={'mode': 'replace', 'selected_indices': [0]}).status_code, 400)
         for field, value in [('raw_text', '변조'), ('page', 2), ('name', '   ')]:
             edited = copy.deepcopy(data); edited['diseases'][0][field] = value
             self.assertEqual(self.confirm(edited, selected_disease_indices=[0]).status_code, 400)
         edited = copy.deepcopy(data); edited['diseases'].pop()
+        self.assertEqual(self.confirm(edited).status_code, 400)
+        edited = copy.deepcopy(data); edited['diseases'][0]['status'] = 'needs_review'
         self.assertEqual(self.confirm(edited).status_code, 400)
         self.assertIsNone(db.session.get(User, 1).note)
 
@@ -262,17 +343,21 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(self.client.get('/api/admin/checkup/1/result').json['confirmed_result']['diseases'], [])
 
     def test_duplicate_candidates_aliases_and_none_marker(self):
-        from services.checkup_service import merge_diseases
+        from services.checkup_service import merge_diseases, normalize_disease_names
         self.assertEqual(merge_diseases('없음', ['천식', '천 식']), ('천식', ['천식']))
         self.assertEqual(merge_diseases('고지혈증', ['이상지질혈증']), ('고지혈증', []))
         self.assertEqual(merge_diseases('희귀질환·기타 메모', ['희귀 질환']), ('희귀질환·기타 메모', []))
         self.assertEqual(merge_diseases('당뇨 없음', ['당뇨병']), ('당뇨 없음, 당뇨병', ['당뇨병']))
+        self.assertEqual(normalize_disease_names(['당뇨', '당뇨병', '희귀 질환', '희귀질환']),
+                         ['당뇨', '희귀 질환'])
 
     def test_disease_schema_and_actual_page_validation(self):
         from services.checkup_service import extract_document, provider_schema, PROMPT
         from unittest.mock import MagicMock
         self.assertIn('diseases', provider_schema().required)
         self.assertIn('가족력', PROMPT)
+        self.assertIn('단독 질환명', PROMPT)
+        self.assertIn('status=needs_review', PROMPT)
         data = self.disease_result(); data['diseases'][0]['page'] = 2
         response = MagicMock(text=json.dumps(data))
         with patch.dict(os.environ, {'GEMINI_API_KEY': 'fake-test-key'}), patch(

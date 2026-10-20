@@ -7,7 +7,7 @@ from types import SimpleNamespace as NS
 from unittest.mock import patch
 import test_health_analysis as fixtures
 from services import health_comparison_service as comparison
-from services.social_worker_ai_service import calculate_risk, _risk_level_from_score
+from services.social_worker_ai_service import calculate_risk, _risk_level_from_score, _latest_analysis_covers_inputs
 from models.models import db, User, CheckupResult, HealthAnalysis
 
 NOW = fixtures.NOW
@@ -24,6 +24,16 @@ def snapshot(health=None, docs=None, logins=None):
 
 
 class ComparisonTests(unittest.TestCase):
+    def test_user_change_invalidates_recent_risk_analysis(self):
+        analyzed_at = dt.datetime.now()
+        analysis = NS(analyzed_at=analyzed_at)
+        current = NS(updated_at=analyzed_at - dt.timedelta(seconds=1))
+        same_second_change = NS(updated_at=analyzed_at)
+        changed = NS(updated_at=analyzed_at + dt.timedelta(seconds=1))
+        self.assertTrue(_latest_analysis_covers_inputs(analysis, current, [], []))
+        self.assertFalse(_latest_analysis_covers_inputs(analysis, same_second_change, [], []))
+        self.assertFalse(_latest_analysis_covers_inputs(analysis, changed, [], []))
+
     def test_grade_boundaries_and_original_score(self):
         for score, level in [(100, 'SAFE'), (80, 'SAFE'), (79, 'WATCH'), (60, 'WATCH'), (59, 'WARN'), (40, 'WARN'), (39, 'DANGER'), (0, 'DANGER')]:
             self.assertEqual(_risk_level_from_score(score)[0], level)

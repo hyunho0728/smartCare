@@ -5,6 +5,7 @@ import os
 import re
 import warnings
 from datetime import date
+from typing import Literal
 
 from PIL import Image, ImageOps, UnidentifiedImageError
 from pypdf import PdfReader
@@ -40,6 +41,7 @@ class DiseaseCandidate(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     raw_text: str = Field(min_length=1, max_length=1000)
     page: int = Field(ge=1, le=MAX_PAGES)
+    status: Literal["confirmed", "needs_review"] = "needs_review"
 
 
 class Extraction(BaseModel):
@@ -113,9 +115,13 @@ PROMPT = """일반건강검진 결과통보서에서 보이는 사실만 추출�
 환자의 실제 결과와 참고범위를 혼동하지 마세요. 소수점, 부등호, 단위, 양성/음성을 그대로 보존하세요.
 문서에 없는 수치/단위/참고범위는 null, 읽을 수 없는 결과는 value=null, unreadable=true입니다.
 raw_text는 해당 행의 보이는 원문, page는 1부터 시작하는 실제 페이지 번호입니다.
-환자 본인의 현재 기저질환 또는 진단·치료 중이라고 명시된 질환만 diseases에 추출하세요.
-질환명 name, 근거 원문 raw_text, 실제 페이지 page를 기록하고 없으면 diseases=[]입니다.
-수치에 따른 질환 추정, 의심 소견, 가족력, 부정된 질환, 과거에 완치된 질환은 제외하세요.
+기저질환 전용 표나 탭이 없어도 문서 전체에서 환자 본인의 질환명을 찾으세요.
+기저질환명, 과거병력, 진단명, 질환명, 소견 및 조치사항, 판정뿐 아니라 다른 위치의 단독 질환명도 확인하세요.
+진단 여부가 예이거나 진단·치료·관리·정기 추적·병력이 명시된 질환은 status=confirmed로 기록하세요.
+질환명만 있고 환자 본인의 현재 질환인지 문맥이 부족하면 버리지 말고 status=needs_review로 기록하세요.
+질환명 name, 질환 판단에 사용한 정확한 근거 원문 raw_text, 실제 페이지 page, status를 기록하고 없으면 diseases=[]입니다.
+가족력, 부정 표현, 의심·확진 아님, 완치된 질환은 diseases에서 제외하세요.
+검사 수치나 참고범위만으로 질환을 추정하지 마세요. 같은 질환은 한 번만 기록하세요.
 없거나 가려진 개인정보를 추측하지 마세요. 질환 진단이나 응급도 판단은 하지 마세요."""
 
 
@@ -129,8 +135,8 @@ def provider_schema():
     }, required=['name', 'value', 'unit', 'reference_range', 'raw_text', 'page', 'unreadable'])
     disease = types.Schema(type='OBJECT', properties={
         'name': types.Schema(type='STRING'), 'raw_text': types.Schema(type='STRING'),
-        'page': types.Schema(type='INTEGER'),
-    }, required=['name', 'raw_text', 'page'])
+        'page': types.Schema(type='INTEGER'), 'status': types.Schema(type='STRING'),
+    }, required=['name', 'raw_text', 'page', 'status'])
     return types.Schema(type='OBJECT', properties={
         'is_checkup': types.Schema(type='BOOLEAN'), 'patient_name': text(),
         'checkup_date': text(), 'institution': text(),
@@ -265,3 +271,25 @@ def merge_diseases(note, candidates):
         return existing, added
     base = '' if existing.strip() == '없음' else existing
     return base + (', ' if base else '') + ', '.join(added), added
+
+
+def normalize_disease_names(candidates):
+    """알려진 별칭과 공백 차이를 기준으로 중복을 제거하고 표시명은 보존한다."""
+    from services.health_analysis_service import DISEASES, normalized
+
+    aliases = {
+        normalized(alias): label
+        for label, names in DISEASES.items()
+        for alias in names
+    }
+    result, known = [], set()
+    for candidate in candidates:
+        name = str(candidate or '').strip()
+        if not name:
+            continue
+        value = normalized(name)
+        key = aliases.get(value, value)
+        if key not in known:
+            result.append(name)
+            known.add(key)
+    return result

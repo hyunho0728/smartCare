@@ -20,8 +20,10 @@
         </tr></thead><tbody data-items></tbody></table></div>
         <section data-disease-section>
           <h3>검진표에 명시된 기저질환</h3>
-          <p>원본과 대조한 뒤 추가할 질환을 선택해주세요. 선택한 질환은 확정·저장할 때 현재 목록에 추가됩니다.</p>
+          <p>원본과 대조해 사용자 정보로 최신화할 질환을 선택해주세요. 명확한 질환만 기본 선택됩니다.</p>
+          <p data-disease-sync></p>
           <div data-diseases></div>
+          <div data-disease-diff aria-live="polite"></div>
         </section>
         <p>문서 이름이 담당 어르신 이름과 동일해야 확정·저장할 수 있습니다.</p>
         <label><input type="checkbox" data-reviewed> 확인 필요 사항을 포함해 원본과 대조했습니다.</label>
@@ -53,6 +55,33 @@
     return element;
   };
   const nullable = element => element.value.trim() || null;
+  const normalizedDisease = value => String(value || '').toLowerCase().replace(/[\s()[\]·/_\-]/g, '');
+  const currentDiseases = value => String(value || '').split(/[,/·;\n]+/)
+    .map(item => item.trim()).filter(item => item && item !== '없음');
+  function updateDiseaseDiff(state) {
+    const target = find('disease-diff'); target.replaceChildren();
+    if (!state.diseases.length) {
+      target.textContent = '검진표 질환 후보가 없어 기존 사용자 정보를 유지합니다.';
+      return;
+    }
+    if (!state.diseaseSync?.eligible) {
+      target.textContent = '사용자 기저질환은 변경되지 않습니다.';
+      return;
+    }
+    const current = currentDiseases(state.result.current_disease);
+    const selected = state.diseases.filter(item => item.selected.checked).map(item => item.name.value.trim()).filter(Boolean);
+    if (!selected.length) {
+      target.textContent = '선택된 질환이 없어 기존 사용자 정보를 유지합니다.';
+      return;
+    }
+    const currentKeys = new Set(current.map(normalizedDisease));
+    const selectedKeys = new Set(selected.map(normalizedDisease));
+    const added = selected.filter(name => !currentKeys.has(normalizedDisease(name)));
+    const removed = current.filter(name => !selectedKeys.has(normalizedDisease(name)));
+    for (const line of [`최신화 후: ${selected.join(', ')}`, `추가: ${added.join(', ') || '없음'}`, `제거: ${removed.join(', ') || '없음'}`]) {
+      const p = document.createElement('p'); p.textContent = line; target.append(p);
+    }
+  }
   async function api(url, options = {}) {
     const response = await fetch(url, options);
     let body;
@@ -70,7 +99,11 @@
     find('metadata').replaceChildren(); find('items').replaceChildren();
     find('issues').replaceChildren(); find('confirmed').replaceChildren();
     find('diseases').replaceChildren(); state.diseases = [];
+    find('disease-diff').replaceChildren();
     find('reviewed').checked = false;
+    state.diseaseSync = result.disease_sync || {eligible: false, reason: '기저질환 최신화 상태를 확인할 수 없습니다.'};
+    find('disease-sync').textContent = state.diseaseSync.reason;
+    find('disease-sync').className = state.diseaseSync.eligible ? 'checkup-sync-ok' : 'checkup-sync-warning';
     if (!result.extraction) { status('저장된 판독 결과가 없습니다. AI 분석을 실행해주세요.'); return; }
     const sameRevision = result.confirmed_revision === result.revision;
     const draft = sameRevision && result.confirmed_result ? result.confirmed_result : result.extraction;
@@ -104,14 +137,24 @@
       const row = document.createElement('div'); row.className = 'checkup-disease-row';
       const label = document.createElement('label');
       const selected = document.createElement('input'); selected.type = 'checkbox';
-      selected.setAttribute('aria-label', `${disease.name} 현재 목록에 추가`);
-      label.append(selected, document.createTextNode(' 현재 목록에 추가'));
+      const sourceDisease = result.extraction.diseases[index];
+      const wasCurrent = sameRevision && currentDiseases(result.current_disease)
+        .some(name => normalizedDisease(name) === normalizedDisease(disease.name));
+      selected.checked = state.diseaseSync.eligible && (disease.status === 'confirmed' || wasCurrent);
+      selected.disabled = !state.diseaseSync.eligible;
+      selected.setAttribute('aria-label', `${disease.name} 최신 목록에 포함`);
+      label.append(selected, document.createTextNode(' 최신 목록에 포함'));
+      const badge = document.createElement('span'); badge.className = `checkup-disease-status ${disease.status}`;
+      badge.textContent = disease.status === 'confirmed' ? '명확한 질환' : '확인 필요';
       const name = input(disease.name, `기저질환 ${index + 1} 질환명`, 100);
       const source = document.createElement('p'); source.textContent = `${disease.raw_text} (${disease.page}쪽)`;
-      row.append(label, name, source); find('diseases').append(row);
-      return {name, selected, source: result.extraction.diseases[index]};
+      selected.onchange = () => updateDiseaseDiff(state);
+      name.oninput = () => updateDiseaseDiff(state);
+      row.append(label, badge, name, source); find('diseases').append(row);
+      return {name, selected, source: sourceDisease};
     });
-    if (!state.diseases.length) find('diseases').textContent = '추출된 기저질환이 없습니다. 기존 검진표는 재분석하면 질환 후보를 확인할 수 있습니다.';
+    if (!state.diseases.length) find('diseases').textContent = '추출된 기저질환이 없습니다. 기존 사용자 정보는 유지됩니다.';
+    updateDiseaseDiff(state);
     if (result.confirmed_result) {
       const title = document.createElement('h3');
       title.textContent = `저장된 확정 결과 · ${result.confirmed_at} · 담당자 #${result.confirmed_by}`;
@@ -188,10 +231,14 @@
       const saved = await api(`/api/admin/checkup/${state.docId}/confirm`, {
         method: 'PUT', headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({revision: state.result.revision, result,
-          selected_disease_indices: selectedDiseaseIndices,
+          disease_update: {mode: 'replace', selected_indices: selectedDiseaseIndices},
           issues_reviewed: find('reviewed').checked}),
       });
-      render(state, saved); if (active === state) status(selectedDiseaseIndices.length ? '확정 결과를 저장하고 선택한 질환을 현재 목록에 반영했습니다.' : '확정 결과를 저장했습니다.');
+      const applied = saved.disease_sync?.applied;
+      render(state, saved);
+      if (active === state) status(applied ? '확정 결과를 저장하고 선택한 질환으로 사용자 정보를 최신화했습니다.'
+        : selectedDiseaseIndices.length ? `확정 결과를 저장했습니다. ${saved.disease_sync?.reason || '사용자 기저질환은 유지했습니다.'}`
+          : '확정 결과를 저장했습니다. 선택된 질환이 없어 사용자 기저질환은 유지했습니다.');
       window.dispatchEvent(new CustomEvent('checkup-confirmed'));
     } catch (error) { if (active === state) status(error.message); }
     finally { state.saving = false; if (active === state) busy(false); }

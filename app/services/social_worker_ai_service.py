@@ -112,7 +112,7 @@ def _latest_time(records, attr_name):
     return max(values) if values else None
 
 
-def _latest_analysis_covers_inputs(latest_analysis, health_history, login_history, max_age_minutes=60):
+def _latest_analysis_covers_inputs(latest_analysis, user, health_history, login_history, max_age_minutes=60):
     if not latest_analysis or not latest_analysis.analyzed_at:
         return False
 
@@ -121,7 +121,11 @@ def _latest_analysis_covers_inputs(latest_analysis, health_history, login_histor
 
     latest_health_at = _latest_time(health_history, "recorded_at")
     latest_login_at = _latest_time(login_history, "auth_time")
+    user_updated_at = getattr(user, "updated_at", None)
 
+    # MySQL DATETIME가 초 단위로 저장되더라도 같은 초의 사용자 변경을 놓치지 않는다.
+    if user_updated_at and latest_analysis.analyzed_at <= user_updated_at:
+        return False
     if latest_health_at and latest_analysis.analyzed_at < latest_health_at:
         return False
     if latest_login_at and latest_analysis.analyzed_at < latest_login_at:
@@ -422,13 +426,13 @@ def record_risk_analysis(user, risk_result, db_session, RiskAnalysisModel):
 def evaluate_and_record_risk(user, health_history, login_history, db_session, RiskAnalysisModel, force=True):
     """
     위험 분석을 계산하고 저장합니다.
-    force=False이면 최신 건강/로그인 기록을 이미 반영한 최근 분석 결과를 재사용합니다.
+    force=False이면 최신 사용자/건강/로그인 정보를 이미 반영한 최근 분석 결과를 재사용합니다.
     """
     risk_result = calculate_risk(user, health_history, login_history)
     latest_analysis = RiskAnalysisModel.query.filter_by(user_id=user.user_id)\
         .order_by(RiskAnalysisModel.analyzed_at.desc()).first()
 
-    if not force and _latest_analysis_covers_inputs(latest_analysis, health_history, login_history):
+    if not force and _latest_analysis_covers_inputs(latest_analysis, user, health_history, login_history):
         return _result_from_analysis(
             latest_analysis,
             score_breakdown=risk_result["score_breakdown"],
