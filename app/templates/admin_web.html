@@ -885,7 +885,7 @@
 
 <script src="{{ url_for('static', filename='js/disease_selection.js') }}"></script>
 <script>
-const registrationMode = {{ registration_mode|default(false)|tojson }};
+const registrationMode = JSON.parse('{{ registration_mode|default(false)|tojson }}');
 let users = [];
 const latestHealthStatuses = new Map();
 let viewportRestoreFrame = null;
