@@ -117,6 +117,7 @@ class AuthBrowserTests(unittest.TestCase):
     def test_admin_responsive_navigation_forms_and_ai_state(self):
         page = self.page; page.set_viewport_size({'width': 390, 'height': 844}); self.login()
         page.locator('#tbody .main-row').wait_for()
+        self.assertEqual(page.locator('#dashboard').evaluate('n=>getComputedStyle(n).backgroundColor'),'rgb(241, 245, 249)')
         for width in (360, 390, 768, 1280, 1440):
             page.set_viewport_size({'width': width, 'height': 1000})
             self.no_overflow()
