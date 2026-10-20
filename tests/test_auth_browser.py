@@ -166,6 +166,34 @@ class AuthBrowserTests(unittest.TestCase):
         self.assertEqual(self.ai_calls, 2)
         self.assertFalse(self.errors)
 
+    def test_dashboard_emergency_and_unassigned_count_badges(self):
+        page = self.page; self.login()
+        page.locator('#tbody .main-row').wait_for()
+        page.evaluate("""
+          stopEmergencyPolling(); stopElderDataPolling();
+          emergencyUnreadCount = 2;
+          emergencyAlerts = [
+            {alert_id: 1, user_name: '긴급어르신1', is_read: false},
+            {alert_id: 2, user_name: '긴급어르신2', is_read: false}
+          ];
+          unassignedUsers = [{id: 2, name: '미배정어르신', age: 80, address: '테스트 주소', phone: '010-0000-0000'}];
+          renderEmergencyAlerts(); renderUnassignedList();
+        """)
+        emergency = page.locator('[data-emergency-alert-count]')
+        unassigned = page.locator('[data-unassigned-count]')
+        self.assertEqual(emergency.inner_text(), '2')
+        self.assertEqual(unassigned.inner_text(), '1')
+        self.assertEqual(emergency.evaluate('n => getComputedStyle(n).backgroundColor'), 'rgb(239, 68, 68)')
+        self.assertEqual(unassigned.evaluate('n => getComputedStyle(n).backgroundColor'), 'rgb(14, 165, 233)')
+        self.assertEqual(unassigned.evaluate('n => getComputedStyle(n).color'), 'rgb(255, 255, 255)')
+        page.evaluate("""
+          emergencyUnreadCount = 0; emergencyAlerts = []; unassignedUsers = [];
+          renderEmergencyAlerts(); renderUnassignedList();
+        """)
+        self.assertTrue(emergency.is_hidden())
+        self.assertTrue(unassigned.is_hidden())
+        self.assertFalse(self.errors)
+
     def test_health_analysis_history_sources_and_restore(self):
         page = self.page; self.login()
         page.locator('#tbody .main-row').wait_for()

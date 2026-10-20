@@ -81,6 +81,9 @@
 .panel-head{padding:20px 22px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;gap:15px}
 .panel-head h3{font-size:18px}
 .panel-head span{color:var(--muted);font-size:13px}
+.panel-head .panel-alert-count{display:inline-flex;align-items:center;justify-content:center;min-width:22px;height:22px;margin-left:5px;padding:0 7px;border-radius:999px;background:var(--red);color:#fff;font-size:12px;line-height:1;vertical-align:middle}
+.panel-head .panel-alert-count.unassigned{background:var(--sky)}
+.panel-alert-count[hidden]{display:none}
 .filters{display:flex;gap:8px;flex-wrap:wrap}
 .chip{border:1px solid var(--line);background:#fff;border-radius:999px;padding:8px 13px;font-size:13px;font-weight:900;cursor:pointer}
 .chip.active{background:#172033;color:#fff;border-color:#172033}
@@ -557,11 +560,11 @@
               <div data-status-alert-dashboard></div>
             </div>
             <div class="panel">
-              <div class="panel-head"><h3>최근 긴급호출 알림</h3></div>
+              <div class="panel-head"><h3>최근 긴급호출 알림 <span class="panel-alert-count" data-emergency-alert-count aria-label="미확인 긴급호출 수" hidden>0</span></h3></div>
               <div class="alert-list" id="alert-list"><p style="padding:15px;color:var(--muted);font-size:13px;">새로운 알림이 없습니다.</p></div>
             </div>
             <div class="panel">
-              <div class="panel-head"><h3>미배정 어르신</h3></div>
+              <div class="panel-head"><h3>미배정 어르신 <span class="panel-alert-count unassigned" data-unassigned-count aria-label="미배정 어르신 수" hidden>0</span></h3></div>
               <div class="alert-list" id="unassigned-list"><p style="padding:15px;color:var(--muted);font-size:13px;">미배정 어르신이 없습니다.</p></div>
             </div>
           </aside>
@@ -1232,7 +1235,16 @@ async function refreshElderDataInBackground() {
   }
 }
 
+function setPanelAlertCount(selector, count) {
+  const badge = document.querySelector(selector);
+  if (!badge) return;
+  const normalizedCount = Math.max(0, Number(count) || 0);
+  badge.textContent = normalizedCount;
+  badge.hidden = normalizedCount === 0;
+}
+
 function renderEmergencyAlerts() {
+  setPanelAlertCount('[data-emergency-alert-count]', emergencyUnreadCount);
   const alertButton = document.querySelector('.icon-alert');
   if (alertButton) {
     alertButton.classList.toggle('has-unread', emergencyUnreadCount > 0);
@@ -1305,6 +1317,7 @@ async function markEmergencyAlertRead(alertId, closeAfter = false) {
 }
 
 function renderUnassignedList() {
+  setPanelAlertCount('[data-unassigned-count]', unassignedUsers.length);
   const unassignedBox = document.getElementById('unassigned-list');
   if (!unassignedBox) return;
 
