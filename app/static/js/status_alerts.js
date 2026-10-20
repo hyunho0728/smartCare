@@ -55,16 +55,20 @@
   function cause(a) {
     return a.changes.length ? a.changes.map(c => `${c.item}: ${c.previous_points} → ${c.current_points}점`).join(' · ') : '등급 변화와 당시 점수 산정 근거를 확인해주세요.';
   }
-  function card(a, compact = false) {
+  function card(a, view = 'dashboard') {
+    const compact = view !== 'dashboard';
     const node = el('article', undefined, `status-alert-card${a.is_read ? ' is-read' : ''}${compact ? ' is-compact' : ''}`);
     node.dataset.statusAlertId = a.alert_id;
     node.append(el('h4', `${a.user_name} · ${a.is_read ? '읽음' : '읽지 않음'}`), el('strong', transition(a)),
       el('p', `감지 ${date(a.detected_at)}`, 'status-alert-meta'), el('p', cause(a)));
     const actions = el('div', undefined, 'status-alert-actions');
-    actions.append(button('원인·관련 기록', () => open(a.alert_id)));
+    const causeButton = button('원인·관련 기록', () => open(a.alert_id));
+    let readButton = null;
     if (!a.is_read) {
-      const read = button('읽음 처리', () => markRead(a.alert_id)); read.disabled = reading.has(a.alert_id); actions.append(read);
+      readButton = button('읽음 처리', () => markRead(a.alert_id)); readButton.disabled = reading.has(a.alert_id);
     }
+    if (compact && readButton) actions.append(readButton, causeButton);
+    else { actions.append(causeButton); if (readButton) actions.append(readButton); }
     if (compact) actions.append(button('조치 기록', () => openFeedback(a.user_id, a.user_name)));
     node.append(actions); return node;
   }
@@ -77,8 +81,8 @@
         const target = document.querySelector(selector);
         const signature = JSON.stringify({list, initialized, reading: [...reading]});
         if (target && target.dataset.renderSignature !== signature) {
-          const compact = selector === '[data-status-alert-recent]' || selector === '[data-status-alert-history]';
-          target.replaceChildren(...(list.length ? list.map(a => card(a, compact)) : [el('p', initialized ? '상태 변화 알림이 없습니다.' : '알림을 불러오는 중…', 'status-alert-meta')]));
+          const view = selector === '[data-status-alert-history]' ? 'history' : selector === '[data-status-alert-recent]' ? 'recent' : 'dashboard';
+          target.replaceChildren(...(list.length ? list.map(a => card(a, view)) : [el('p', initialized ? '상태 변화 알림이 없습니다.' : '알림을 불러오는 중…', 'status-alert-meta')]));
           target.dataset.renderSignature = signature;
         }
       }
