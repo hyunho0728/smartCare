@@ -34,6 +34,11 @@ class StatusAlertBrowserTests(unittest.TestCase):
         self.assertEqual(page.locator('.nav [data-status-alert-count]').inner_text(),'1')
         self.assertTrue(page.locator('.nav [data-status-alert-count]').is_visible())
         self.assertEqual(page.locator('.status-alert-panel [data-status-alert-count]').evaluate('n=>getComputedStyle(n).color'),'rgb(255, 255, 255)')
+        recent_card=page.locator('[data-status-alert-recent] .status-alert-card').first
+        recent_card.wait_for(state='attached')
+        self.assertIn('is-compact',recent_card.get_attribute('class'))
+        self.assertEqual(recent_card.evaluate('n=>getComputedStyle(n).gridTemplateColumns.split(" ").length'),4)
+        self.assertEqual(recent_card.get_by_role('button',name='조치 기록',exact=True).count(),1)
         self.assertTrue(page.locator('.status-alert-notice').is_hidden())
         dashboard.get_by_role('button',name='원인·관련 기록').click()
         modal=page.locator('#status-alert-detail')
