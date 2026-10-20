@@ -2,10 +2,14 @@
 import datetime as dt
 import json
 import os
+import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
+from pathlib import Path
 from types import SimpleNamespace as NS
 from unittest.mock import patch
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, func, select, text
+from sqlalchemy.orm import Session
 import test_auth as fixtures
 import test_checkup as checkup_fixtures
 from models.models import db, User, Worker, AIUsage, HealthAnalysis, CheckupDocument, CheckupResult
@@ -99,6 +103,55 @@ class UsageTests(unittest.TestCase):
         self.assertEqual(data['used']['rpm'], 3)
         self.assertEqual(data['unknown_token_calls'], 2)
         self.assertIsNone(data['remaining']['tpm'])
+
+    def test_rpd_limit_blocks_all_ai_features_before_provider_call(self):
+        limits = json.dumps({service.DEFAULT_MODEL: {'rpd': 1}})
+        with patch.dict(os.environ, {'GEMINI_MODEL_LIMITS': limits}), patch.object(service.genai, 'Client') as client:
+            method = client.return_value.models.generate_content
+            method.return_value = self.mock_response(json.dumps(report()))
+            first = self.client.post('/api/admin/elders/1/life-pattern-ai')
+            self.assertEqual(first.status_code, 200)
+
+            blocked = self.client.post('/api/admin/checkup/analyze/1')
+            self.assertEqual(blocked.status_code, 429)
+            self.assertFalse(blocked.json['success'])
+            self.assertIn('잔여 할당량이 부족합니다', blocked.json['message'])
+            self.assertEqual(method.call_count, 1)
+            self.assertEqual(db.session.query(AIUsage).count(), 1)
+
+    def test_last_rpd_attempt_failure_prevents_provider_retry(self):
+        limits = json.dumps({service.DEFAULT_MODEL: {'rpd': 1}})
+        server_error = RuntimeError('server'); server_error.code = 503
+        with patch.dict(os.environ, {'GEMINI_MODEL_LIMITS': limits}), patch.object(service.genai, 'Client') as client, patch.object(service.time, 'sleep'):
+            client.return_value.models.generate_content.side_effect = server_error
+            with self.assertRaises(service.AIError) as raised:
+                service.generate_content(model=service.DEFAULT_MODEL, feature='checkup', contents=[], attempts=3)
+        self.assertEqual(raised.exception.status, 429)
+        self.assertEqual(client.return_value.models.generate_content.call_count, 1)
+        rows = db.session.query(AIUsage).all()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].status, 'error')
+
+    def test_concurrent_last_rpd_is_reserved_once(self):
+        limits = json.dumps({service.DEFAULT_MODEL: {'rpd': 1}})
+        with tempfile.TemporaryDirectory() as directory:
+            engine = create_engine('sqlite:///' + (Path(directory) / 'usage.db').as_posix())
+            AIUsage.__table__.create(engine)
+            fake_db = NS(engine=engine)
+
+            def reserve():
+                try:
+                    return service.record_attempt(service.DEFAULT_MODEL, 'health_analysis')
+                except service.AIError as error:
+                    return error.status
+
+            with patch.dict(os.environ, {'GEMINI_USAGE_SCOPE': 'concurrent-test', 'GEMINI_MODEL_LIMITS': limits}), patch.object(service, 'db', fake_db):
+                with ThreadPoolExecutor(max_workers=2) as executor:
+                    results = list(executor.map(lambda _: reserve(), range(2)))
+            with Session(engine) as ledger:
+                self.assertEqual(ledger.scalar(select(func.count(AIUsage.usage_id))), 1)
+            self.assertEqual(sum(result == 429 for result in results), 1)
+            engine.dispose()
 
     def test_quota_not_retried_and_access_errors_not_switched(self):
         for code in (429, 403, 404):
