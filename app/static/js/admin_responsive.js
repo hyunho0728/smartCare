@@ -41,7 +41,7 @@
   });
   function resize() { close(false); if (!media.matches) sidebar.removeAttribute('inert'); }
   media.addEventListener('change', resize); resize();
-  const labels = ['어르신', '나이', '위험 상태', '건강 상태', '최근 기록', '관리'];
+  const labels = ['어르신', '나이', '위험 상태', '건강 상태', '최근 기록', '식사 여부', '관리'];
   const elderTable = document.getElementById('tbody').closest('table');
   elderTable.classList.add('elder-cards');
   function labelRows() {

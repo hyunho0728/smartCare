@@ -532,7 +532,7 @@
               </div>
               <table class="table">
                 <thead>
-                  <tr><th>이름</th><th>나이</th><th>건강 위험도</th><th>최근 상태</th><th>마지막 접속</th><th>관리</th></tr>
+                  <tr><th>이름</th><th>나이</th><th>건강 위험도</th><th>최근 상태</th><th>마지막 접속</th><th class="mobile-meal-header">식사 여부</th><th>관리</th></tr>
                 </thead>
                 <tbody id="tbody"></tbody>
               </table>
@@ -1767,7 +1767,7 @@ function renderTable(){
   if(!body) return;
 
   if (!users || !Array.isArray(users) || users.length === 0) {
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">등록된 담당 어르신 데이터가 없습니다.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">등록된 담당 어르신 데이터가 없습니다.</td></tr>';
     return;
   }
 
@@ -1786,7 +1786,7 @@ function renderTable(){
   data.sort((a, b) => (order[a.risk] ?? 4) - (order[b.risk] ?? 4));
 
   if(data.length === 0){
-    body.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:var(--muted)">조건에 일치하는 어르신 데이터가 없습니다.</td></tr>';
+    body.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:30px;color:var(--muted)">조건에 일치하는 어르신 데이터가 없습니다.</td></tr>';
     return;
   }
 
@@ -1803,9 +1803,9 @@ function renderTable(){
 
     if (u.meal_short && typeof u.meal_short === 'string' && u.meal_short.includes('<br>')) {
       const parts = u.meal_short.split('<br>');
-      breakfastDisplay = parts[0] ? parts[0].replace('아침: ', '') : '-';
-      lunchDisplay = parts[1] ? parts[1].replace('점심: ', '') : '-';
-      dinnerDisplay = parts[2] ? parts[2].replace('저녁: ', '') : '-';
+      breakfastDisplay = parts[0] ? parts[0].replace('아침: ', '').replace('아침 ', '') : '-';
+      lunchDisplay = parts[1] ? parts[1].replace('점심: ', '').replace('점심 ', '') : '-';
+      dinnerDisplay = parts[2] ? parts[2].replace('저녁: ', '').replace('저녁 ', '') : '-';
     } else {
       breakfastDisplay = '미입력';
       lunchDisplay = '미입력';
@@ -1867,24 +1867,31 @@ function renderTable(){
 
     return `
     <tr class="main-row" data-user-id="${u.id}" onclick="toggle(${i})">
-      <td>
+      <td class="elder-card-person">
         <div class="person">
           <div class="avatar">👵</div>
           <div><b>${u.name}</b><br><small>${u.phone}</small></div>
         </div>
       </td>
-      <td>${u.age}세</td>
-      <td>
+      <td class="elder-card-age">${u.age}세</td>
+      <td class="elder-card-risk">
         <div class="gauge">
           <div class="circle" style="border-color:${r[2]};color:${r[2]}">${u.score}</div>
           <span class="badge ${r[1]}">● ${r[0]}</span>
         </div>
       </td>
-      <td style="font-size:${isUnrecorded ? '14px' : '22px'};white-space:nowrap;font-weight:${isUnrecorded ? '800' : 'normal'};color:${isUnrecorded ? '#d97706' : 'inherit'};">
+      <td class="elder-card-health" style="font-size:${isUnrecorded ? '14px' : '22px'};white-space:nowrap;font-weight:${isUnrecorded ? '800' : 'normal'};color:${isUnrecorded ? '#d97706' : 'inherit'};">
         ${isUnrecorded ? '⚠️ 첫 건강 상태 입력이 필요합니다' : `${emoji[u.health] || '⏳'} <small style="font-size:13px;color:#6b7688;font-weight:700;">${healthText}</small>`}
       </td>
-      <td><span style="color:${isUnrecorded ? '#d97706' : '#6b7688'};font-weight:700;white-space:nowrap;">${u.last}</span></td>
-      <td>
+      <td class="elder-card-last"><span style="color:${isUnrecorded ? '#d97706' : '#6b7688'};font-weight:700;white-space:nowrap;">${u.last}</span></td>
+      <td class="mobile-meal-cell">
+        <div class="mobile-meal-values">
+          <span>아침 <b>${escapeDiseaseText(breakfastDisplay)}</b></span>
+          <span>점심 <b>${escapeDiseaseText(lunchDisplay)}</b></span>
+          <span>저녁 <b>${escapeDiseaseText(dinnerDisplay)}</b></span>
+        </div>
+      </td>
+      <td class="elder-card-management">
         <div class="actions">
           <button class="mini-btn" onclick="event.stopPropagation();toggle(${i})">상세</button>
           <button class="mini-btn" onclick="event.stopPropagation();copyPhoneNumber('${u.name}', '${u.phone}')">번호 복사</button>
@@ -1893,7 +1900,7 @@ function renderTable(){
     </tr>
 
     <tr class="detail-row" id="detail-${i}" data-user-id="${u.id}">
-      <td colspan="6">
+      <td colspan="7">
         <div class="detail-wrap v2">
           <div class="detail-title-v2">
             <div>

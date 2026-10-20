@@ -6,6 +6,7 @@
 .ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: #1d4ed8; }
 .ai-error { color: #b91c1c; padding: 8px 0; }
 .table-scroll { overflow-x: auto; }
+.mobile-meal-header, .mobile-meal-cell { display:none; }
 @media(max-width:768px) {
   .layout, .layout.collapsed, .layout:not(.sidebar-expanded) { display: block; }
   .main { padding: 16px 12px 30px; }
@@ -51,11 +52,25 @@
   .table.elder-cards { display: block; min-width: 0; }
   .elder-cards thead { display: none; }
   .elder-cards tbody { display: block; }
-  .elder-cards .main-row { display: block; padding: 10px; margin: 12px; border: 1px solid #dbe7f6; border-radius: 16px; }
-  .elder-cards .main-row td { display: flex; align-items: center; gap: 12px; padding: 8px 0; border: 0; white-space: normal !important; overflow-wrap: anywhere; }
-  .elder-cards .main-row td::before { content: attr(data-label); flex: 0 0 60px; color: #64748b; font-size: 12px; font-weight: 700; }
+  .elder-cards .main-row { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-areas:'person person' 'age last' 'risk health' 'meals meals' 'management management'; gap:8px; padding:12px; margin:12px; border:1px solid #dbe7f6; border-radius:16px; }
+  .elder-cards .main-row td { display:block; min-width:0; padding:10px; border:0; border-radius:10px; background:#f8fafc; white-space:normal !important; overflow-wrap:anywhere; }
+  .elder-cards .main-row td::before { content:attr(data-label); display:block; margin-bottom:7px; color:#64748b; font-size:12px; font-weight:700; }
   .elder-cards .main-row td:first-child::before { display: none; }
   .elder-cards .main-row td > * { min-width: 0; }
+  .elder-cards .main-row .elder-card-person { grid-area:person; }
+  .elder-cards .main-row .elder-card-age { grid-area:age; }
+  .elder-cards .main-row .elder-card-last { grid-area:last; }
+  .elder-cards .main-row .elder-card-risk { grid-area:risk; }
+  .elder-cards .main-row .elder-card-health { grid-area:health; }
+  .elder-cards .main-row .mobile-meal-cell { grid-area:meals; }
+  .elder-cards .main-row .elder-card-management { grid-area:management; }
+  .elder-cards .main-row .elder-card-person { padding:8px; background:transparent; }
+  .elder-cards .main-row .mobile-meal-cell { display:block; }
+  .mobile-meal-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
+  .mobile-meal-values span { padding:8px 5px; border-radius:8px; background:#eef4fa; color:#64748b; text-align:center; font-size:12px; }
+  .mobile-meal-values b { display:block; margin-top:3px; color:#172033; font-size:13px; }
+  .elder-card-management .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .elder-card-management .actions button { width:100%; }
   .elder-cards .detail-row.open { display: block; }
   .elder-cards .detail-row > td { display: block; padding: 0; }
   .elder-cards tr:not(.main-row):not(.detail-row) { display: block; }

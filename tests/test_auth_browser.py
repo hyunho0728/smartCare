@@ -122,6 +122,15 @@ class AuthBrowserTests(unittest.TestCase):
         self.assertEqual(page.locator('#mobile-menu-toggle .hamburger-icon span').count(),3)
         self.assertEqual(page.locator('.topbar').evaluate('n=>getComputedStyle(n).backgroundColor'),'rgb(18, 29, 51)')
         self.assertEqual(page.locator('#pageTitle').evaluate('n=>getComputedStyle(n).color'),'rgb(255, 255, 255)')
+        mobile_card=page.locator('#tbody .main-row').first
+        self.assertEqual(mobile_card.evaluate('n=>getComputedStyle(n).display'),'grid')
+        self.assertEqual(mobile_card.evaluate('n=>getComputedStyle(n).gridTemplateColumns.split(" ").length'),2)
+        self.assertTrue(mobile_card.locator('.mobile-meal-cell').is_visible())
+        self.assertEqual(mobile_card.locator('.mobile-meal-values span').count(),3)
+        age_box=mobile_card.locator('.elder-card-age').bounding_box(); last_box=mobile_card.locator('.elder-card-last').bounding_box()
+        risk_box=mobile_card.locator('.elder-card-risk').bounding_box(); health_box=mobile_card.locator('.elder-card-health').bounding_box()
+        self.assertAlmostEqual(age_box['y'],last_box['y'],delta=1)
+        self.assertAlmostEqual(risk_box['y'],health_box['y'],delta=1)
         for width in (360, 390, 768, 1280, 1440):
             page.set_viewport_size({'width': width, 'height': 1000})
             self.no_overflow()
