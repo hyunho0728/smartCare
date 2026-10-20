@@ -39,6 +39,11 @@ class HealthTrendBrowserTests(unittest.TestCase):
         score=chart.locator('svg[aria-label="시스템 점수 · 높을수록 안전 추세 그래프"]')
         score.wait_for()
         self.assertEqual(score.locator('circle').count(),3)
+        threshold_labels=score.locator('.health-trend-threshold-label')
+        threshold_lines=score.locator('.health-trend-threshold-line')
+        self.assertEqual(threshold_labels.count(),3)
+        self.assertEqual(threshold_lines.count(),3)
+        self.assertTrue(all(float(threshold_labels.nth(i).get_attribute('x')) > float(threshold_lines.nth(i).get_attribute('x2')) for i in range(3)))
         # 어제와 오늘만 연결한다. 3일 전 점수와는 빈 날짜를 가로질러 연결하지 않는다.
         self.assertEqual(score.locator('polyline').count(),1)
         self.assertEqual(len(score.locator('polyline').get_attribute('points').split()),2)

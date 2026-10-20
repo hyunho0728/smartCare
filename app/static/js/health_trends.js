@@ -45,7 +45,7 @@
     parent.append(el('h5', `${title}${unit ? ` (${unit})` : ''}`));
     const valid = rows.flatMap(row => columns.map(([field]) => row[field])).filter(value => typeof value === 'number' && Number.isFinite(value));
     if (!valid.length) { parent.append(el('p', '그래프로 표시할 수치 기록이 없습니다.')); return; }
-    const width = 700, height = 270, left = 125, right = 630, top = 26, bottom = 217;
+    const width = key === 'score' ? 780 : 700, height = 270, left = 125, right = 630, top = 26, bottom = 217;
     const min = options.min ?? 0, max = options.max ?? Math.max(1, ...valid) * 1.12;
     const times = rows.map(row => Date.parse(row.date)); const start = Math.min(...times), end = Math.max(...times);
     const x = row => start === end ? (left + right) / 2 : left + (Date.parse(row.date) - start) / (end - start) * (right - left);
@@ -56,8 +56,8 @@
       svg.append(svgEl('line', {x1:left, x2:right, y1:y(value), y2:y(value), stroke:'#dbe7f6'}), svgEl('text', {x:left-9, y:y(value)+5, 'text-anchor':'end'}, Math.round(value * 10) / 10));
     }
     if (key === 'score') for (const [threshold, label] of [[80,'안전'], [60,'주의'], [40,'경고']]) {
-      svg.append(svgEl('line', {x1:left,x2:right,y1:y(threshold),y2:y(threshold),stroke:'#94a3b8','stroke-dasharray':'5 5'}),
-        svgEl('text', {x:right,y:y(threshold)-4,'text-anchor':'end'}, `${label} ≥${threshold}`));
+      svg.append(svgEl('line', {x1:left,x2:right,y1:y(threshold),y2:y(threshold),stroke:'#94a3b8','stroke-dasharray':'5 5',class:'health-trend-threshold-line'}),
+        svgEl('text', {x:right+9,y:y(threshold)+5,'text-anchor':'start',class:'health-trend-threshold-label'}, `${label} ≥${threshold}`));
     }
     const indices = [...new Set([0, Math.floor((rows.length - 1) / 2), rows.length - 1])];
     for (const index of indices) if (rows[index]) svg.append(svgEl('text', {x:x(rows[index]),y:247,

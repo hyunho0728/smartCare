@@ -20,7 +20,7 @@
         </tr></thead><tbody data-items></tbody></table></div>
         <section data-disease-section>
           <h3>검진표에 명시된 기저질환</h3>
-          <p>원본과 대조해 사용자 정보로 최신화할 질환을 선택해주세요. 명확한 질환만 기본 선택됩니다.</p>
+          <p>확정 질환은 사용자 정보에 자동으로 포함됩니다. 확인 필요 질환은 원문을 확인한 뒤 체크하면 함께 등록됩니다.</p>
           <p data-disease-sync></p>
           <div data-diseases></div>
           <div data-disease-diff aria-live="polite"></div>
@@ -69,7 +69,9 @@
       return;
     }
     const current = currentDiseases(state.result.current_disease);
-    const selected = state.diseases.filter(item => item.selected.checked).map(item => item.name.value.trim()).filter(Boolean);
+    const selected = state.diseases
+      .filter(item => item.source.status === 'confirmed' || item.selected?.checked)
+      .map(item => item.name.value.trim()).filter(Boolean);
     if (!selected.length) {
       target.textContent = '선택된 질환이 없어 기존 사용자 정보를 유지합니다.';
       return;
@@ -135,22 +137,30 @@
     });
     state.diseases = (draft.diseases || []).map((disease, index) => {
       const row = document.createElement('div'); row.className = 'checkup-disease-row';
-      const label = document.createElement('label');
-      const selected = document.createElement('input'); selected.type = 'checkbox';
       const sourceDisease = result.extraction.diseases[index];
       const wasCurrent = sameRevision && currentDiseases(result.current_disease)
         .some(name => normalizedDisease(name) === normalizedDisease(disease.name));
-      selected.checked = state.diseaseSync.eligible && (disease.status === 'confirmed' || wasCurrent);
-      selected.disabled = !state.diseaseSync.eligible;
-      selected.setAttribute('aria-label', `${disease.name} 최신 목록에 포함`);
-      label.append(selected, document.createTextNode(' 최신 목록에 포함'));
       const badge = document.createElement('span'); badge.className = `checkup-disease-status ${disease.status}`;
       badge.textContent = disease.status === 'confirmed' ? '명확한 질환' : '확인 필요';
+      let selected = null;
+      if (disease.status === 'confirmed') {
+        const automatic = document.createElement('span'); automatic.className = 'checkup-disease-auto';
+        automatic.textContent = state.diseaseSync.eligible ? '자동 등록 대상' : '확정 질환';
+        row.append(badge, automatic);
+      } else {
+        const label = document.createElement('label');
+        selected = document.createElement('input'); selected.type = 'checkbox';
+        selected.checked = state.diseaseSync.eligible && wasCurrent;
+        selected.disabled = !state.diseaseSync.eligible;
+        selected.setAttribute('aria-label', `${disease.name} 사용자 기저질환으로 등록`);
+        label.append(selected, document.createTextNode(' 사용자 기저질환으로 등록'));
+        selected.onchange = () => updateDiseaseDiff(state);
+        row.append(badge, label);
+      }
       const name = input(disease.name, `기저질환 ${index + 1} 질환명`, 100);
       const source = document.createElement('p'); source.textContent = `${disease.raw_text} (${disease.page}쪽)`;
-      selected.onchange = () => updateDiseaseDiff(state);
       name.oninput = () => updateDiseaseDiff(state);
-      row.append(label, badge, name, source); find('diseases').append(row);
+      row.append(name, source); find('diseases').append(row);
       return {name, selected, source: sourceDisease};
     });
     if (!state.diseases.length) find('diseases').textContent = '추출된 기저질환이 없습니다. 기존 사용자 정보는 유지됩니다.';
@@ -225,7 +235,8 @@
       unit: nullable(fields.unit), reference_range: nullable(fields.reference_range), unreadable: unreadable.checked,
     }));
     result.diseases = state.diseases.map(({name, source}) => ({...source, name: name.value.trim()}));
-    const selectedDiseaseIndices = state.diseases.flatMap(({selected}, index) => selected.checked ? [index] : []);
+    const selectedDiseaseIndices = state.diseases.flatMap(({selected, source}, index) =>
+      source.status === 'confirmed' || selected?.checked ? [index] : []);
     state.saving = true; busy(true); status('확정 결과 저장 중...');
     try {
       const saved = await api(`/api/admin/checkup/${state.docId}/confirm`, {
