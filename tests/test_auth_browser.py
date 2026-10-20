@@ -117,7 +117,11 @@ class AuthBrowserTests(unittest.TestCase):
     def test_admin_responsive_navigation_forms_and_ai_state(self):
         page = self.page; page.set_viewport_size({'width': 390, 'height': 844}); self.login()
         page.locator('#tbody .main-row').wait_for()
-        self.assertEqual(page.locator('#dashboard').evaluate('n=>getComputedStyle(n).backgroundColor'),'rgb(241, 245, 249)')
+        self.assertEqual(page.locator('#dashboard').evaluate('n=>getComputedStyle(n).backgroundColor'),'rgb(238, 244, 250)')
+        self.assertEqual(page.locator('#mobile-menu-toggle').inner_text().strip(),'')
+        self.assertEqual(page.locator('#mobile-menu-toggle .hamburger-icon span').count(),3)
+        self.assertEqual(page.locator('.topbar').evaluate('n=>getComputedStyle(n).backgroundColor'),'rgb(18, 29, 51)')
+        self.assertEqual(page.locator('#pageTitle').evaluate('n=>getComputedStyle(n).color'),'rgb(255, 255, 255)')
         for width in (360, 390, 768, 1280, 1440):
             page.set_viewport_size({'width': width, 'height': 1000})
             self.no_overflow()
@@ -128,8 +132,10 @@ class AuthBrowserTests(unittest.TestCase):
             if width <= 768:
                 page.locator('#mobile-menu-toggle').click()
                 self.assertEqual(page.locator('#mobile-menu-toggle').get_attribute('aria-expanded'), 'true')
+                self.assertEqual(page.locator('#mobile-menu-toggle').get_attribute('aria-label'), '메뉴 닫기')
                 page.keyboard.press('Escape')
                 self.assertEqual(page.locator('#mobile-menu-toggle').get_attribute('aria-expanded'), 'false')
+                self.assertEqual(page.locator('#mobile-menu-toggle').get_attribute('aria-label'), '메뉴 열기')
                 page.locator('#mobile-menu-toggle').click()
                 page.locator('.nav button[onclick*="analysis"]').click()
                 self.assertFalse(page.locator('#dashboardLayout').evaluate("el=>el.classList.contains('mobile-menu-open')"))

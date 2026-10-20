@@ -8,13 +8,14 @@
   function close(restoreFocus = true) {
     layout.classList.remove('mobile-menu-open'); backdrop.classList.remove('open');
     toggle.setAttribute('aria-expanded', 'false');
+    toggle.setAttribute('aria-label', '메뉴 열기');
     if (media.matches) sidebar.setAttribute('inert', '');
     if (restoreFocus && previousFocus) previousFocus.focus();
   }
   function open() {
     previousFocus = document.activeElement;
     layout.classList.add('mobile-menu-open'); backdrop.classList.add('open');
-    sidebar.removeAttribute('inert'); toggle.setAttribute('aria-expanded', 'true');
+    sidebar.removeAttribute('inert'); toggle.setAttribute('aria-expanded', 'true'); toggle.setAttribute('aria-label', '메뉴 닫기');
     sidebar.querySelector('button').focus();
   }
   toggle.onclick = () => layout.classList.contains('mobile-menu-open') ? close() : open();
