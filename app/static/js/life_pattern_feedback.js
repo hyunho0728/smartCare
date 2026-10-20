@@ -273,6 +273,7 @@
           appendSources(block, finding.source_refs, snapshot); findings.append(block);
         }
         const data = fold(panel, '사용한 검진 자료·데이터 한계', 'data');
+        data.classList.add('health-analysis-data');
         section(data, '데이터 한계', report.limitations);
         data.append(element('h5', '사용한 검진 자료'), element('p', '원본 확인창에는 현재 확정 결과가 표시됩니다. 재확정되었다면 분석 당시 버전·값과 다를 수 있습니다.', 'health-analysis-meta'));
         if (!snapshot.documents.length) data.append(element('p', '확정된 검진 자료 없음'));

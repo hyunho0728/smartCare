@@ -529,6 +529,8 @@ class AuthBrowserTests(unittest.TestCase):
         panel.get_by_role('button', name='현재 자료·저장 결과 새로고침').click()
         panel.locator('.health-reanalysis-note').wait_for()
         panel.locator('summary').filter(has_text='사용한 검진 자료·데이터 한계').click()
+        limitations = panel.locator('.health-analysis-data ul')
+        self.assertGreater(limitations.evaluate("el => parseFloat(getComputedStyle(el).paddingInlineStart)"), 0)
         self.assertIn('재확정되었다면', panel.inner_text())
         panel.locator('summary').filter(has_text='전체 확인 사항·관련 근거').click()
         panel.locator('.health-analysis-finding summary').click()
