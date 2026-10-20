@@ -3,7 +3,7 @@
   const states = new Map();
   const stateFor = id => {
     id = String(id);
-    if (!states.has(id)) states.set(id, {pending: false, loading: false, loaded: false, record: null, currentStatus: null, history: [], error: '', folds: {}});
+    if (!states.has(id)) states.set(id, {pending: false, loading: false, loaded: false, record: null, currentStatus: null, history: [], error: '', folds: {}, summaryExpanded: new Map()});
     return states.get(id);
   };
   function element(tag, text, className) {
@@ -31,6 +31,62 @@
   const valueText = value => value === null || value === undefined ? '비교 불가' : String(value);
   const deltaText = (recent, previous) => recent == null || previous == null ? '비교 불가' : `${recent - previous > 0 ? '+' : ''}${Math.round((recent - previous) * 10000) / 10000}`;
   let renderingState;
+  const summaryResizeObserver = typeof ResizeObserver === 'function' ? new ResizeObserver(entries => {
+    for (const entry of entries) updateSummaryOverflow(entry.target);
+  }) : null;
+
+  function summaryOverflows(text) {
+    const width = text.getBoundingClientRect().width;
+    if (!width) return null;
+    const clone = text.cloneNode(true);
+    clone.removeAttribute('id'); clone.classList.remove('is-collapsed');
+    Object.assign(clone.style, {position: 'absolute', visibility: 'hidden', pointerEvents: 'none', width: `${width}px`, height: 'auto', maxHeight: 'none'});
+    text.parentElement.append(clone);
+    const style = getComputedStyle(clone);
+    const lineHeight = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.6;
+    const overflows = clone.scrollHeight > lineHeight * 3 + 1;
+    clone.remove();
+    return overflows;
+  }
+
+  function updateSummaryOverflow(text) {
+    if (!text.isConnected) return;
+    const block = text.closest('.health-summary'), button = block?.querySelector('.health-summary-toggle');
+    if (!button) return;
+    const overflows = summaryOverflows(text);
+    if (overflows === null) return;
+    button.hidden = !overflows;
+    text.classList.toggle('is-collapsed', overflows && button.getAttribute('aria-expanded') !== 'true');
+  }
+
+  function setSummaryExpanded(userId, analysisKey, expanded) {
+    stateFor(userId).summaryExpanded.set(analysisKey, expanded);
+    document.querySelectorAll('.health-summary').forEach(block => {
+      if (block.dataset.summaryUser !== String(userId) || block.dataset.summaryAnalysis !== analysisKey) return;
+      const text = block.querySelector('.health-summary-text'), button = block.querySelector('.health-summary-toggle');
+      button.setAttribute('aria-expanded', String(expanded));
+      button.textContent = expanded ? '간략히 보기' : '자세히 보기';
+      updateSummaryOverflow(text);
+    });
+  }
+
+  function renderSummary(panel, summary, state, userId, analysisId, panelIndex) {
+    const analysisKey = String(analysisId ?? 'latest');
+    const expanded = !!state.summaryExpanded.get(analysisKey);
+    const block = element('div', undefined, 'health-summary');
+    block.dataset.summaryUser = String(userId); block.dataset.summaryAnalysis = analysisKey;
+    const safeKey = analysisKey.replace(/[^a-zA-Z0-9_-]/g, '-');
+    const text = element('p', summary, `health-summary-text${expanded ? '' : ' is-collapsed'}`);
+    text.id = `health-summary-${userId}-${safeKey}-${panelIndex}`;
+    const button = element('button', expanded ? '간략히 보기' : '자세히 보기', 'health-summary-toggle');
+    button.type = 'button'; button.hidden = true; button.setAttribute('aria-expanded', String(expanded));
+    button.setAttribute('aria-controls', text.id);
+    button.addEventListener('click', () => setSummaryExpanded(userId, analysisKey, button.getAttribute('aria-expanded') !== 'true'));
+    block.append(text, button); panel.append(block);
+    summaryResizeObserver?.observe(text);
+    requestAnimationFrame(() => updateSummaryOverflow(text));
+  }
+
   function fold(parent, title, key) {
     const state = renderingState;
     const details = element('details', undefined, 'health-details');
@@ -152,7 +208,8 @@
   function render(id) {
     const state = stateFor(id);
     renderingState = state;
-    document.querySelectorAll(`[data-life-ai-user-id="${id}"]`).forEach(panel => {
+    document.querySelectorAll(`[data-life-ai-user-id="${id}"]`).forEach((panel, panelIndex) => {
+      panel.querySelectorAll('.health-summary-text').forEach(text => summaryResizeObserver?.unobserve(text));
       panel.replaceChildren(); panel.setAttribute('aria-busy', String(state.pending || state.loading));
       panel.append(element('b', '건강 상태와 AI 분석'));
       const settings = fold(panel, '모델 설정·분석 이력', 'settings');
@@ -198,8 +255,8 @@
           section(panel, '권장 확인', report.recommended_actions || []);
         }
         renderContact(panel, id);
-        panel.append(element('h5', '종합 요약'), element('p', report.summary.length > 180 ? report.summary.slice(0,180) + '…' : report.summary));
-        if (report.summary.length > 180) fold(panel, '전체 요약 보기', 'summary').append(element('p', report.summary));
+        panel.append(element('h5', '종합 요약'));
+        renderSummary(panel, report.summary, state, id, record.analysis_id, panelIndex);
         renderCoreChanges(panel, snapshot);
         const graphs = fold(panel, '분석 당시 건강 추세', 'graphs');
         const graphBody = element('div'); graphs.append(graphBody);

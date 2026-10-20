@@ -70,6 +70,12 @@
 .health-analysis-meta, .health-analysis-source { color: #475569; font-size: 13px; }
 .health-analysis-finding { border-left: 3px solid #93c5fd; margin-top: 10px; padding: 8px 12px; background: #eff6ff; }
 .health-analysis-source button { display: block; margin-top: 6px; min-height: 44px; white-space: normal; }
+.health-summary { min-width: 0; }
+.health-summary-text { margin-bottom: 0; }
+.health-summary-text.is-collapsed { display: -webkit-box; overflow: hidden; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; }
+.health-summary-toggle { display: inline-flex; align-items: center; min-height: 44px; margin-top: 2px; padding: 0; border: 0; background: transparent; color: #24548c; font: inherit; font-weight: 700; cursor: pointer; }
+.health-summary-toggle[hidden] { display: none; }
+.health-summary-toggle:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
 .health-status-card, .health-comparison-card, .health-priority-card { margin: 10px 0; padding: 12px; border: 1px solid #dbe7f6; border-radius: 12px; max-width: 100%; min-width: 0; }
 .health-status-card { background: #f8fafc; }
 .health-priority-card { border-left: 4px solid #2563eb; }
