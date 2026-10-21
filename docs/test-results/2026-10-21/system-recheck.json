@@ -1,0 +1,28 @@
+{
+  "level": "system",
+  "case_filter": "test_status_alerts_browser.StatusAlertBrowserTests.test_restore_detail_explicit_read_mobile_and_new_poll_notice",
+  "started_at": "2026-10-21T10:37:20.236280+09:00",
+  "duration_seconds": 2.63,
+  "python": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "packages": {
+    "Flask": "3.1.3",
+    "SQLAlchemy": "2.0.52",
+    "google-genai": "2.22.0",
+    "playwright": "1.63.0",
+    "Pillow": "11.3.0",
+    "pypdf": "6.1.1"
+  },
+  "tests_run": 1,
+  "successful": false,
+  "cases": [
+    {
+      "id": "test_status_alerts_browser.StatusAlertBrowserTests.test_restore_detail_explicit_read_mobile_and_new_poll_notice",
+      "outcome": "failed",
+      "details": [
+        "Traceback (most recent call last):\n  File \"C:\\Users\\yu168\\Documents\\Project\\smartCare\\tests\\test_status_alerts_browser.py\", line 40, in test_restore_detail_explicit_read_mobile_and_new_poll_notice\n    self.assertEqual(recent_card.evaluate('n=>getComputedStyle(n).gridTemplateColumns.split(\" \").length'),4)\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 3 != 4\n"
+      ],
+      "duration_seconds": 2.62
+    }
+  ]
+}

@@ -1,0 +1,469 @@
+{
+  "level": "integration",
+  "started_at": "2026-10-21T10:34:36.855487+09:00",
+  "duration_seconds": 5.982,
+  "python": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "packages": {
+    "Flask": "3.1.3",
+    "SQLAlchemy": "2.0.52",
+    "google-genai": "2.22.0",
+    "playwright": "1.63.0",
+    "Pillow": "11.3.0",
+    "pypdf": "6.1.1"
+  },
+  "tests_run": 75,
+  "successful": true,
+  "cases": [
+    {
+      "id": "test_ai_usage.MigrationTests.test_existing_sqlite_table_data_and_idempotency",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.031
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_all_models_both_apis_and_confirmation_model",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.306
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_catalog_defaults_overrides_and_auth",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.067
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_concurrent_last_rpd_is_reserved_once",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.102
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_json_and_analysis_save_failure_still_count_received_tokens",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.108
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_last_rpd_attempt_failure_prevents_provider_retry",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.073
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_missing_model_uses_defaults_and_invalid_rejected_before_call",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.112
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_pacific_midnight_and_dst",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.071
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_pending_and_unknown_tokens_are_not_zero_estimate",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.066
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_quota_not_retried_and_access_errors_not_switched",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.074
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_record_failure_prevents_call_and_final_record_failure_keeps_pending",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.073
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_records_survive_new_session_and_no_sensitive_fields",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.068
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_retry_every_attempt_and_no_hidden_sdk_retry",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.079
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_rolling_window_scope_model_and_remaining_clamp",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.065
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_rpd_limit_blocks_all_ai_features_before_provider_call",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.092
+    },
+    {
+      "id": "test_ai_usage.UsageTests.test_usage_shared_between_workers",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.079
+    },
+    {
+      "id": "test_auth.AuthTests.test_anonymous_entry_on_every_device",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.206
+    },
+    {
+      "id": "test_auth.AuthTests.test_database_failure_does_not_switch_roles",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.055
+    },
+    {
+      "id": "test_auth.AuthTests.test_expiry_logout_and_remote_logout",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.072
+    },
+    {
+      "id": "test_auth.AuthTests.test_failed_login_preserves_existing_session",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.07
+    },
+    {
+      "id": "test_auth.AuthTests.test_legacy_and_ambiguous_sessions",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.059
+    },
+    {
+      "id": "test_auth.AuthTests.test_life_ai_configuration_failure_is_not_success",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.068
+    },
+    {
+      "id": "test_auth.AuthTests.test_life_ai_quota_failure_is_not_success",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.068
+    },
+    {
+      "id": "test_auth.AuthTests.test_multiple_diseases_registration_reactivation_and_proxy",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.066
+    },
+    {
+      "id": "test_auth.AuthTests.test_registration_routes_and_existing_forms",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.234
+    },
+    {
+      "id": "test_auth.AuthTests.test_role_login_and_page_guards",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.118
+    },
+    {
+      "id": "test_auth.AuthTests.test_switch_back_to_user_clears_worker",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.068
+    },
+    {
+      "id": "test_checkup.ApiTests.test_analysis_failure_preserves_saved_data",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.074
+    },
+    {
+      "id": "test_checkup.ApiTests.test_disease_schema_and_actual_page_validation",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.035
+    },
+    {
+      "id": "test_checkup.ApiTests.test_disease_selection_edit_merge_and_reanalysis",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.062
+    },
+    {
+      "id": "test_checkup.ApiTests.test_disease_transaction_rollback",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.041
+    },
+    {
+      "id": "test_checkup.ApiTests.test_duplicate_candidates_aliases_and_none_marker",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.022
+    },
+    {
+      "id": "test_checkup.ApiTests.test_empty_replacement_and_no_candidates_preserve_existing_disease",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.056
+    },
+    {
+      "id": "test_checkup.ApiTests.test_invalid_selection_and_disease_source",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.088
+    },
+    {
+      "id": "test_checkup.ApiTests.test_latest_checkup_replaces_selected_diseases",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.051
+    },
+    {
+      "id": "test_checkup.ApiTests.test_legacy_result_without_diseases",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.045
+    },
+    {
+      "id": "test_checkup.ApiTests.test_missing_checkup_date_preserves_existing_disease",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.042
+    },
+    {
+      "id": "test_checkup.ApiTests.test_name_mismatch_requires_matching_name",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.045
+    },
+    {
+      "id": "test_checkup.ApiTests.test_no_result_and_missing_document",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.035
+    },
+    {
+      "id": "test_checkup.ApiTests.test_older_checkup_saves_result_without_replacing_disease",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.05
+    },
+    {
+      "id": "test_checkup.ApiTests.test_oversized_upload_json_error",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.021
+    },
+    {
+      "id": "test_checkup.ApiTests.test_same_date_checkup_can_replace_disease",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.054
+    },
+    {
+      "id": "test_checkup.ApiTests.test_save_reload_and_preserve_confirmation",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.056
+    },
+    {
+      "id": "test_checkup.ApiTests.test_source_and_schema_protected",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.045
+    },
+    {
+      "id": "test_checkup.ApiTests.test_unauthorized",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.036
+    },
+    {
+      "id": "test_checkup.ApiTests.test_unreadable_and_review",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.047
+    },
+    {
+      "id": "test_checkup.ApiTests.test_unselected_and_first_disease",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.054
+    },
+    {
+      "id": "test_checkup.ApiTests.test_upload_rejects_without_writing",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.197
+    },
+    {
+      "id": "test_health_analysis.ApiTests.test_failures_preserve_history",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.085
+    },
+    {
+      "id": "test_health_analysis.ApiTests.test_no_history_and_invalid_selection",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.057
+    },
+    {
+      "id": "test_health_analysis.ApiTests.test_ownership_changes_during_analysis",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.059
+    },
+    {
+      "id": "test_health_analysis.ApiTests.test_permissions_unassigned_changed_and_ambiguous",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.086
+    },
+    {
+      "id": "test_health_analysis.ApiTests.test_save_history_reload_and_snapshot",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.1
+    },
+    {
+      "id": "test_health_comparisons.ApiComparisonTests.test_comparison_persisted_and_reconfirmation_stale",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.081
+    },
+    {
+      "id": "test_health_comparisons.ApiComparisonTests.test_current_score_failure_still_returns_stored_result",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.069
+    },
+    {
+      "id": "test_health_comparisons.ApiComparisonTests.test_previous_shape_is_preserved",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.066
+    },
+    {
+      "id": "test_health_comparisons.ApiComparisonTests.test_risk_failure_no_external_call_or_history_write",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.067
+    },
+    {
+      "id": "test_health_trends.TrendApiTests.test_calculation_failure_is_failure_without_writes",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.057
+    },
+    {
+      "id": "test_health_trends.TrendApiTests.test_legacy_and_failed_analysis_preserve_previous",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.078
+    },
+    {
+      "id": "test_health_trends.TrendApiTests.test_permissions_and_assignment_change",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.059
+    },
+    {
+      "id": "test_health_trends.TrendApiTests.test_read_only_days_and_no_ai",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.083
+    },
+    {
+      "id": "test_health_trends.TrendApiTests.test_snapshot_survives_reconfirmation_new_record_and_reload",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.113
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_actual_elapsed_time_without_input_and_no_ai",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.056
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_api_permissions_read_idempotency_and_pure_queries",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.106
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_assignment_route_establishes_new_baseline_without_notification",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.06
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_background_success_metadata_persisted_and_failure_not_advanced",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.068
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_calculation_failure_and_out_of_order_check_keep_state",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.054
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_concurrent_checks_create_one_event",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.266
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_failure_keeps_baseline_and_retry_creates_once",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.273
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_first_baseline_worsening_recovery_same_grade_and_jump",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.057
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_health_save_checks_and_alert_failure_keeps_health",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.053
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_inactive_unassigned_and_assignment_reset",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.067
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_read_save_failure_keeps_unread",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.061
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_saved_evidence_survives_later_changes_and_session_restart",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.05
+    },
+    {
+      "id": "test_status_alerts.StatusAlertTests.test_worker_loop_and_testing_auto_start_disabled",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.034
+    }
+  ]
+}

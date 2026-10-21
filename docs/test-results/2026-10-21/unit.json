@@ -1,0 +1,301 @@
+{
+  "level": "unit",
+  "started_at": "2026-10-21T10:35:46.650398+09:00",
+  "duration_seconds": 2.082,
+  "python": "3.14.7 (tags/v3.14.7:823f032, Aug  5 2026, 10:51:32) [MSC v.1944 64 bit (AMD64)]",
+  "platform": "Windows-11-10.0.26300-SP0",
+  "packages": {
+    "Flask": "3.1.3",
+    "SQLAlchemy": "2.0.52",
+    "google-genai": "2.22.0",
+    "playwright": "1.63.0",
+    "Pillow": "11.3.0",
+    "pypdf": "6.1.1"
+  },
+  "tests_run": 47,
+  "successful": true,
+  "cases": [
+    {
+      "id": "test_checkup.DocumentTests.test_all_generated_documents_validate",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 1.617
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_invalid_response_and_page",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.062
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_missing_and_inequality",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_missing_api_key",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.002
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_parser",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.002
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_provider_failures",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.043
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_reject_bad_files",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.15
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_rotation",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.003
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_sdk_request_and_response_contract",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.009
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_supported_formats",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.01
+    },
+    {
+      "id": "test_checkup.DocumentTests.test_validation",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_analysis.InputTests.test_aliases_and_numbers",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.003
+    },
+    {
+      "id": "test_health_analysis.InputTests.test_empty_and_limited_inputs",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_analysis.InputTests.test_latest_two_only_confirmed_and_date_fallback",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_analysis.InputTests.test_old_missing_unsupported_and_conflicting",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_analysis.InputTests.test_three_sources_and_periods",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_bad_json_empty_schema_and_reference",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.028
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_finding_count_includes_actual_and_maximum",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.009
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_json_contract_and_private_payload",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.005
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_key_quota_and_timeout",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.012
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_missing_priority_and_unknown_field_diagnostics",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.011
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_more_than_twenty_provided_references_are_preserved",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.012
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_output_token_limit_is_reported_before_parsing",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.004
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_provider_schema_guides_local_array_limits_without_rejected_constraints",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.003
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_request_format_error_is_not_model_permission_error",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.005
+    },
+    {
+      "id": "test_health_analysis.ProviderTests.test_valid_json_over_limit_is_explained_and_not_logged",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.007
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_checkup_numbers_and_left_right",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_checkup_restrictions_preserve_values",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.003
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_daily_last_record_boundaries_missing_values_and_meals",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_elapsed_hours_survive_status_normalization_without_guessing",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_existing_long_login_penalty_can_be_normalized",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_grade_boundaries_and_original_score",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_login_dates_not_total_requests",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_missing_item_and_unit_are_not_comparable",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_previous_input_changes_and_old_schema",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_previous_status_deltas_and_same_material",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.002
+    },
+    {
+      "id": "test_health_comparisons.ComparisonTests.test_user_change_invalidates_recent_risk_analysis",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_comparisons.ProviderComparisonTests.test_comparison_payload_has_no_private_notes_or_prior_summary",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.016
+    },
+    {
+      "id": "test_health_comparisons.ProviderComparisonTests.test_invalid_priority_action_and_reference_rejected",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.02
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_calendar_boundary_latest_target_date_and_equal_time_id",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_checkup_numeric_sides_units_and_raw_exclusions",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_conflicting_values_different_units_and_duplicate_identical",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_graph_snapshot_is_not_added_to_external_ai_payload",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.005
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_invalid_values_excluded_per_metric_and_scheduled_meals",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_legacy_uses_only_saved_values_and_never_invents_scores",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.001
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_limit_future_date_and_unsupported",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.003
+    },
+    {
+      "id": "test_health_trends.TrendDataTests.test_real_zero_missing_current_and_future_score",
+      "outcome": "passed",
+      "details": [],
+      "duration_seconds": 0.0
+    }
+  ]
+}
