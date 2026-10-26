@@ -574,17 +574,19 @@
 
       <!-- 2. 담당 어르신 계정 관리 -->
       <section class="page" id="elder">
-        <div class="panel">
+        <div class="panel account-panel">
           <div class="panel-head">
             <h3>담당 어르신 계정 관리</h3>
             <button class="btn primary" onclick="openAdd()">신규 등록</button>
           </div>
-          <table class="table">
-            <thead>
-              <tr><th>이름</th><th>나이</th><th>휴대폰 번호</th><th>주소</th><th>기저질환</th><th>등록일</th><th>작업</th></tr>
-            </thead>
-            <tbody id="elder-manage-tbody"></tbody>
-          </table>
+          <div class="account-list" id="elder-manage-list"></div>
+        </div>
+        <div class="account-action-menu" id="elder-account-action-menu" role="menu" hidden
+             onclick="event.stopPropagation()">
+          <button type="button" role="menuitem" onclick="runElderAccountAction(event, 'feedback')">조치 기록</button>
+          <button type="button" role="menuitem" onclick="runElderAccountAction(event, 'copy')">번호 복사</button>
+          <button type="button" role="menuitem" class="account-menu-warning" onclick="runElderAccountAction(event, 'logout')">원격 로그아웃</button>
+          <button type="button" role="menuitem" class="account-menu-danger" onclick="runElderAccountAction(event, 'delete')">삭제</button>
         </div>
       </section>
 
@@ -1119,6 +1121,12 @@ function escapeDiseaseText(value) {
   element.textContent = value || '없음';
   return element.innerHTML;
 }
+
+function escapeAccountText(value, fallback = '-') {
+  const element = document.createElement('span');
+  element.textContent = value === null || value === undefined || value === '' ? fallback : String(value);
+  return element.innerHTML;
+}
 window.addEventListener('checkup-confirmed', () => loadEldersData());
 
 async function loadEldersData() {
@@ -1495,29 +1503,60 @@ function alertActionButtonHtml(u) {
 }
 
 function renderOtherSections() {
-  const elderTbody = document.getElementById('elder-manage-tbody');
-  if (elderTbody) {
+  const elderList = document.getElementById('elder-manage-list');
+  if (elderList) {
+    closeElderAccountMenu();
     if (!users || users.length === 0) {
-      elderTbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:24px;color:var(--muted)">배정된 담당 어르신이 없습니다.</td></tr>';
+      elderList.innerHTML = '<p class="account-empty">배정된 담당 어르신이 없습니다.</p>';
     } else {
-      elderTbody.innerHTML = users.map((u, i) => `
-        <tr>
-          <td><b>${u.name}</b></td>
-          <td>${u.age}세</td>
-          <td>${u.phone}</td>
-          <td>${u.address || '-'}</td>
-          <td>${u.disease && u.disease !== '없음' ? `<span class="badge b-yellow">${escapeDiseaseText(u.disease)}</span>` : '<span class="badge b-green">없음</span>'}</td>
-          <td>${u.created_at || '-'}</td>
-          <td>
-            <div class="actions">
-              <button class="mini-btn" onclick="openFeedback(${u.id}, '${u.name}')">기록</button>
-              <button class="mini-btn" onclick="copyPhoneNumber('${u.name}', '${u.phone}')">번호 복사</button>
-              <button class="mini-btn" style="color:#d97706;border-color:#fde68a;" onclick="remoteLogoutElder(${u.id}, '${u.name}')">원격 로그아웃</button>
-              <button class="mini-btn danger" onclick="deleteElder(${u.id}, '${u.name}')">삭제</button>
+      elderList.innerHTML = users.map(u => {
+        const name = escapeAccountText(u.name, '이름 미입력');
+        const age = u.age === null || u.age === undefined || u.age === '' ? '-' : `${escapeAccountText(u.age)}세`;
+        const phone = escapeAccountText(u.phone);
+        const address = escapeAccountText(u.address);
+        const disease = escapeAccountText(u.disease, '없음');
+        const createdAt = escapeAccountText(u.created_at);
+        const emergencyContact = escapeAccountText(u.emergency_contact, '미등록');
+
+        return `
+          <article class="account-item" id="elder-account-item-${u.id}">
+            <div class="account-summary">
+              <button type="button" class="account-summary-button"
+                      aria-expanded="false" aria-controls="elder-account-extra-${u.id}"
+                      onclick="toggleElderAccountDetail(${u.id})">
+                <span class="account-primary">
+                  <b>${name}</b>
+                  <span>${age}</span>
+                </span>
+                <span class="account-contact-grid">
+                  <span class="account-contact account-phone">
+                    <small>휴대폰 번호</small>
+                    <b>${phone}</b>
+                  </span>
+                  <span class="account-contact account-address">
+                    <small>주소</small>
+                    <b>${address}</b>
+                  </span>
+                </span>
+              </button>
+              <button type="button" class="account-more-button"
+                      aria-label="어르신 작업 메뉴" aria-haspopup="menu" aria-expanded="false"
+                      aria-controls="elder-account-action-menu"
+                      onclick="toggleElderAccountMenu(event, ${u.id})">⋯</button>
             </div>
-          </td>
-        </tr>
-      `).join('');
+            <div class="account-extra" id="elder-account-extra-${u.id}" aria-hidden="true">
+              <div class="account-extra-inner">
+                <dl class="account-extra-fields">
+                  <div><dt>기저질환</dt><dd>${disease}</dd></div>
+                  <div><dt>등록일</dt><dd>${createdAt}</dd></div>
+                  <div><dt>보호자 연락처</dt><dd>${emergencyContact}</dd></div>
+                </dl>
+              </div>
+            </div>
+          </article>
+        `;
+      }).join('');
+      restoreElderAccountDetail();
     }
   }
 
@@ -1591,6 +1630,118 @@ function renderOtherSections() {
 
   renderEmergencyAlerts();
 }
+
+let activeElderAccountMenuUserId = null;
+let activeElderAccountMenuButton = null;
+let expandedElderAccountId = null;
+
+function closeElderAccountMenu(restoreFocus = false) {
+  const menu = document.getElementById('elder-account-action-menu');
+  if (menu) menu.hidden = true;
+  document.querySelectorAll('.account-more-button').forEach(button => {
+    button.setAttribute('aria-expanded', 'false');
+  });
+  const buttonToRestore = activeElderAccountMenuButton;
+  activeElderAccountMenuUserId = null;
+  activeElderAccountMenuButton = null;
+  if (restoreFocus && buttonToRestore && document.body.contains(buttonToRestore)) {
+    buttonToRestore.focus();
+  }
+}
+
+function toggleElderAccountMenu(event, userId) {
+  event.stopPropagation();
+  const button = event.currentTarget;
+  const menu = document.getElementById('elder-account-action-menu');
+  if (!menu) return;
+
+  const isSameMenuOpen = !menu.hidden && Number(activeElderAccountMenuUserId) === Number(userId);
+  closeElderAccountMenu();
+  if (isSameMenuOpen) return;
+
+  activeElderAccountMenuUserId = userId;
+  activeElderAccountMenuButton = button;
+  menu.hidden = false;
+  button.setAttribute('aria-expanded', 'true');
+
+  const buttonRect = button.getBoundingClientRect();
+  const menuWidth = Math.max(176, menu.offsetWidth);
+  const menuHeight = menu.offsetHeight;
+  const gap = 6;
+  const left = Math.min(window.innerWidth - menuWidth - 8, Math.max(8, buttonRect.right - menuWidth));
+  const top = window.innerHeight - buttonRect.bottom >= menuHeight + gap
+    ? buttonRect.bottom + gap
+    : Math.max(8, buttonRect.top - menuHeight - gap);
+  menu.style.left = `${left}px`;
+  menu.style.top = `${top}px`;
+
+  const firstItem = menu.querySelector('button');
+  if (firstItem) firstItem.focus();
+}
+
+function toggleElderAccountDetail(userId) {
+  closeElderAccountMenu();
+  const target = document.getElementById(`elder-account-item-${userId}`);
+  if (!target) return;
+
+  const willExpand = !target.classList.contains('expanded');
+  expandedElderAccountId = willExpand ? userId : null;
+  document.querySelectorAll('.account-item').forEach(item => {
+    item.classList.remove('expanded');
+    const button = item.querySelector('.account-summary-button');
+    const extra = item.querySelector('.account-extra');
+    if (button) button.setAttribute('aria-expanded', 'false');
+    if (extra) extra.setAttribute('aria-hidden', 'true');
+  });
+
+  if (willExpand) {
+    target.classList.add('expanded');
+    const button = target.querySelector('.account-summary-button');
+    const extra = target.querySelector('.account-extra');
+    if (button) button.setAttribute('aria-expanded', 'true');
+    if (extra) extra.setAttribute('aria-hidden', 'false');
+  }
+}
+
+function restoreElderAccountDetail() {
+  if (expandedElderAccountId === null) return;
+  const target = document.getElementById(`elder-account-item-${expandedElderAccountId}`);
+  if (!target) {
+    expandedElderAccountId = null;
+    return;
+  }
+  target.classList.add('expanded');
+  const button = target.querySelector('.account-summary-button');
+  const extra = target.querySelector('.account-extra');
+  if (button) button.setAttribute('aria-expanded', 'true');
+  if (extra) extra.setAttribute('aria-hidden', 'false');
+}
+
+function runElderAccountAction(event, action) {
+  event.stopPropagation();
+  const userId = activeElderAccountMenuUserId;
+  closeElderAccountMenu();
+  const user = users.find(item => Number(item.id) === Number(userId));
+  if (!user) {
+    toast('어르신 정보를 찾을 수 없습니다.');
+    return;
+  }
+
+  if (action === 'feedback') openFeedback(user.id, user.name);
+  else if (action === 'copy') copyPhoneNumber(user.name, user.phone);
+  else if (action === 'logout') remoteLogoutElder(user.id, user.name);
+  else if (action === 'delete') deleteElder(user.id, user.name);
+}
+
+document.addEventListener('click', () => closeElderAccountMenu());
+document.addEventListener('keydown', event => {
+  if (event.key === 'Escape' && activeElderAccountMenuUserId !== null) {
+    event.preventDefault();
+    closeElderAccountMenu(true);
+  }
+});
+document.addEventListener('scroll', () => closeElderAccountMenu(), true);
+window.addEventListener('resize', () => closeElderAccountMenu());
 
 async function assignElder(userId, name) {
   if (!confirm(`'${name}' 어르신을 담당 어르신으로 배정하시겠습니까?`)) return;

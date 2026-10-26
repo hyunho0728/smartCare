@@ -7,6 +7,74 @@
 .ai-error { color: #b91c1c; padding: 8px 0; }
 .table-scroll { overflow-x: auto; }
 .mobile-meal-header, .mobile-meal-cell { display:none; }
+
+/* 담당 어르신 계정 목록 */
+.account-list { display:flex; flex-direction:column; }
+.account-empty { padding:28px 20px; color:var(--muted); font-size:14px; text-align:center; }
+.account-item { border-bottom:1px solid #e8eef6; background:#fff; transition:background-color .2s ease; }
+.account-item:last-child { border-bottom:0; }
+.account-item:hover, .account-item.expanded { background:#f8fbff; }
+.account-summary { display:grid; grid-template-columns:minmax(0,1fr) 60px; align-items:stretch; }
+.account-summary-button {
+  min-width:0;
+  padding:18px 8px 18px 22px;
+  border:0;
+  background:transparent;
+  color:inherit;
+  font:inherit;
+  text-align:left;
+  cursor:pointer;
+}
+.account-summary-button:focus-visible, .account-more-button:focus-visible { outline:3px solid rgba(37,99,235,.3); outline-offset:-3px; }
+.account-primary { display:flex; align-items:center; gap:9px; min-width:0; margin-bottom:12px; }
+.account-primary b { overflow:hidden; font-size:16px; text-overflow:ellipsis; white-space:nowrap; }
+.account-primary > span { flex:0 0 auto; padding:4px 8px; border-radius:999px; background:#eef4ff; color:#2563eb; font-size:12px; font-weight:800; }
+.account-contact-grid { display:grid; grid-template-columns:minmax(180px,.65fr) minmax(0,1.35fr); gap:12px 24px; }
+.account-contact { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:start; gap:8px; min-width:0; }
+.account-contact small { color:#64748b; font-size:12px; font-weight:800; line-height:1.5; white-space:nowrap; }
+.account-contact b { min-width:0; color:#334155; font-size:14px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; word-break:keep-all; }
+.account-phone b { white-space:nowrap; }
+.account-more-button {
+  align-self:center;
+  justify-self:center;
+  width:44px;
+  height:44px;
+  padding:0 0 8px;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:transparent;
+  color:#475569;
+  font-family:inherit;
+  font-size:26px;
+  font-weight:900;
+  line-height:1;
+  cursor:pointer;
+}
+.account-more-button:hover, .account-more-button[aria-expanded="true"] { border-color:#bfdbfe; background:#eff6ff; color:#1d4ed8; }
+.account-extra { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .25s ease, opacity .2s ease; }
+.account-extra-inner { min-height:0; overflow:hidden; }
+.account-extra-fields { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px 24px; margin:0; padding:0 22px 18px; }
+.account-extra-fields > div { min-width:0; padding-top:14px; border-top:1px solid #dbe7f6; }
+.account-extra-fields dt { margin:0 0 5px; color:#64748b; font-size:12px; font-weight:800; }
+.account-extra-fields dd { margin:0; color:#172033; font-size:14px; font-weight:800; line-height:1.5; overflow-wrap:anywhere; word-break:keep-all; }
+.account-item.expanded .account-extra { grid-template-rows:1fr; opacity:1; }
+.account-action-menu {
+  position:fixed;
+  z-index:120;
+  width:176px;
+  padding:6px;
+  border:1px solid #dbe4ef;
+  border-radius:14px;
+  background:#fff;
+  box-shadow:0 18px 45px rgba(15,23,42,.2);
+}
+.account-action-menu[hidden] { display:none !important; }
+.account-action-menu button { display:block; width:100%; min-height:40px; padding:9px 11px; border:0; border-radius:9px; background:transparent; color:#334155; font:inherit; font-size:13px; font-weight:800; text-align:left; cursor:pointer; }
+.account-action-menu button:hover, .account-action-menu button:focus-visible { background:#eff6ff; color:#1d4ed8; outline:none; }
+.account-action-menu .account-menu-warning { color:#b45309; }
+.account-action-menu .account-menu-danger { color:#dc2626; }
+.account-action-menu .account-menu-danger:hover, .account-action-menu .account-menu-danger:focus-visible { background:#fff1f2; color:#b91c1c; }
+
 @media(max-width:768px) {
   .layout, .layout.collapsed, .layout:not(.sidebar-expanded) { display: block; }
   .main { padding: 16px 12px 30px; }
@@ -48,6 +116,15 @@
   .checkup-del-btn { min-width: 44px; min-height: 44px; }
   .chart { padding: 16px 12px; }
   .chart-person-select { max-width: 100%; min-height: 44px; }
+  .account-summary { grid-template-columns:minmax(0,1fr) 52px; }
+  .account-summary-button { padding:15px 4px 15px 14px; }
+  .account-primary { margin-bottom:10px; }
+  .account-contact-grid { grid-template-columns:minmax(0,1fr); gap:7px; }
+  .account-contact { grid-template-columns:88px minmax(0,1fr); gap:7px; }
+  .account-phone b { white-space:normal; }
+  .account-extra-fields { grid-template-columns:minmax(0,1fr); gap:9px; padding:0 14px 15px; }
+  .account-extra-fields > div { display:grid; grid-template-columns:88px minmax(0,1fr); gap:7px; padding-top:11px; }
+  .account-extra-fields dt { margin:0; }
   .table { min-width: 620px; }
   .table.elder-cards { display: block; min-width: 0; }
   .elder-cards thead { display: none; }
@@ -77,7 +154,10 @@
   .elder-cards tr:not(.main-row):not(.detail-row) td { display: block; }
   .analysis-box, .alert-card, .action-card { max-width: 100%; }
 }
-@media(prefers-reduced-motion:reduce) { .ai-spinner { animation: none !important; } }
+@media(prefers-reduced-motion:reduce) {
+  .ai-spinner { animation:none !important; }
+  .account-item, .account-extra { transition:none !important; }
+}
 
 /* 종합 분석의 근거와 이력을 작은 화면 안에 배치한다. */
 .life-ai-result { overflow-wrap: anywhere; }
