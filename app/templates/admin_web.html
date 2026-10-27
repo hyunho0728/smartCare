@@ -1537,6 +1537,18 @@ function renderOtherSections() {
                     <small>주소</small>
                     <b>${address}</b>
                   </span>
+                  <span class="account-contact account-desktop-contact account-disease">
+                    <small>기저질환</small>
+                    <b>${disease}</b>
+                  </span>
+                  <span class="account-contact account-desktop-contact account-created-at">
+                    <small>등록일</small>
+                    <b>${createdAt}</b>
+                  </span>
+                  <span class="account-contact account-desktop-contact account-emergency-contact">
+                    <small>보호자 연락처</small>
+                    <b>${emergencyContact}</b>
+                  </span>
                 </span>
               </button>
               <button type="button" class="account-more-button"
@@ -1557,6 +1569,7 @@ function renderOtherSections() {
         `;
       }).join('');
       restoreElderAccountDetail();
+      syncElderAccountDetailMode();
     }
   }
 
@@ -1634,6 +1647,7 @@ function renderOtherSections() {
 let activeElderAccountMenuUserId = null;
 let activeElderAccountMenuButton = null;
 let expandedElderAccountId = null;
+const elderAccountDesktopQuery = window.matchMedia('(min-width:1201px)');
 
 function closeElderAccountMenu(restoreFocus = false) {
   const menu = document.getElementById('elder-account-action-menu');
@@ -1680,6 +1694,7 @@ function toggleElderAccountMenu(event, userId) {
 }
 
 function toggleElderAccountDetail(userId) {
+  if (elderAccountDesktopQuery.matches) return;
   closeElderAccountMenu();
   const target = document.getElementById(`elder-account-item-${userId}`);
   if (!target) return;
@@ -1704,7 +1719,7 @@ function toggleElderAccountDetail(userId) {
 }
 
 function restoreElderAccountDetail() {
-  if (expandedElderAccountId === null) return;
+  if (expandedElderAccountId === null || elderAccountDesktopQuery.matches) return;
   const target = document.getElementById(`elder-account-item-${expandedElderAccountId}`);
   if (!target) {
     expandedElderAccountId = null;
@@ -1716,6 +1731,30 @@ function restoreElderAccountDetail() {
   if (button) button.setAttribute('aria-expanded', 'true');
   if (extra) extra.setAttribute('aria-hidden', 'false');
 }
+
+function syncElderAccountDetailMode() {
+  document.querySelectorAll('.account-item').forEach(item => {
+    const button = item.querySelector('.account-summary-button');
+    const extra = item.querySelector('.account-extra');
+    if (!button || !extra) return;
+
+    if (elderAccountDesktopQuery.matches) {
+      item.classList.remove('expanded');
+      button.tabIndex = -1;
+      button.setAttribute('aria-disabled', 'true');
+      button.setAttribute('aria-expanded', 'false');
+      extra.setAttribute('aria-hidden', 'true');
+    } else {
+      button.removeAttribute('tabindex');
+      button.removeAttribute('aria-disabled');
+    }
+  });
+  if (elderAccountDesktopQuery.matches) expandedElderAccountId = null;
+}
+
+elderAccountDesktopQuery.addEventListener('change', () => {
+  syncElderAccountDetailMode();
+});
 
 function runElderAccountAction(event, action) {
   event.stopPropagation();

@@ -34,6 +34,7 @@
 .account-contact small { color:#64748b; font-size:12px; font-weight:800; line-height:1.5; white-space:nowrap; }
 .account-contact b { min-width:0; color:#334155; font-size:14px; font-weight:700; line-height:1.5; overflow-wrap:anywhere; word-break:keep-all; }
 .account-phone b { white-space:nowrap; }
+.account-desktop-contact { display:none; }
 .account-more-button {
   align-self:center;
   justify-self:center;
@@ -75,6 +76,30 @@
 .account-action-menu .account-menu-danger { color:#dc2626; }
 .account-action-menu .account-menu-danger:hover, .account-action-menu .account-menu-danger:focus-visible { background:#fff1f2; color:#b91c1c; }
 .action-history-detail-row { display:none; }
+
+@media(min-width:1201px) {
+  .account-summary-button {
+    display:grid;
+    grid-template-columns:minmax(180px,1fr) minmax(0,1.4fr) minmax(0,.9fr) minmax(90px,.7fr) minmax(130px,1fr);
+    grid-template-rows:auto auto;
+    grid-template-areas:'name address disease created emergency' 'phone address disease created emergency';
+    column-gap:16px;
+    row-gap:8px;
+    align-items:center;
+  }
+  .account-primary { grid-area:name; margin-bottom:0; }
+  .account-contact-grid { display:contents; }
+  .account-phone { grid-area:phone; }
+  .account-address { grid-area:address; }
+  .account-disease { grid-area:disease; }
+  .account-created-at { grid-area:created; }
+  .account-emergency-contact { grid-area:emergency; }
+  .account-contact { display:grid; grid-template-columns:auto minmax(0,1fr); align-items:center; gap:8px; }
+  .account-desktop-contact { display:grid; }
+  .account-contact b { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .account-summary-button { cursor:default; }
+  .account-extra { display:none; }
+}
 
 @media(min-width:769px) {
   .action-history-table { table-layout:fixed; }
