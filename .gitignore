@@ -107,4 +107,15 @@ Thumbs.db
 .coverage
 htmlcov/
 .pytest_cache/
+.coverage.*
+coverage.xml
+.tox/
+.nox/
+/test/
+/tests/
+test_*.py
+*_test.py
+conftest.py
+/docs/test-results/
+/docs/test-report-*.md
 
