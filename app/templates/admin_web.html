@@ -113,9 +113,12 @@
   gap:8px;
   padding:18px 20px 0;
   border-bottom:1px solid var(--line);
+  overflow-x:auto;
+  flex-wrap:nowrap;
 }
 
 .alert-tab{
+  flex:0 0 auto;
   border:0;
   background:transparent;
   padding:12px 20px;
@@ -124,6 +127,7 @@
   color:var(--muted);
   cursor:pointer;
   border-bottom:3px solid transparent;
+  white-space:nowrap;
 }
 
 .alert-tab:hover{
@@ -675,20 +679,27 @@
             </div>
             <h4 class="status-alert-state-title">현재 대상자 상태 · 상태 변화 알림과 별도</h4>
 
-            <table class="table">
-              <thead>
-                <tr>
-                  <th>분석 기준 시각</th>
-                  <th>대상자</th>
-                  <th>연락처</th>
-                  <th>위험 단계</th>
-                  <th>권장 조치</th>
-                  <th>조치</th>
-                </tr>
-              </thead>
+            <div
+              class="table-scroll"
+              data-current-status-table
+              role="region"
+              aria-label="현재 대상자 상태 표"
+              tabindex="0">
+              <table class="table">
+                <thead>
+                  <tr>
+                    <th>분석 기준 시각</th>
+                    <th>대상자</th>
+                    <th>연락처</th>
+                    <th>위험 단계</th>
+                    <th>권장 조치</th>
+                    <th>조치</th>
+                  </tr>
+                </thead>
 
-              <tbody id="current-status-tbody"></tbody>
-            </table>
+                <tbody id="current-status-tbody"></tbody>
+              </table>
+            </div>
           </div>
 
           <!-- 긴급호출 알림 -->
@@ -902,26 +913,39 @@ let users = [];
 const latestHealthStatuses = new Map();
 let viewportRestoreFrame = null;
 let viewportRestoreStyles = null;
+let viewportRestorePosition = null;
 function preserveViewportDuringRender(render) {
   // Keep the scroll range while observers restore expanded AI and graph panels.
   const root = document.documentElement;
   const body = document.body;
   if (!viewportRestoreStyles) {
     viewportRestoreStyles = {minHeight: body.style.minHeight, overflowAnchor: root.style.overflowAnchor};
+    viewportRestorePosition = {x: window.scrollX, y: window.scrollY};
   }
   body.style.minHeight = `${Math.max(root.scrollHeight, body.scrollHeight)}px`;
   root.style.overflowAnchor = 'none';
   if (viewportRestoreFrame !== null) cancelAnimationFrame(viewportRestoreFrame);
-  try { render(); }
+  try {
+    render();
+    window.scrollTo({
+      left: viewportRestorePosition.x,
+      top: viewportRestorePosition.y,
+      behavior: 'instant'
+    });
+  }
   finally {
     viewportRestoreFrame = requestAnimationFrame(() => {
-      // Do not undo a deliberate scroll made since the DOM update.
-      const nextX = window.scrollX, nextY = window.scrollY;
-      body.style.minHeight = viewportRestoreStyles.minHeight;
-      window.scrollTo({left: nextX, top: nextY, behavior: 'instant'});
-      root.style.overflowAnchor = viewportRestoreStyles.overflowAnchor;
-      viewportRestoreStyles = null;
-      viewportRestoreFrame = null;
+      const styles = viewportRestoreStyles;
+      const position = viewportRestorePosition;
+      body.style.minHeight = styles.minHeight;
+      window.scrollTo({left: position.x, top: position.y, behavior: 'instant'});
+      viewportRestoreFrame = requestAnimationFrame(() => {
+        window.scrollTo({left: position.x, top: position.y, behavior: 'instant'});
+        root.style.overflowAnchor = styles.overflowAnchor;
+        viewportRestoreStyles = null;
+        viewportRestorePosition = null;
+        viewportRestoreFrame = null;
+      });
     });
   }
 }

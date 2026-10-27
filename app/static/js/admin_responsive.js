@@ -49,6 +49,7 @@
   }
   new MutationObserver(labelRows).observe(elderTable.querySelector('tbody'), {childList: true}); labelRows();
   document.querySelectorAll('.table:not(.elder-cards)').forEach(table => {
+    if (table.parentElement?.classList.contains('table-scroll')) return;
     const wrapper = document.createElement('div'); wrapper.className = 'table-scroll';
     wrapper.tabIndex = 0; wrapper.setAttribute('role', 'region'); wrapper.setAttribute('aria-label', '목록 표 (좌우 스크롤 가능)');
     table.before(wrapper); wrapper.append(table);

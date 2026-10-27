@@ -5,7 +5,18 @@
 .chart svg, .mini-chart-v2 svg { max-width: 100%; }
 .ai-loading { display: flex; align-items: center; gap: 10px; padding: 12px 0; color: #1d4ed8; }
 .ai-error { color: #b91c1c; padding: 8px 0; }
-.table-scroll { overflow-x: auto; }
+.table-scroll { max-width:100%; overflow-x:auto; }
+[data-current-status-table] > .table { width:620px; min-width:100%; }
+[data-current-status-table] > .table,
+#emergency-alert-content .table { white-space:nowrap; }
+[data-current-status-table] .badge { max-width:none; white-space:nowrap; }
+[data-current-status-table] th:nth-child(5),
+[data-current-status-table] td:nth-child(5),
+#emergency-alert-content th:nth-child(5),
+#emergency-alert-content td:nth-child(5) { text-align:center; }
+[data-current-status-table] td:nth-child(5) .badge { justify-content:center; }
+#emergency-alert-content td:nth-child(5) .badge { justify-content:center; }
+#emergency-alert-content .table { width:720px; min-width:100%; }
 .mobile-meal-header, .mobile-meal-cell { display:none; }
 
 /* 담당 어르신 계정 목록 */

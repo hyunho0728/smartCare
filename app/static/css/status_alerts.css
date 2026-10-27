@@ -15,7 +15,7 @@
 .status-alert-toolbar > button { flex-shrink:0; }
 .status-alert-section > .status-alert-meta { margin-bottom:12px; }
 .status-alert-section > .status-alert-error:not(:empty) { margin-bottom:12px; }
-.status-alert-state-title { padding:18px 22px 14px; }
+.status-alert-state-title { padding:18px 22px 14px; overflow-x:auto; white-space:nowrap; }
 .status-alert-panel { padding-bottom:16px; }
 .status-alert-panel > button, .status-alert-panel > p { margin-left:16px; margin-right:16px; }
 .status-alert-card { border:1px solid #dae4f4; border-left:4px solid #dc2626; border-radius:14px; padding:14px; margin:12px 0; overflow-wrap:anywhere; background:#fff; }
