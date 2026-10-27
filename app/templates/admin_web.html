@@ -203,6 +203,12 @@
 .quick-card-v2 span{display:block;font-size:12px;color:#64748b;font-weight:900;margin-bottom:6px;white-space:nowrap;}
 .quick-card-v2 b{font-size:14px;word-break:keep-all;line-height:1.45;}
 .quick-card-v2 .meal-inline{display:flex;flex-direction:column;gap:2px;font-size:13px;}
+.quick-card-v2 .meal-status-segments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));align-items:center;font-size:12px;}
+.quick-card-v2 .meal-status-segments>div{min-width:0;padding:0 8px;text-align:center;white-space:nowrap;}
+.quick-card-v2 .meal-status-segments>div:first-child{padding-left:0;}
+.quick-card-v2 .meal-status-segments>div:last-child{padding-right:0;}
+.quick-card-v2 .meal-status-segments>div+div{border-left:1px solid #cbd5e1;}
+.quick-card-v2 .meal-status-segments b{font-size:13px;}
 
 .ai-panel-v2{background:#fff;border:1px solid #dbe7f6;border-radius:26px;padding:20px 22px;box-shadow:0 14px 34px rgba(37,99,235,.10);border-left:8px solid var(--red);}
 .ai-panel-head-v2{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px;}
@@ -2168,9 +2174,15 @@ function renderTable(){
 
     if (u.meal_short && typeof u.meal_short === 'string' && u.meal_short.includes('<br>')) {
       const parts = u.meal_short.split('<br>');
-      breakfastDisplay = parts[0] ? parts[0].replace('아침: ', '').replace('아침 ', '') : '-';
-      lunchDisplay = parts[1] ? parts[1].replace('점심: ', '').replace('점심 ', '') : '-';
-      dinnerDisplay = parts[2] ? parts[2].replace('저녁: ', '').replace('저녁 ', '') : '-';
+      const normalizeMealDisplay = (value, label) => {
+        const normalized = String(value || '')
+          .replace(new RegExp(`^\\s*[•·-]?\\s*${label}\\s*[:：]*\\s*`), '')
+          .trim();
+        return normalized || '-';
+      };
+      breakfastDisplay = normalizeMealDisplay(parts[0], '아침');
+      lunchDisplay = normalizeMealDisplay(parts[1], '점심');
+      dinnerDisplay = normalizeMealDisplay(parts[2], '저녁');
     } else {
       breakfastDisplay = '미입력';
       lunchDisplay = '미입력';
@@ -2293,7 +2305,7 @@ function renderTable(){
                 <div class="info-card-v2"><span>보호자 연락처</span><b>${u.emergency_contact || '보호자 미등록'}</b></div>
                 <div class="info-card-v2"><span>기저질환</span><b>${escapeDiseaseText(u.disease)}</b></div>
                 <div class="info-card-v2">
-                  <span>오늘 식사 여부</span>
+                  <span>최근 식사 여부</span>
                   <div class="meal-inline" style="margin-top:4px;">
                     <div>• 아침: <b>${breakfastDisplay}</b></div>
                     <div>• 점심: <b>${lunchDisplay}</b></div>
@@ -2347,8 +2359,10 @@ function renderTable(){
                   </div>
                   <div class="quick-card-v2">
                     <span>식사 상태</span>
-                    <div class="meal-inline">
-                      <div><b>${u.meal}</b></div>
+                    <div class="meal-status-segments">
+                      <div>아침 : <b>${escapeDiseaseText(breakfastDisplay)}</b></div>
+                      <div>점심 : <b>${escapeDiseaseText(lunchDisplay)}</b></div>
+                      <div>저녁 : <b>${escapeDiseaseText(dinnerDisplay)}</b></div>
                     </div>
                   </div>
                   <div class="quick-card-v2">
