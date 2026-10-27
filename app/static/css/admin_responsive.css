@@ -102,6 +102,14 @@
 }
 
 @media(min-width:769px) {
+  .table.elder-cards { table-layout:fixed; }
+  .elder-cards th:nth-child(1) { width:24%; }
+  .elder-cards th:nth-child(2) { width:8%; }
+  .elder-cards th:nth-child(3) { width:20%; }
+  .elder-cards th:nth-child(4) { width:20%; }
+  .elder-cards th:nth-child(5) { width:14%; }
+  .elder-cards th:nth-child(7) { width:14%; }
+  .elder-cards th { white-space:nowrap; }
   .action-history-table { table-layout:fixed; }
   .action-history-table th:nth-child(1), .action-history-table td:nth-child(1) { width:20%; }
   .action-history-table th:nth-child(2), .action-history-table td:nth-child(2) { width:12%; }
@@ -121,6 +129,22 @@
 }
 
 @media(min-width:769px) and (max-width:1200px) {
+  .elder-cards th { padding:12px 8px; white-space:nowrap; }
+  .elder-cards .main-row td { min-width:0; padding:13px 8px; overflow:hidden; }
+  .elder-cards .person { min-width:0; gap:8px; }
+  .elder-cards .avatar { width:36px; height:36px; flex:0 0 36px; font-size:18px; }
+  .elder-cards .person > div:last-child { min-width:0; }
+  .elder-cards .person br { display:none; }
+  .elder-cards .person b,
+  .elder-cards .person small { display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .elder-cards .elder-card-age,
+  .elder-cards .elder-card-last,
+  .elder-cards .elder-card-health { text-overflow:ellipsis; white-space:nowrap !important; }
+  .elder-cards .gauge { min-width:0; gap:6px; }
+  .elder-cards .circle { width:36px; height:36px; flex:0 0 36px; border-width:3px; }
+  .elder-cards .gauge .badge { min-width:0; padding:6px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .elder-cards .elder-card-management .actions { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
+  .elder-cards .elder-card-management .mini-btn { width:100%; padding:7px 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .action-history-table th { padding:12px 9px; font-size:11px; }
   .action-history-table td { padding:13px 9px; font-size:12px; }
 }
