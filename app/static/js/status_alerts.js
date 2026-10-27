@@ -16,7 +16,7 @@
   };
   const navButton = document.querySelector('.nav button[onclick*="alerts"]');
   if (navButton) {
-    const badge = el('span', '0'); badge.hidden = true; badge.dataset.statusAlertCount = ''; badge.setAttribute('aria-label', '읽지 않음 알림 수'); navButton.append(badge);
+    const badge = el('span', '0', 'nav-alert-count'); badge.hidden = true; badge.dataset.statusAlertCount = ''; badge.setAttribute('aria-label', '읽지 않음 알림 수'); navButton.append(badge);
   }
   const notice = el('div', undefined, 'status-alert-notice'); notice.hidden = true;
   notice.setAttribute('role', 'status'); document.body.append(notice);
@@ -44,9 +44,11 @@
     return data;
   }
   function setUnreadCount(count) {
+    const unreadCount = Math.max(0, Number(count) || 0);
     document.querySelectorAll('[data-status-alert-count]').forEach(node => {
-      node.textContent = count;
-      node.hidden = Number(count) <= 0;
+      node.textContent = node.classList.contains('nav-alert-count') && unreadCount > 99 ? '99+' : unreadCount;
+      node.hidden = unreadCount <= 0;
+      node.setAttribute('aria-label', `읽지 않음 알림 ${unreadCount}건`);
     });
   }
   function transition(a) {
