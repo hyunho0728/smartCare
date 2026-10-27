@@ -74,6 +74,31 @@
 .account-action-menu .account-menu-warning { color:#b45309; }
 .account-action-menu .account-menu-danger { color:#dc2626; }
 .account-action-menu .account-menu-danger:hover, .account-action-menu .account-menu-danger:focus-visible { background:#fff1f2; color:#b91c1c; }
+.action-history-detail-row { display:none; }
+
+@media(min-width:769px) {
+  .action-history-table { table-layout:fixed; }
+  .action-history-table th:nth-child(1), .action-history-table td:nth-child(1) { width:20%; }
+  .action-history-table th:nth-child(2), .action-history-table td:nth-child(2) { width:12%; }
+  .action-history-table th:nth-child(3), .action-history-table td:nth-child(3) { width:15%; }
+  .action-history-table th:nth-child(4), .action-history-table td:nth-child(4) { width:33%; }
+  .action-history-table th:nth-child(5), .action-history-table td:nth-child(5) { width:20%; }
+  .action-history-table .action-history-action-time-cell,
+  .action-history-table .action-history-name-cell,
+  .action-history-table .action-history-type-cell,
+  .action-history-table .action-history-alert-time-cell { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .action-history-table .action-history-type-cell .badge { display:inline-block; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; vertical-align:middle; }
+  .action-history-feedback-preview { display:-webkit-box; overflow:hidden; line-height:1.55; overflow-wrap:anywhere; word-break:keep-all; -webkit-box-orient:vertical; -webkit-line-clamp:2; }
+  .action-history-feedback-wrap.expanded .action-history-feedback-preview { display:block; overflow:visible; -webkit-line-clamp:unset; }
+  .action-history-feedback-toggle { margin-top:7px; padding:2px 0; border:0; background:transparent; color:var(--blue); font:inherit; font-size:12px; font-weight:900; cursor:pointer; }
+  .action-history-feedback-toggle:hover, .action-history-feedback-toggle:focus-visible { color:#1d4ed8; text-decoration:underline; outline:none; }
+  .action-history-feedback-toggle[hidden] { display:none; }
+}
+
+@media(min-width:769px) and (max-width:1200px) {
+  .action-history-table th { padding:12px 9px; font-size:11px; }
+  .action-history-table td { padding:13px 9px; font-size:12px; }
+}
 
 @media(max-width:768px) {
   .layout, .layout.collapsed, .layout:not(.sidebar-expanded) { display: block; }
@@ -125,6 +150,18 @@
   .account-extra-fields { grid-template-columns:minmax(0,1fr); gap:9px; padding:0 14px 15px; }
   .account-extra-fields > div { display:grid; grid-template-columns:88px minmax(0,1fr); gap:7px; padding-top:11px; }
   .account-extra-fields dt { margin:0; }
+  .action-history-table th:nth-child(4),
+  .action-history-table .action-history-feedback-cell { display:none; }
+  .action-history-table .action-history-main-row { cursor:pointer; }
+  .action-history-table .action-history-main-row:focus-visible { outline:3px solid rgba(37,99,235,.28); outline-offset:-3px; }
+  .action-history-table .action-history-detail-row { display:table-row; }
+  .action-history-table .action-history-detail-row > td { padding:0 !important; border-bottom:0; background:#f8fbff; }
+  .action-history-detail-slide { display:grid; grid-template-rows:0fr; opacity:0; transition:grid-template-rows .25s ease, opacity .2s ease; }
+  .action-history-detail-inner { min-height:0; overflow:hidden; }
+  .action-history-detail-content { margin:0 12px 12px; padding:12px 14px; border:1px solid #bfdbfe; border-radius:12px; background:#fff; }
+  .action-history-detail-content span { display:block; margin-bottom:6px; color:#64748b; font-size:12px; font-weight:800; }
+  .action-history-detail-content p { margin:0; color:#334155; font-size:14px; line-height:1.65; overflow-wrap:anywhere; word-break:keep-all; white-space:pre-wrap; }
+  .action-history-detail-row.expanded .action-history-detail-slide { grid-template-rows:1fr; opacity:1; }
   .table { min-width: 620px; }
   .table.elder-cards { display: block; min-width: 0; }
   .elder-cards thead { display: none; }
@@ -156,7 +193,7 @@
 }
 @media(prefers-reduced-motion:reduce) {
   .ai-spinner { animation:none !important; }
-  .account-item, .account-extra { transition:none !important; }
+  .account-item, .account-extra, .action-history-detail-slide { transition:none !important; }
 }
 
 /* 종합 분석의 근거와 이력을 작은 화면 안에 배치한다. */
