@@ -110,6 +110,9 @@
   .elder-cards th:nth-child(5) { width:14%; }
   .elder-cards th:nth-child(7) { width:14%; }
   .elder-cards th { white-space:nowrap; }
+  .elder-cards th:nth-child(7),
+  .elder-cards .elder-card-management { text-align:center; }
+  .elder-cards .elder-card-management .actions { justify-content:center; flex-wrap:nowrap; }
   .action-history-table { table-layout:fixed; }
   .action-history-table th:nth-child(1), .action-history-table td:nth-child(1) { width:20%; }
   .action-history-table th:nth-child(2), .action-history-table td:nth-child(2) { width:12%; }
@@ -143,8 +146,8 @@
   .elder-cards .gauge { min-width:0; gap:6px; }
   .elder-cards .circle { width:36px; height:36px; flex:0 0 36px; border-width:3px; }
   .elder-cards .gauge .badge { min-width:0; padding:6px 8px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .elder-cards .elder-card-management .actions { display:grid; grid-template-columns:minmax(0,1fr); gap:6px; }
-  .elder-cards .elder-card-management .mini-btn { width:100%; padding:7px 5px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .elder-cards .elder-card-management .actions { display:flex; gap:6px; }
+  .elder-cards .elder-card-management .mini-btn { width:auto; max-width:100%; padding:7px 10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
   .action-history-table th { padding:12px 9px; font-size:11px; }
   .action-history-table td { padding:13px 9px; font-size:12px; }
 }
@@ -232,7 +235,7 @@
   .mobile-meal-values { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; }
   .mobile-meal-values span { padding:8px 5px; border-radius:8px; background:#eef4fa; color:#64748b; text-align:center; font-size:12px; }
   .mobile-meal-values b { display:block; margin-top:3px; color:#172033; font-size:13px; }
-  .elder-card-management .actions { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .elder-card-management .actions { display:grid; grid-template-columns:minmax(0,1fr); gap:8px; }
   .elder-card-management .actions button { width:100%; }
   .elder-cards .detail-row.open { display: block; }
   .elder-cards .detail-row > td { display: block; padding: 0; }
